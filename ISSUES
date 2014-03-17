@@ -1,0 +1,15 @@
+Issues/todos:
+
+   - load of serial DATA AVAIL triggers a read side effect.  The
+     proper way to deal with this is to generate the read byte enable
+     as well and propagate that.
+
+   - Finish RV32I: Add RDCYCLE, RDTIME, RDINSTRET
+
+   - IO should burden the memory bus; transition to the use of CSRs
+
+   - the simple implementation should use a unified memory for
+     instruction and data
+
+   - RV32G and CSR suport.  Limited exception handling, interrupts
+     support.

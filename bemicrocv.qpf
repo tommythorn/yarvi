@@ -1,0 +1,6 @@
+QUARTUS_VERSION = "13.0"
+DATE = "21:56:43  October 20, 2013"
+
+# Revisions
+
+PROJECT_REVISION = "bemicrocv"

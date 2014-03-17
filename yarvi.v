@@ -10,264 +10,405 @@
 //
 // -----------------------------------------------------------------------
 
+/*************************************************************************
+
+This is an attempt at making a nearly as simple as possible implementation
+of RISC-V RV32I.  The present subset is a simple one-hot state machine.
+The desire to use block ram for memories *and* register file dictates the
+need for at least three stages:
+
+                        Unpipelined State Machine
+                              IF -> DE -> EX
+                               ^----------/
+
+This guarantees a CPI of 3 as no hazards can occur (we don't currently
+deal with memory waits).  Since branches only depend on registers, we can
+trivially lower this to 2 cycles by issuing branches from DE and thus
+overlap EX with IF for the next instruction (a fairly standard trick):
+
+                    Partically Pipelined State Machine
+
+                              IF -> DE -> EX
+                               ^----/
+
+There are two obvious directions from here:
+
+1) Have two hardware threads interleave the pipeline, getting 100%
+   utilization.
+
+2) Overlap IF/EX with DE.  This requires solving two problems:
+
+   a) Back-to-back dependencies will require forwarding the result
+      from EX to DE.
+
+      Adds to the critical path through EX
+
+   b) We have to assume or "predict" the outcome of branches and
+      compensate for mistakes.
+
+      The compensation implies interlocks (stalling) and/or
+      restarts/flushes.  All of this is likely to add to a critical path.
+
+
+
+ Below we focus on the Unpipelined State Machine
+
+ CONVENTION:
+   var = array[r], where r is a [subfield of] a register assigned with <=
+   r <= y, only if y is a [subfield of] a name (register or wire)
+   All memory reads must be in the form:
+
+                                   wire q = mem[y];
+
+   Names reflect the stage/state from which they are outputs, eg. if_inst
+   is the instruction fetched in IF, de_rs1_val the value of rs1 fetched
+   by DE, etc.
+
+ Conceptually: (where <= is a synchronous assignment and = an alias)
+
+   if_pc <= if_pc + 4
+   if_inst = code[if_pc]
+
+   de_pc <= if_pc
+   de_inst <= if_inst
+   de_rs1_val = regs[de_inst`rs1]
+   de_rs2_val = regs[de_inst`rs2]
+   ex_load_addr = de_rs1_val + de_inst`off
+
+   ex_pc <= de_pc
+   ex_inst <= de_inst
+   ex_rs1_val <= de_rs1_val
+   ex_rs2_val <= de_rs2_val
+   ex_load_addr <= de_load_addr
+
+   ex_res = ex_inst`opcode == ADD ? ex_rs1_val + ex_rs2_val
+                                  : ex_rs1_val - ex_rs2_val
+
+   ex_loaded = memory[ex_load_addr]
+
+   regs[ex_inst`rd] <= ex_inst`opcode == LOAD ? ex_loaded : ex_res
+
+
+   With bypass:
+
+      de_rs1_val = de_inst`rs1 == ex_inst`rd ? ex_res : regs[de_inst`rs1]
+      de_rs2_val = de_inst`rs2 == ex_inst`rd ? ex_res : regs[de_inst`rs2]
+
+*************************************************************************/
+
+
 `timescale 1ns/10ps
 
-module test();
-   reg clock, reset = 1;
+`include "riscv.h"
 
-   always #5 clock = ~clock;
-
-   yarvi yarvi(clock, reset);
-
-   initial begin
-      #12
-      reset = 0;
-   end
-   initial
-     clock = 1;
-endmodule
-
-`define LOAD		 0
-`define LOAD_FP	         1
-`define CUSTOM0		 2
-`define MISC_MEM	 3
-`define OP_IMM		 4
-`define AUIPC		 5
-`define OP_IMM_32	 6
-`define EXT0		 7
-`define STORE		 8
-`define STORE_FP	 9
-`define CUSTOM1		10
-`define AMO		11
-`define OP		12
-`define LUI		13
-`define OP_32		14
-`define EXT1		15
-`define MADD		16
-`define MSUB		17
-`define NMSUB		18
-`define NMADD		19
-`define OP_FP		20
-`define RES1		21
-`define CUSTOM2		22
-`define EXT2		23
-`define BRANCH		24
-`define JALR		25
-`define RES0		26
-`define JAL		27
-`define SYSTEM		28
-`define RES2		29
-`define CUSTOM3		30
-`define EXT3		31
-
-`define ADD		0
-`define SLL		1
-`define SLT		2
-`define SLTU		3
-`define XOR		4
-`define SR_		5
-`define OR		6
-`define AND		7
-
-
-module yarvi(input clock, input reset);
-
-   reg [31:0] pc	= 'h 74;
-   reg [31:0] regs[0:31];
-
-   reg [31:0] inst;
-   reg [31:0] res;
-
-   always @*
-     casex (pc[31:0])
-        'h 74:	inst = 'h 800f8b13;
-        'h 78:	inst = 'h c00f8b93;
-        'h 7c:	inst = 'h 500b0c93;
-        'h 80:	inst = 'h 00500a13;
-        'h 84:	inst = 'h 00400a93;
-        'h 88:	inst = 'h 00200893;
-        'h 8c:	inst = 'h 000b8d13;
-        'h 90:	inst = 'h 00100993;
-        'h 94:	inst = 'h 000c8913;
-        'h 98:	inst = 'h 10000c13;
-        'h 9c:	inst = 'h 011b8833;
-        'h a0:	inst = 'h 00084803;
-        'h a4:	inst = 'h 02081063;
-        'h a8:	inst = 'h 015d0833;
-        'h ac:	inst = 'h 011b2023;
-        'h b0:	inst = 'h 004b0b13;
-        'h b4:	inst = 'h 01987863;
-        'h b8:	inst = 'h 01380023;
-        'h bc:	inst = 'h 01180833;
-        'h c0:	inst = 'h ff286ce3;
-        'h c4:	inst = 'h 00188893;
-        'h c8:	inst = 'h 014a8ab3;
-        'h cc:	inst = 'h 002a0a13;
-        'h d0:	inst = 'h fd8896e3;
-        'h d4:	inst = 'h 00008067;
-        default:inst = 'h ZZZZZZZZ;
-    endcase
-
-`define MEMWORDS_LG2 16
+`define MEMWORDS_LG2 15 // 128 KiB
 `define MEMWORDS (1 << `MEMWORDS_LG2)
-   reg [31:0] mem[0:`MEMWORDS-1];
+`define INIT_PC 'h1000_0054
+`define DATA_START 32'h1000_0000
 
-   // R-type
-   wire [ 1:0] opext	= inst[1 : 0];
-   wire [ 4:0] opcode	= inst[6 : 2];
-   wire [ 4:0] rd	= inst[11: 7];
-   wire [ 2:0] funct3	= inst[14:12];
-   wire [ 4:0] rs1	= inst[19:15];
-   wire [ 4:0] rs2	= inst[24:20];
-   wire [ 6:0] funct7	= inst[31:25];
+module yarvi( input  wire        clk
+            , input  wire        reset
 
-   wire        sign	= inst[31];
-   wire [19:0] sign20	= {20{sign}};
-   wire [11:0] sign12	= {12{sign}};
+            , output reg  [29:0] address
+            , output reg         writeenable = 0
+            , output reg  [31:0] writedata
+            , output reg  [ 3:0] byteena
+            , output reg         readenable = 0
+            , input  wire [31:0] readdata
+            );
+
+   reg  [31:0] regs[0:31];
+   reg  [31:0] code_mem [0:255];
+   reg  [ 7:0] mem0[`MEMWORDS-1:0];
+   reg  [ 7:0] mem1[`MEMWORDS-1:0];
+   reg  [ 7:0] mem2[`MEMWORDS-1:0];
+   reg  [ 7:0] mem3[`MEMWORDS-1:0];
+
+   reg         ex_valid = 0;
+   reg  [31:0] ex_pc_next;
+
+//// INSTRUCTION FETCH ////
+
+   reg         if_valid;
+   reg  [31:0] if_pc;
+
+   always @(posedge clk) begin
+      if_valid <= ex_valid | reset;
+      if_pc    <= reset ? `INIT_PC : ex_pc_next;
+   end
+
+   wire [31:0] if_inst = code_mem[if_pc[9:2]];
+
+//// DECODE AND REGISTER FETCH ////
+
+   reg         de_valid;
+   reg  [31:0] de_pc;
+   reg  [31:0] de_inst;
+
+   always @(posedge clk) begin
+      de_valid  <= if_valid & !reset;
+      de_pc     <= if_pc;
+      de_inst   <= if_inst;
+   end
+
+   wire [31:0] de_rs1_val      = regs[de_inst`rs1];
+   wire [31:0] de_rs2_val      = regs[de_inst`rs2];
+
+   wire [31:0] de_rs1_val_cmp  = (~de_inst`br_unsigned << 31) ^ de_rs1_val;
+   wire [31:0] de_rs2_val_cmp  = (~de_inst`br_unsigned << 31) ^ de_rs2_val;
+   wire        de_cmp_eq       = de_rs1_val     == de_rs2_val;
+   wire        de_cmp_lt       = de_rs1_val_cmp  < de_rs2_val_cmp;
+   wire        de_branch_taken = (de_inst`br_rela ? de_cmp_lt : de_cmp_eq) ^ de_inst`br_negate;
+
+   wire        de_sign         = de_inst[31];
+   wire [19:0] de_sign20       = {20{de_sign}};
+   wire [11:0] de_sign12       = {12{de_sign}};
 
    // I-type
-   wire [31:0] i_imm	= {sign20, funct7, rs2};
+   wire [31:0] de_i_imm        = {de_sign20, de_inst`funct7, de_inst`rs2};
 
    // S-type
-   wire [31:0] s_imm	= {sign20,        funct7,      rd};
-   wire [31:0] sb_imm	= {sign20, rd[0], funct7[5:0], rd[4:1], 1'd0};
+   wire [31:0] de_s_imm        = {de_sign20,           de_inst`funct7,      de_inst`rd};
+// This doesn't work, at least Icarus generates strange results
+// wire [31:0] de_sb_imm       = {de_sign20, de_inst`rd[0], de_inst`funct7[5:0], de_inst`rd[4:1], 1'd0};
+   wire [31:0] de_sb_imm       = {de_sign20, de_inst[7], de_inst[30:25], de_inst`rd & 5'd30};
 
    // U-type
-   wire [31:0] u_imm	= {sign12,funct7,rs2,rs1,funct3};
+// wire [31:0] de_u_imm        = {de_sign12, de_inst`funct7, de_inst`rs2, de_inst`rs1, de_inst`funct3};
+   wire [31:0] de_uj_imm       = {de_sign12, de_inst[19:12], de_inst[20], de_inst[30:21], 1'd0};
 
-   wire [31:0] rs1_val  = regs[rs1];
-   wire [31:0] rs2_val  = regs[rs2];
+   wire [31:0] de_rs2_val_or_imm = de_inst`opcode == `OP_IMM ? de_i_imm : de_rs2_val;
 
-   wire        br_negate  = funct3[0];
-   wire        br_signed  = funct3[1];
-   wire        br_rela    = funct3[2];
+   wire [31:0] de_load_addr    = de_rs1_val + de_i_imm;
+   wire [31:0] de_store_addr   = de_rs1_val + de_s_imm;
+   wire [`MEMWORDS_LG2-1:0]
+               de_store_ea     = de_store_addr[`MEMWORDS_LG2+1:2];
+   wire [ 3:0] de_bytemask     = de_inst`funct3 == 0 ? 4'd 1 : de_inst`funct3 == 1 ? 4'd 3 : 4'd 15;
+   wire [ 3:0] de_byteena      = de_bytemask << de_store_addr[1:0];
+   wire        de_store        = de_valid && de_inst`opcode == `STORE;
+   wire        de_store_local  = de_store && de_store_addr[31:`MEMWORDS_LG2+2] == (`DATA_START >> (`MEMWORDS_LG2 + 2));
+   wire [31:0] de_rs2_val_shl  = de_rs2_val << (de_store_addr[1:0]*8);
 
-   wire        cmp_eq     = rs1_val == rs2_val;
-   wire        cmp_lt     = ((br_signed << 31) ^ rs1_val) <  ((br_signed << 31) ^ rs2_val);
-   wire        branch_taken = (br_rela ? cmp_lt : cmp_eq) ^ br_negate;
+//// EXECUTE ////
 
-   reg  [31:0] mask, ea;
+   reg  [31:0] ex_inst, ex_load_addr;
 
-   always @(posedge clock) if (!reset) begin
-          if (opcode == `BRANCH && branch_taken)
-             pc <= pc + sb_imm;
-          else
-             pc <= pc + 4;
+   always @(posedge clk) begin
+      ex_valid     <= de_valid & !reset;
+      ex_inst      <= de_inst;
+      ex_load_addr <= de_load_addr;
+   end
 
-          case (opcode)
-          `OP_IMM: case (funct3)
-              `ADD: res = rs1_val + i_imm;
-              endcase
+   wire [`MEMWORDS_LG2-1:0] ex_load_ea = ex_load_addr[`MEMWORDS_LG2+1:2];
 
-          `OP: case (funct3)
-              `ADD: if (inst[30])
-              		res = rs1_val - rs2_val;
+
+   // XXX It would actually be trivial to support unaligned memory
+   // with this set up by just calculating a different ex_load_ea for
+   // every slice and rotate the loaded word rather than just shifting
+   // it. Similar for store.  Of course, IO loads must still be
+   // aligned as well as atomics.
+   wire [31:0] ex_ld =
+       ex_load_addr[31] ? readdata :
+       {mem3[ex_load_ea], mem2[ex_load_ea], mem1[ex_load_ea], mem0[ex_load_ea]};
+   reg  [31:0] ex_ld_shifted, ex_ld_res;
+
+   always @(*) begin
+      ex_ld_shifted = ex_ld >> (ex_load_addr[1:0] * 8);
+      case (ex_inst`funct3)
+         0: ex_ld_res = {{24{ex_ld_shifted[ 7]}}, ex_ld_shifted[ 7:0]};
+         1: ex_ld_res = {{16{ex_ld_shifted[15]}}, ex_ld_shifted[15:0]};
+         4: ex_ld_res = ex_ld_shifted[ 7:0];
+         5: ex_ld_res = ex_ld_shifted[15:0];
+         default: ex_ld_res = ex_ld;
+      endcase
+   end
+
+   // Note, this could be done in stage DE and thus give a pipelined
+   // implementation a single cycle branch penalty
+
+   always @(posedge clk) begin
+      ex_pc_next <= de_pc + 4;
+      case (de_inst`opcode)
+      `BRANCH: if (de_branch_taken) ex_pc_next <= de_pc + de_sb_imm;
+      `JALR: ex_pc_next <= (de_rs1_val + de_i_imm) & 32 'h ffff_fffe;
+      `JAL: ex_pc_next <= de_pc + de_uj_imm;
+      endcase
+   end
+
+   // XXX This violates the code style above but is trivial to fix
+   reg  [31:0] ex_res;
+   always @(posedge clk)
+      case (de_inst`opcode)
+         `OP_IMM, `OP:
+            case (de_inst`funct3)
+            `ADDSUB: if (de_inst[30] && de_inst`opcode == `OP)
+                        ex_res <= de_rs1_val - de_rs2_val_or_imm;
                     else
-              		res = rs1_val + rs2_val;
-              endcase
-
-          `LOAD: begin
-
-              // XXX We could ... make the memory 16-bit and burn two ports to handle
-              // all unaligned accesses.  It would make the load alignment slightly cheaper
-              // but that's offset by the less efficient use of memory.  Also, it kills the
-              // for-free dual-core shared memory.
-
-              ea      = rs1_val + i_imm;
-              res     = mem[ea[14:2]] >> (ea[1:0] * 8); // XXX doesn't handle unaligned correctly
-              if (ea[28:`MEMWORDS_LG2])
-                 res = 'h X;
-              case (funct3)
-              0: res = {{24{res[ 7]}}, res[ 7:0]};
-              1: res = {{16{res[15]}}, res[15:0]};
-              4: res = res[ 7:0];
-              5: res = res[15:0];
-              endcase
-          end
-
-          `STORE: begin
-              ea      = rs1_val + s_imm;
-              mask    = funct3 == 0 ? 'h FF : funct3 == 1 ? 'h FFFF : 'hFFFFF;
-              res     = rs2_val << (ea[1:0] * 8); // XXX doesn't handle unaligned correctly
-              mask    = mask    << (ea[1:0] * 8);
-
-              if (ea[28:`MEMWORDS_LG2]) begin
-                 $display("%x is outside mapped memory (%x)", ea, ea[28:`MEMWORDS_LG2]);
-                 $finish;
-              end
-
-              mem[ea[14:2]] = mem[ea[14:2]] & ~mask | res & mask;
-          end
+                        ex_res <= de_rs1_val + de_rs2_val_or_imm;
+            `SLL:  ex_res <= de_rs1_val << de_rs2_val_or_imm[4:0];
+            `SLT:  ex_res <= $signed(de_rs1_val) < $signed(de_rs2_val_or_imm); // flip bit 31 of both operands
+            `SLTU: ex_res <= de_rs1_val < de_rs2_val_or_imm;
+            `XOR:  ex_res <= de_rs1_val ^ de_rs2_val_or_imm;
+            `SR_:  if (de_inst[30])
+                      ex_res <= $signed(de_rs1_val) >>> de_rs2_val_or_imm[4:0];
+                   else
+                      ex_res <= de_rs1_val >> de_rs2_val_or_imm[4:0];
+            `OR:   ex_res <= de_rs1_val | de_rs2_val_or_imm;
+            `AND:  ex_res <= de_rs1_val & de_rs2_val_or_imm;
           endcase
 
-          if (rd && opcode != `BRANCH && opcode != `STORE)
-            regs[rd] <= res;
+          `LUI: ex_res <= {de_inst[31:12], 12'd0};
+          `AUIPC: ex_res <= de_pc + {de_inst[31:12], 12'd0};
 
-          // Debugging
-          case (opcode)
+         `JALR: ex_res <= de_pc + 4;
+         `JAL: ex_res <= de_pc + 4;
+      endcase
+
+//// WRITE BACK ////
+
+   always @(posedge clk)
+      if (ex_valid && ex_inst`rd && ex_inst`opcode != `BRANCH && ex_inst`opcode != `STORE)
+         regs[ex_inst`rd] <= ex_inst`opcode == `LOAD ? ex_ld_res : ex_res;
+
+//// MEMORY ACCESS ////
+   always @(posedge clk) if (de_store_local) begin
+      if (de_byteena[0]) mem0[de_store_ea] <= de_rs2_val_shl[ 7: 0];
+      if (de_byteena[1]) mem1[de_store_ea] <= de_rs2_val_shl[15: 8];
+      if (de_byteena[2]) mem2[de_store_ea] <= de_rs2_val_shl[23:16];
+      if (de_byteena[3]) mem3[de_store_ea] <= de_rs2_val_shl[31:24];
+   end
+
+   always @(*) begin
+     writedata   = de_rs2_val_shl;
+     byteena     = de_byteena;
+     writeenable = de_store;
+     readenable  = de_valid && de_inst`opcode == `LOAD /* && de_store_addr[31] */;
+     address     = de_store ? de_store_addr[31:2] : de_load_addr[31:2];
+   end
+
+   initial begin
+     $readmemh("initregs.txt", regs);
+     $readmemh("program.txt", code_mem);
+     $readmemh("mem0.txt", mem0);
+     $readmemh("mem1.txt", mem1);
+     $readmemh("mem2.txt", mem2);
+     $readmemh("mem3.txt", mem3);
+   end
+
+
+
+`ifdef SIMULATION
+   reg  [31:0] ex_pc, ex_sb_imm, ex_i_imm, ex_s_imm, ex_uj_imm;
+
+   always @(posedge clk) begin
+      ex_pc        <= de_pc;
+      ex_sb_imm    <= de_sb_imm;
+      ex_i_imm     <= de_i_imm;
+      ex_s_imm     <= de_s_imm;
+      ex_uj_imm    <= de_uj_imm;
+   end
+
+   always @(posedge clk)
+      case (de_inst`opcode)
+      `LOAD: if (/*!de_load_addr[31] &&*/
+                 de_load_addr[31:`MEMWORDS_LG2+2] != (`DATA_START >> (`MEMWORDS_LG2 + 2)))
+                 $display("LOAD from %x is outside mapped memory (%x)",
+                          de_load_addr, de_load_addr[28:`MEMWORDS_LG2]);
+      `STORE:
+             if (de_store_addr[31:`MEMWORDS_LG2+2] != (`DATA_START >> (`MEMWORDS_LG2 + 2)))
+                 $display("STORE to %x is outside mapped memory (%x != %x)",
+                          de_store_addr,
+			  de_store_addr[31:`MEMWORDS_LG2+2], (`DATA_START >> (`MEMWORDS_LG2 + 2)));
+      endcase
+
+   always @(posedge clk) begin
+      if (ex_valid)
+         case (ex_inst`opcode)
           `BRANCH:
-              case (funct3)
-              0: $display("%x beq    r%1d, r%1d, %x", pc, rs1, rs2, pc + sb_imm);
-              1: $display("%x bne    r%1d, r%1d, %x", pc, rs1, rs2, pc + sb_imm);
-              4: $display("%x blt    r%1d, r%1d, %x", pc, rs1, rs2, pc + sb_imm);
-              5: $display("%x bge    r%1d, r%1d, %x", pc, rs1, rs2, pc + sb_imm);
-              6: $display("%x bltu   r%1d, r%1d, %x", pc, rs1, rs2, pc + sb_imm);
-              7: $display("%x bgeu   r%1d, r%1d, %x", pc, rs1, rs2, pc + sb_imm);
+              case (ex_inst`funct3)
+              0: $display("%x beq    r%1d, r%1d, %x", ex_pc, ex_inst`rs1, ex_inst`rs2, ex_pc + ex_sb_imm);
+              1: $display("%x bne    r%1d, r%1d, %x", ex_pc, ex_inst`rs1, ex_inst`rs2, ex_pc + ex_sb_imm);
+              4: $display("%x blt    r%1d, r%1d, %x", ex_pc, ex_inst`rs1, ex_inst`rs2, ex_pc + ex_sb_imm);
+              5: $display("%x bge    r%1d, r%1d, %x", ex_pc, ex_inst`rs1, ex_inst`rs2, ex_pc + ex_sb_imm);
+              6: $display("%x bltu   r%1d, r%1d, %x", ex_pc, ex_inst`rs1, ex_inst`rs2, ex_pc + ex_sb_imm);
+              7: $display("%x bgeu   r%1d, r%1d, %x", ex_pc, ex_inst`rs1, ex_inst`rs2, ex_pc + ex_sb_imm);
               endcase
 
-          `OP_IMM: case (funct3)
-              `ADD: begin
-              		res = rs1_val + i_imm;
-                        $display("%x addi   r%1d, r%1d, %1d", pc, rd, rs1, $signed(i_imm));
-                     end
-              default: $display("%x OP_IMM %1d", pc, funct3);
+          `OP_IMM: case (ex_inst`funct3)
+              `ADDSUB:
+                 if (ex_inst == 32 'h 00000013)
+                       $display("%x nop", ex_pc);
+                 else
+                       $display("%x addi   r%1d, r%1d, %1d", ex_pc, ex_inst`rd, ex_inst`rs1, $signed(ex_i_imm));
+              `SLL:    $display("%x slli   r%1d, r%1d, %1d", ex_pc, ex_inst`rd, ex_inst`rs1, ex_i_imm[4:0]);
+              `SLT:    $display("%x slti   r%1d, r%1d, %1d", ex_pc, ex_inst`rd, ex_inst`rs1, $signed(ex_i_imm));
+              `SLTU:   $display("%x sltui  r%1d, r%1d, %1d", ex_pc, ex_inst`rd, ex_inst`rs1, $signed(ex_i_imm));
+              `XOR:    $display("%x xori   r%1d, r%1d, %1d", ex_pc, ex_inst`rd, ex_inst`rs1, $signed(ex_i_imm));
+              `SR_:  if (ex_inst[30])
+                       $display("%x srai   r%1d, r%1d, %1d", ex_pc, ex_inst`rd, ex_inst`rs1, ex_i_imm[4:0]);
+                     else
+                       $display("%x srli   r%1d, r%1d, %1d", ex_pc, ex_inst`rd, ex_inst`rs1, ex_i_imm[4:0]);
+              `OR:     $display("%x ori    r%1d, r%1d, %1d", ex_pc, ex_inst`rd, ex_inst`rs1, $signed(ex_i_imm));
+              `AND:    $display("%x andi   r%1d, r%1d, %1d", ex_pc, ex_inst`rd, ex_inst`rs1, $signed(ex_i_imm));
+              default: $display("%x OP_IMM %1d", ex_pc, ex_inst`funct3);
               endcase
 
-          `OP: case (funct3)
-              `ADD: if (inst[30])
-                    begin
-              		res = rs1_val - rs2_val;
-                        $display("%x sub    r%1d, r%1d, r%1d", pc, rd, rs1, rs2);
-                     end else begin
-              		res = rs1_val + rs2_val;
-                        $display("%x add    r%1d, r%1d, r%1d", pc, rd, rs1, rs2);
-                     end
-              default: $display("%x OP %1d", pc, funct3);
+          `OP: case (ex_inst`funct3)
+              `ADDSUB: if (ex_inst[30])
+                       $display("%x sub    r%1d, r%1d, r%1d", ex_pc, ex_inst`rd, ex_inst`rs1, ex_inst`rs2);
+                     else
+                       $display("%x add    r%1d, r%1d, r%1d", ex_pc, ex_inst`rd, ex_inst`rs1, ex_inst`rs2);
+              `SLL:    $display("%x sll    r%1d, r%1d, r%1d", ex_pc, ex_inst`rd, ex_inst`rs1, ex_inst`rs2);
+              `SLT:    $display("%x slt    r%1d, r%1d, r%1d", ex_pc, ex_inst`rd, ex_inst`rs1, ex_inst`rs2);
+              `SLTU:   $display("%x sltu   r%1d, r%1d, r%1d", ex_pc, ex_inst`rd, ex_inst`rs1, ex_inst`rs2);
+              `XOR:    $display("%x xor    r%1d, r%1d, r%1d", ex_pc, ex_inst`rd, ex_inst`rs1, ex_inst`rs2);
+              `SR_:  if (ex_inst[30])
+                       $display("%x sra    r%1d, r%1d, r%1d", ex_pc, ex_inst`rd, ex_inst`rs1, ex_inst`rs2);
+                     else
+                       $display("%x srl    r%1d, r%1d, r%1d", ex_pc, ex_inst`rd, ex_inst`rs1, ex_inst`rs2);
+              `OR:     $display("%x ori    r%1d, r%1d, r%1d", ex_pc, ex_inst`rd, ex_inst`rs1, ex_inst`rs2);
+              `AND:    $display("%x and    r%1d, r%1d, r%1d", ex_pc, ex_inst`rd, ex_inst`rs1, ex_inst`rs2);
+              default: $display("%x OP %1d", ex_pc, ex_inst`funct3);
               endcase
 
-          `LOAD: case (funct3)
-              0: $display("%x lb     r%1d, %1d(r%1d)", pc, rd, $signed(i_imm), rs1);
-              1: $display("%x lh     r%1d, %1d(r%1d)", pc, rd, $signed(i_imm), rs1);
-              2: $display("%x lw     r%1d, %1d(r%1d)", pc, rd, $signed(i_imm), rs1);
-              4: $display("%x lbu    r%1d, %1d(r%1d)", pc, rd, $signed(i_imm), rs1);
-              5: $display("%x lhu    r%1d, %1d(r%1d)", pc, rd, $signed(i_imm), rs1);
-              default: $display("%x l??%1d?? r%1d, %1d(r%1d)", pc, funct3, rd, $signed(i_imm), rs1);
+          `LUI:  $display("%x lui    r%1d, 0x%1x", ex_pc, ex_inst`rd, ex_inst[31:12] & 32'hFFFFF000);
+          `AUIPC:$display("%x auipc  r%1d, 0x%1x", ex_pc, ex_inst`rd, ex_inst[31:12] & 32'hFFFFF000);
+
+          `LOAD: case (ex_inst`funct3)
+              0: $display("%x lb     r%1d, %1d(r%1d)", ex_pc, ex_inst`rd, $signed(ex_i_imm), ex_inst`rs1);
+              1: $display("%x lh     r%1d, %1d(r%1d)", ex_pc, ex_inst`rd, $signed(ex_i_imm), ex_inst`rs1);
+              2: $display("%x lw     r%1d, %1d(r%1d)", ex_pc, ex_inst`rd, $signed(ex_i_imm), ex_inst`rs1);
+              4: $display("%x lbu    r%1d, %1d(r%1d)", ex_pc, ex_inst`rd, $signed(ex_i_imm), ex_inst`rs1);
+              5: $display("%x lhu    r%1d, %1d(r%1d)", ex_pc, ex_inst`rd, $signed(ex_i_imm), ex_inst`rs1);
+              default: $display("%x l??%1d?? r%1d, %1d(r%1d)", ex_pc, ex_inst`funct3, ex_inst`rd, $signed(ex_i_imm), ex_inst`rs1);
               endcase
 
-          `STORE: case (funct3)
-              0: $display("%x sb     r%1d, %1d(r%1d)", pc, rs2, $signed(s_imm), rs1);
-              1: $display("%x sh     r%1d, %1d(r%1d)", pc, rs2, $signed(s_imm), rs1);
-              2: $display("%x sw     r%1d, %1d(r%1d)               [%x] <- %x", pc, rs2, $signed(s_imm), rs1, ea, mem[ea[14:2]]);
-              default: $display("%x s??%1d?? r%1d, %1d(r%1d)", pc, funct3, rs2, $signed(s_imm), rs1);
+          `STORE: case (ex_inst`funct3)
+              0: $display("%x sb     r%1d, %1d(r%1d)", ex_pc, ex_inst`rs2, $signed(ex_s_imm), ex_inst`rs1);
+              1: $display("%x sh     r%1d, %1d(r%1d)", ex_pc, ex_inst`rs2, $signed(ex_s_imm), ex_inst`rs1);
+              2: $display("%x sw     r%1d, %1d(r%1d)", ex_pc, ex_inst`rs2, $signed(ex_s_imm), ex_inst`rs1);
+              default: $display("%x s??%1d?? r%1d, %1d(r%1d)", ex_pc, ex_inst`funct3, ex_inst`rs2, $signed(ex_s_imm), ex_inst`rs1);
               endcase
+
+          `JAL: $display("%x jal    r%1d, %x", ex_pc, ex_inst`rd, ex_pc + ex_uj_imm);
+          `JALR: if (ex_inst`rd == 0 && ex_i_imm == 0)
+                    $display("%x ret", ex_pc);
+                 else
+                    $display("%x jalr   r%1d, r%1d, %x", ex_pc, ex_inst`rd, ex_inst`rs1, $signed(ex_i_imm));
 
           default: begin
-                 $display("%x ? opcode %1d", pc, opcode);
+                 $display("%x ? opcode %1d", ex_pc, ex_inst`opcode);
                  $finish;
               end
-          endcase
+         endcase
 
-          if (rd && opcode != `BRANCH && opcode != `STORE)
-            $display("                                          r%1d <- 0x%x", rd, res);
+      if (ex_valid && ex_inst`rd && ex_inst`opcode != `BRANCH && ex_inst`opcode != `STORE)
+         $display("                                          r%1d <- 0x%x",
+                  ex_inst`rd, ex_inst`opcode == `LOAD ? ex_ld_res : ex_res);
    end
 
-   reg [31:0] i;
-   initial begin
-     for (i = 0; i < `MEMWORDS; i = i + 1)
-       mem[i] = 0;
-     pc = 'h 74;
-     regs[0] = 0;
-     regs[31] = 'h 20000000 + 2048 + 'h f800;
-   end
+   always @(posedge clk)
+     if (de_store_local && de_byteena)
+         $display("                                          [%x] <- %x/%x", de_store_addr, de_rs2_val_shl, de_byteena);
+`endif
 endmodule
-
