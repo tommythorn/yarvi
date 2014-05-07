@@ -202,10 +202,10 @@ module yarvi( input  wire        clk
    wire [`MEMWORDS_LG2-1:0] ex_load_ea = ex_load_addr[`MEMWORDS_LG2+1:2];
 
 
-   // XXX It would actually be trivial to support unaligned memory
-   // with this set up by just calculating a different ex_load_ea for
+   // XXX It would be easy to support unaligned memory
+   // with this setup by just calculating a different ex_load_ea for
    // every slice and rotate the loaded word rather than just shifting
-   // it. Similar for store.  Of course, IO loads must still be
+   // it. Similar for store.  Of course, IO access must still be
    // aligned as well as atomics.
    wire [31:0] ex_ld =
        ex_load_addr[31] ? readdata :
