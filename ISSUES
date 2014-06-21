@@ -1,13 +1,30 @@
 Issues/todos:
 
+RV32 supervisor support:
+
+  - SCALL, SBREAK, and SRET.
+  - Interrupt support.
+  - Trap illegal instruction and CSR accesses (unpriviledged too).
+
+
+Peripherals:
+
    - Reading serial register DATA AVAIL triggers a read side effect.  The
      proper way to deal with this is to generate the read byte enable
      as well and propagate that.
 
-   - IO shouldn't burden the memory bus; transition to use CSRs for IO.
+   - Raise interrupts on RX full and TX empty.
 
-   - The simple implementation should use unified memory for
-     instruction and data
+System:
 
-   - Finish RV32I: Add CSR, RDCYCLE[H], RDTIME[H], RDINSTRET[H], SRET,
-     and exception/trap/interrupt handling
+  - Timer (CSR COUNT and COMPARE + interrupt).
+  - Support external memory and add caches.
+  - Traps: instruction {misalignment, address, illegal, priviledged},
+    fp disabled, {load,store} {misalignment, fault}.
+
+  - Virtual Memory (eg. TBL + sw filler support).
+
+Under debate:
+
+   - Use CSRs for IO to lessen the memory bus burden.
+

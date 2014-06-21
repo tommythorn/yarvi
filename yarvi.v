@@ -127,6 +127,21 @@ module yarvi( input  wire        clk
    reg         ex_valid = 0;
    reg  [31:0] ex_pc_next;
 
+   reg  [31:0] csr_sup0;
+   reg  [31:0] csr_sup1;
+   reg  [31:0] csr_epc;
+   reg  [31:0] csr_cause;
+   reg  [31:0] csr_status       = 'h 1;  /* S */
+   reg  [31:0] csr_fromhost;
+
+   reg  [63:0] csr_cycle        = 0;
+   reg  [63:0] csr_time         = 0;
+   reg  [63:0] csr_instret      = 0;
+
+   // XXX experimental
+   reg  [31:0] csr_storeaddr;
+
+
 //// INSTRUCTION FETCH ////
 
    reg         if_valid;
@@ -144,6 +159,8 @@ module yarvi( input  wire        clk
    reg         de_valid;
    reg  [31:0] de_pc;
    reg  [31:0] de_inst;
+
+   reg  [31:0] de_csr_val;
 
    always @(posedge clk) begin
       de_valid  <= if_valid & !reset;
@@ -189,14 +206,46 @@ module yarvi( input  wire        clk
    wire        de_store_local  = de_store && de_store_addr[31:`MEMWORDS_LG2+2] == (`DATA_START >> (`MEMWORDS_LG2 + 2));
    wire [31:0] de_rs2_val_shl  = de_rs2_val << (de_store_addr[1:0]*8);
 
+   reg [11:0] de_csrd;
+
+   always @(*)
+     case (de_inst`opcode)
+     `CSRRS:  de_csrd = de_inst`rs1 ? de_inst`imm11_0 : 0;
+     `CSRRC:  de_csrd = de_inst`imm11_0;
+     `CSRRW:  de_csrd = de_inst`imm11_0;
+     `CSRRSI: de_csrd = de_inst`imm11_0;
+     `CSRRCI: de_csrd = de_inst`imm11_0;
+     `CSRRWI: de_csrd = de_inst`imm11_0;
+     default: de_csrd = 0;
+     endcase
+
+   always @(*)
+     case (de_inst`imm11_0)
+     `CSR_SUP0:         de_csr_val = csr_sup0;
+     `CSR_SUP1:         de_csr_val = csr_sup1;
+     `CSR_EPC:          de_csr_val = csr_epc;
+     `CSR_CAUSE:        de_csr_val = csr_cause;
+     `CSR_CYCLE:        de_csr_val = csr_cycle;
+     `CSR_TIME:         de_csr_val = csr_time;
+     `CSR_INSTRET:      de_csr_val = csr_instret;
+     `CSR_CYCLEH:       de_csr_val = csr_cycle[63:32];
+     `CSR_TIMEH:        de_csr_val = csr_time[63:32];
+     `CSR_INSTRETH:     de_csr_val = csr_instret[63:32];
+     default:           de_csr_val = 'h X;
+     endcase
+
 //// EXECUTE ////
 
    reg  [31:0] ex_inst, ex_load_addr;
+
+   reg  [11:0] ex_csrd;
+   reg  [31:0] ex_csr_res;
 
    always @(posedge clk) begin
       ex_valid     <= de_valid & !reset;
       ex_inst      <= de_inst;
       ex_load_addr <= de_load_addr;
+      ex_csrd      <= de_csrd;
    end
 
    wire [`MEMWORDS_LG2-1:0] ex_load_ea = ex_load_addr[`MEMWORDS_LG2+1:2];
@@ -257,11 +306,22 @@ module yarvi( input  wire        clk
             `AND:  ex_res <= de_rs1_val & de_rs2_val_or_imm;
           endcase
 
-          `LUI: ex_res <= {de_inst[31:12], 12'd0};
-          `AUIPC: ex_res <= de_pc + {de_inst[31:12], 12'd0};
+         `LUI:     ex_res <=         {de_inst[31:12], 12'd0};
+         `AUIPC:   ex_res <= de_pc + {de_inst[31:12], 12'd0};
 
-         `JALR: ex_res <= de_pc + 4;
-         `JAL: ex_res <= de_pc + 4;
+         `JALR:    ex_res <= de_pc + 4;
+         `JAL:     ex_res <= de_pc + 4;
+
+         `SYSTEM:
+            case (de_inst`funct3)
+            // XXX `SCALLBREAK: these affect control-flow
+            `CSRRS:  begin ex_res <= de_csr_val; ex_csr_res <= de_csr_val |  de_rs1_val; end
+            `CSRRC:  begin ex_res <= de_csr_val; ex_csr_res <= de_csr_val &~ de_rs1_val; end
+            `CSRRW:  begin ex_res <= de_csr_val; ex_csr_res <=               de_rs1_val; end
+            `CSRRSI: begin ex_res <= de_csr_val; ex_csr_res <= de_csr_val |  de_inst`rs1; end
+            `CSRRCI: begin ex_res <= de_csr_val; ex_csr_res <= de_csr_val &~ de_inst`rs1; end
+            `CSRRWI: begin ex_res <= de_csr_val; ex_csr_res <=               de_inst`rs1; end
+            endcase
       endcase
 
 //// WRITE BACK ////
@@ -269,6 +329,18 @@ module yarvi( input  wire        clk
    always @(posedge clk)
       if (ex_valid && ex_inst`rd && ex_inst`opcode != `BRANCH && ex_inst`opcode != `STORE)
          regs[ex_inst`rd] <= ex_inst`opcode == `LOAD ? ex_ld_res : ex_res;
+
+   always @(posedge clk)
+      if (ex_valid && ex_csrd)
+        case (ex_csrd)
+        `CSR_SUP0:      csr_sup0        <= ex_csr_res;
+        `CSR_SUP1:      csr_sup1        <= ex_csr_res;
+        `CSR_EPC:       csr_epc         <= ex_csr_res; // & -4LL XXX
+        `CSR_STATUS:    csr_status      <= ex_csr_res & 32 'h FF008F;
+        `CSR_TOHOST:    $display("TOHOST %d", ex_csr_res);
+        `CSR_FROMHOST:  csr_fromhost    <= ex_csr_res;
+        `CSR_STOREADDR: csr_storeaddr   <= ex_csr_res;
+        endcase
 
 //// MEMORY ACCESS ////
    always @(posedge clk) if (de_store_local) begin
@@ -296,6 +368,12 @@ module yarvi( input  wire        clk
    end
 
 
+//// outside pipeline ////
+   always @(posedge clk) begin
+      csr_cycle   <= csr_cycle + 1;
+      csr_time    <= csr_time  + 1;
+      csr_instret <= csr_instret + ex_valid;
+   end
 
 `ifdef SIMULATION
    reg  [31:0] ex_pc, ex_sb_imm, ex_i_imm, ex_s_imm, ex_uj_imm;
@@ -318,7 +396,7 @@ module yarvi( input  wire        clk
              if (de_store_addr[31:`MEMWORDS_LG2+2] != (`DATA_START >> (`MEMWORDS_LG2 + 2)))
                  $display("STORE to %x is outside mapped memory (%x != %x)",
                           de_store_addr,
-			  de_store_addr[31:`MEMWORDS_LG2+2], (`DATA_START >> (`MEMWORDS_LG2 + 2)));
+                          de_store_addr[31:`MEMWORDS_LG2+2], (`DATA_START >> (`MEMWORDS_LG2 + 2)));
       endcase
 
    always @(posedge clk) begin
@@ -395,6 +473,22 @@ module yarvi( input  wire        clk
                     $display("%x ret", ex_pc);
                  else
                     $display("%x jalr   r%1d, r%1d, %x", ex_pc, ex_inst`rd, ex_inst`rs1, $signed(ex_i_imm));
+
+         `SYSTEM:
+            case (ex_inst`funct3)
+            // XXX `SCALLBREAK: these affect control-flow
+            `CSRRS:  $display("%x csrrs  r%1d, csr%03X, r%1d", ex_pc, ex_inst`rd, ex_inst`imm11_0, ex_inst`rs1);
+            `CSRRC:  $display("%x csrrc  r%1d, csr%03X, r%1d", ex_pc, ex_inst`rd, ex_inst`imm11_0, ex_inst`rs1);
+            `CSRRW:  $display("%x csrrw  r%1d, csr%03X, r%1d", ex_pc, ex_inst`rd, ex_inst`imm11_0, ex_inst`rs1);
+            `CSRRSI: $display("%x csrrsi r%1d, csr%03X, r%1d", ex_pc, ex_inst`rd, ex_inst`imm11_0, ex_inst`rs1);
+            `CSRRCI: $display("%x csrrci r%1d, csr%03X, r%1d", ex_pc, ex_inst`rd, ex_inst`imm11_0, ex_inst`rs1);
+            `CSRRWI: $display("%x csrrwi r%1d, csr%03X, r%1d", ex_pc, ex_inst`rd, ex_inst`imm11_0, ex_inst`rs1);
+            default: begin
+                 $display("%x SYSTEM ? opcode %1d", ex_pc, ex_inst`funct3);
+                 $finish;
+              end
+            endcase
+
 
           default: begin
                  $display("%x ? opcode %1d", ex_pc, ex_inst`opcode);

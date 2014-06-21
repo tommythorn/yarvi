@@ -52,6 +52,15 @@
 `define OR		6
 `define AND		7
 
+`define SCALLSBREAK     0
+`define CSRRW		1
+`define CSRRS		2
+`define CSRRC		3
+`define CSRRWI		5
+`define CSRRSI		6
+`define CSRRCI		7
+
+
 `define opext    [1 : 0]
 `define opcode   [6 : 2]
 `define rd       [11: 7]
@@ -63,3 +72,47 @@
 `define br_negate   [12]
 `define br_unsigned [13]
 `define br_rela     [14]
+
+`define imm11_0  [31:20]
+
+
+`define CSR_FFLAGS		'h   1
+`define CSR_FRM			'h   2
+`define CSR_FCSR		'h   3			/* alias for the frm + fflags */
+
+
+/* XXX experimental, incl. the address */
+`define CSR_STOREADDR		'h   8			/* passive */
+`define CSR_STORE8		'h   9		        /* WO, active */
+`define CSR_STORE16		'h   a		        /* WO, active */
+`define CSR_STORE32		'h   b		        /* WO, active */
+`define CSR_LOAD8		'h   d
+`define CSR_LOAD16		'h   e
+`define CSR_LOAD32		'h   f
+
+`define CSR_SUP0		'h 500
+`define CSR_SUP1		'h 501
+`define CSR_EPC			'h 502
+`define CSR_BADVADDR		'h 503
+`define CSR_PTBR		'h 504
+`define CSR_ASID		'h 505
+`define CSR_COUNT		'h 506
+`define CSR_COMPARE		'h 507
+`define CSR_EVEC		'h 508
+`define CSR_CAUSE		'h 509
+`define CSR_STATUS		'h 50a
+`define CSR_HARTID		'h 50b
+`define CSR_IMPL		'h 50c
+`define CSR_FATC		'h 50d
+`define CSR_SEND_IPI		'h 50e
+`define CSR_CLEAR_IPI		'h 50f
+`define CSR_TOHOST		'h 51e
+`define CSR_FROMHOST		'h 51f
+
+`define CSR_CYCLE		'h C00
+`define CSR_TIME		'h C01
+`define CSR_INSTRET		'h C02
+`define CSR_CYCLEH		'h C80
+`define CSR_TIMEH		'h C81
+`define CSR_INSTRETH		'h C82
+
