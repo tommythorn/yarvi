@@ -117,22 +117,46 @@ module yarvi( input  wire        clk
             , input  wire [31:0] readdata
             );
 
-   reg  [31:0] regs[0:31];
+   /* Global state */
+
    reg  [31:0] code_mem [0:255];
    reg  [ 7:0] mem0[`MEMWORDS-1:0];
    reg  [ 7:0] mem1[`MEMWORDS-1:0];
    reg  [ 7:0] mem2[`MEMWORDS-1:0];
    reg  [ 7:0] mem3[`MEMWORDS-1:0];
 
-   reg         ex_valid = 0;
-   reg  [31:0] ex_pc_next;
 
-   reg  [31:0] csr_sup0;
-   reg  [31:0] csr_sup1;
-   reg  [31:0] csr_epc;
-   reg  [31:0] csr_cause;
+   /* CPU state.  These are a special-case of pipeline registers.  As
+      they are only (and must only be) written by the EX stage, we
+      needn't keeps per-stage versions of these.
+
+      Note, a pipelined implementation will necessarily have access to
+      the up-to-date version of the state, thus care must be taken to
+      forward the correct valid where possible and restart whenever
+      the use of an out-of-date value is detected.  In the cases where
+      the update is rare it's likely better to unconditionally restart
+      the pipeline whenever the update occurs (eg. writes of
+      csr_ptbr).
+
+      Exceptions to this are CSR count, cycle, and, time which are
+      generally updated independent of what happens in the
+      pipeline. */
+
+   reg  [31:0] regs[0:31];
+
+   reg  [ 7:0] csr_fcsr         = 0;
+   reg  [31:0] csr_sup0         = 0;
+   reg  [31:0] csr_sup1         = 0;
+   reg  [31:0] csr_epc;         // NB: csr_epc[1:0] === 0
+   reg  [31:0] csr_badvaddr     = 0;
+   reg  [31:0] csr_ptbr         = 0;
+   reg  [31:0] csr_count        = 0;
+   reg  [31:0] csr_compare      = 0;
+   reg  [31:0] csr_evec         = 'h 2000;
+   reg  [31:0] csr_cause        = 0;
    reg  [31:0] csr_status       = 'h 1;  /* S */
-   reg  [31:0] csr_fromhost;
+   reg  [31:0] csr_tohost       = 0;
+   reg  [31:0] csr_fromhost     = 0;
 
    reg  [63:0] csr_cycle        = 0;
    reg  [63:0] csr_time         = 0;
@@ -141,6 +165,24 @@ module yarvi( input  wire        clk
    // XXX experimental
    reg  [31:0] csr_storeaddr;
 
+   wire interrupt = (csr_status`IM & csr_status`IP) != 0 && csr_status`EI;
+   reg [2:0] interrupt_cause;
+   always @(*)
+       case (csr_status`IM & csr_status`IP)
+       'bxxxxxxx1: interrupt_cause = 0;
+       'bxxxxxx10: interrupt_cause = 1;
+       'bxxxxx100: interrupt_cause = 2;
+       'bxxxx1000: interrupt_cause = 3;
+       'bxxx10000: interrupt_cause = 4;
+       'bxx100000: interrupt_cause = 5;
+       'bx1000000: interrupt_cause = 6;
+       'b10000000: interrupt_cause = 7;
+       'b00000000: interrupt_cause = 'h x;
+       endcase
+
+   /* Forwarded EX registers */
+   reg         ex_valid = 0;
+   reg  [31:0] ex_pc_next;
 
 //// INSTRUCTION FETCH ////
 
@@ -221,10 +263,29 @@ module yarvi( input  wire        clk
 
    always @(*)
      case (de_inst`imm11_0)
+     `CSR_FFLAGS:       de_csr_val = csr_fcsr[4:0];
+     `CSR_FRM:          de_csr_val = csr_fcsr[7:5];
+     `CSR_FCSR:         de_csr_val = csr_fcsr;
+
      `CSR_SUP0:         de_csr_val = csr_sup0;
      `CSR_SUP1:         de_csr_val = csr_sup1;
      `CSR_EPC:          de_csr_val = csr_epc;
+     `CSR_BADVADDR:     de_csr_val = csr_badvaddr;
+     `CSR_PTBR:         de_csr_val = csr_ptbr;
+     `CSR_ASID:         de_csr_val = 0;
+     `CSR_COUNT:        de_csr_val = csr_count;
+     `CSR_COMPARE:      de_csr_val = csr_compare;
+     `CSR_EVEC:         de_csr_val = csr_evec;
      `CSR_CAUSE:        de_csr_val = csr_cause;
+     `CSR_STATUS:       de_csr_val = csr_status;
+     `CSR_HARTID:       de_csr_val = 0;
+     `CSR_IMPL:         de_csr_val = 0;
+     `CSR_FATC:         de_csr_val = 0; // XXX illegal, trap
+     `CSR_SEND_IPI:     de_csr_val = 0; // XXX illegal, trap
+     `CSR_CLEAR_IPI:    de_csr_val = 0; // XXX illegal, trap
+     `CSR_TOHOST:       de_csr_val = csr_tohost;
+     `CSR_FROMHOST:     de_csr_val = csr_fromhost;
+
      `CSR_CYCLE:        de_csr_val = csr_cycle;
      `CSR_TIME:         de_csr_val = csr_time;
      `CSR_INSTRET:      de_csr_val = csr_instret;
@@ -242,7 +303,7 @@ module yarvi( input  wire        clk
    reg  [31:0] ex_csr_res;
 
    always @(posedge clk) begin
-      ex_valid     <= de_valid & !reset;
+      ex_valid     <= de_valid & !reset & !interrupt;
       ex_inst      <= de_inst;
       ex_load_addr <= de_load_addr;
       ex_csrd      <= de_csrd;
@@ -281,7 +342,18 @@ module yarvi( input  wire        clk
       `BRANCH: if (de_branch_taken) ex_pc_next <= de_pc + de_sb_imm;
       `JALR: ex_pc_next <= (de_rs1_val + de_i_imm) & 32 'h ffff_fffe;
       `JAL: ex_pc_next <= de_pc + de_uj_imm;
+      `SYSTEM: case (de_inst`funct3)
+               `SCALLSBREAK:
+                   if (de_i_imm[11:0] == 12'h 800 && csr_status`S)
+                       ex_pc_next <= csr_epc;
+                   else
+                       ex_pc_next <= csr_evec;
+               endcase
       endcase
+
+      // Interrupts
+      if (interrupt)
+          ex_pc_next <= csr_evec;
    end
 
    // XXX This violates the code style above but is trivial to fix
@@ -314,7 +386,6 @@ module yarvi( input  wire        clk
 
          `SYSTEM:
             case (de_inst`funct3)
-            // XXX `SCALLBREAK: these affect control-flow
             `CSRRS:  begin ex_res <= de_csr_val; ex_csr_res <= de_csr_val |  de_rs1_val; end
             `CSRRC:  begin ex_res <= de_csr_val; ex_csr_res <= de_csr_val &~ de_rs1_val; end
             `CSRRW:  begin ex_res <= de_csr_val; ex_csr_res <=               de_rs1_val; end
@@ -330,17 +401,73 @@ module yarvi( input  wire        clk
       if (ex_valid && ex_inst`rd && ex_inst`opcode != `BRANCH && ex_inst`opcode != `STORE)
          regs[ex_inst`rd] <= ex_inst`opcode == `LOAD ? ex_ld_res : ex_res;
 
-   always @(posedge clk)
-      if (ex_valid && ex_csrd)
+   always @(posedge clk) begin
+      if (csr_count == csr_compare)
+          csr_status[24 + 7] <= 1; // INTR_TIMER
+
+      //// outside pipeline ////
+
+      csr_count   <= csr_count + 1;
+      csr_cycle   <= csr_cycle + 1;
+      csr_time    <= csr_time  + 1;
+      csr_instret <= csr_instret + ex_valid;
+
+      if (ex_valid && ex_csrd) // XXX check permissions
         case (ex_csrd)
-        `CSR_SUP0:      csr_sup0        <= ex_csr_res;
-        `CSR_SUP1:      csr_sup1        <= ex_csr_res;
-        `CSR_EPC:       csr_epc         <= ex_csr_res; // & -4LL XXX
-        `CSR_STATUS:    csr_status      <= ex_csr_res & 32 'h FF008F;
+        `CSR_FFLAGS:    csr_fcsr[4:0]      <= ex_csr_res;
+        `CSR_FRM:       csr_fcsr[7:5]      <= ex_csr_res;
+        `CSR_FCSR:      csr_fcsr           <= ex_csr_res;
+        `CSR_SUP0:      csr_sup0           <= ex_csr_res;
+        `CSR_SUP1:      csr_sup1           <= ex_csr_res;
+        `CSR_EPC:       csr_epc            <= ex_csr_res & 32'h FFFFFFFC;
+//      `CSR_BADVADDR:  csr_badvaddr       <= de_csr_val; // writes are ignored
+        `CSR_PTBR:      csr_ptbr           <= de_csr_val & 32'h FFFFE000;
+//      `CSR_ASID:      csr_asid           <= de_csr_val;
+        `CSR_COUNT:     csr_count          <= de_csr_val;
+        `CSR_COMPARE:   csr_compare        <= de_csr_val;
+        `CSR_EVEC:      csr_evec           <= ex_csr_res & 32'h FFFFFFFC;
+//      `CSR_CAUSE:     csr_cause          <= de_csr_val; // writes are ignored
+        // IM,PEI,EI,PS,S
+        `CSR_STATUS:    csr_status         <= de_csr_val & 32'h 00FF000F;
+//      `CSR_HARTID:    csr_hartid         <= de_csr_val; // writes are ignored
+//      `CSR_IMPL:      csr_hartid         <= de_csr_val; // writes are ignored
+//      `CSR_FATC:      csr_fatc           <= de_csr_val;
+//      `CSR_SEND_IPI:  csr_send_ipi       <= de_csr_val;
+//      `CSR_CLEAR_IPI: csr_clear_ipi      <= de_csr_val;
         `CSR_TOHOST:    $display("TOHOST %d", ex_csr_res);
-        `CSR_FROMHOST:  csr_fromhost    <= ex_csr_res;
-        `CSR_STOREADDR: csr_storeaddr   <= ex_csr_res;
+        `CSR_FROMHOST:  csr_fromhost       <= de_csr_val;
+
+        `CSR_CYCLE:     csr_cycle          <= de_csr_val;
+        `CSR_TIME:      csr_time           <= de_csr_val;
+        `CSR_INSTRET:   csr_instret        <= de_csr_val;
+        `CSR_CYCLEH:    csr_cycle[63:32]   <= de_csr_val;
+        `CSR_TIMEH:     csr_time[63:32]    <= de_csr_val;
+        `CSR_INSTRETH:  csr_instret[63:32] <= de_csr_val;
         endcase
+
+      if (de_inst`opcode == `SYSTEM &&
+          de_inst`funct3 == `SCALLSBREAK &&
+          (de_i_imm[11:0] == 12'h 800 && csr_status`S)) begin
+
+          csr_status`S   <= csr_status`PS;
+          csr_status`EI  <= csr_status`PEI;
+      end
+
+      if (interrupt ||
+          (de_inst`opcode == `SYSTEM &&
+           de_inst`funct3 == `SCALLSBREAK &&
+           (de_i_imm[11:0] != 12'h 800 || !csr_status`S))) begin
+
+          csr_epc        <= de_pc;
+          csr_status`PS  <= csr_status`S;
+          csr_status`S   <= 1;
+          csr_status`PEI <= csr_status`EI;
+          csr_status`EI  <= 0;
+          csr_cause      <= interrupt ? interrupt_cause
+                                      : `TRAP_SYSTEM_CALL | de_i_imm[0];
+      end
+
+    end
 
 //// MEMORY ACCESS ////
    always @(posedge clk) if (de_store_local) begin
@@ -367,13 +494,6 @@ module yarvi( input  wire        clk
      $readmemh("mem3.txt", mem3);
    end
 
-
-//// outside pipeline ////
-   always @(posedge clk) begin
-      csr_cycle   <= csr_cycle + 1;
-      csr_time    <= csr_time  + 1;
-      csr_instret <= csr_instret + ex_valid;
-   end
 
 `ifdef SIMULATION
    reg  [31:0] ex_pc, ex_sb_imm, ex_i_imm, ex_s_imm, ex_uj_imm;
@@ -476,7 +596,7 @@ module yarvi( input  wire        clk
 
          `SYSTEM:
             case (ex_inst`funct3)
-            // XXX `SCALLBREAK: these affect control-flow
+            // XXX `SCALLSBREAK: these affect control-flow
             `CSRRS:  $display("%x csrrs  r%1d, csr%03X, r%1d", ex_pc, ex_inst`rd, ex_inst`imm11_0, ex_inst`rs1);
             `CSRRC:  $display("%x csrrc  r%1d, csr%03X, r%1d", ex_pc, ex_inst`rd, ex_inst`imm11_0, ex_inst`rs1);
             `CSRRW:  $display("%x csrrw  r%1d, csr%03X, r%1d", ex_pc, ex_inst`rd, ex_inst`imm11_0, ex_inst`rs1);
