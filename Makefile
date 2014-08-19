@@ -2,6 +2,7 @@
 POST=|sed -e 's/[^m]+m//g' -e 's/  *$$//g'|grep -v '^ *Info'
 CC=riscv-gcc
 CFLAGS=-std=c99 -m32 -O
+IOPTS=
 
 all:
 	@echo MAPPING
@@ -19,11 +20,12 @@ bemicrocv.sta.summary: bemicrocv.fit.summary
 
 SRC=test_yarvi.v bemicrocv.v yarvi.v rs232.v rs232rx.v rs232tx.v
 
-hw.sim: /tmp/yarvi
+hw.sim: $(SRC) Makefile program.txt mem0.txt mem1.txt mem2.txt mem3.txt
+	iverilog -DSIMULATION $(IOPTS) -o /tmp/yarvi $(SRC)
 	/tmp/yarvi
 
-/tmp/yarvi: $(SRC) Makefile program.txt mem0.txt mem1.txt mem2.txt mem3.txt
-	iverilog -DSIMULATION -o /tmp/yarvi $(SRC)
+hw-unpipeline.sim:
+	$(MAKE) hw.sim IOPTS="-DCONFIG_PIPELINE=0 -DCONFIG_FORWARD=0"
 
 hw.riscv hw.riscv.dis: crt0.o hw.o
 	riscv-ld -melf32lriscv -o hw.riscv $^

@@ -101,6 +101,13 @@ There are two obvious directions from here:
 
 `include "riscv.h"
 
+`ifndef CONFIG_BYPASS
+`define CONFIG_BYPASS  1
+`endif
+`ifndef CONFIG_PIPELINE
+`define CONFIG_PIPELINE 1  // requires CONFIG_BYPASS
+`endif
+
 `define MEMWORDS_LG2 15 // 128 KiB
 `define MEMWORDS (1 << `MEMWORDS_LG2)
 `define INIT_PC 'h1000_0054
@@ -180,18 +187,32 @@ module yarvi( input  wire        clk
        'b00000000: interrupt_cause = 'h x;
        endcase
 
-   /* Forwarded EX registers */
-   reg         ex_valid = 0;
-   reg  [31:0] ex_next_pc;
+   /* Forward declarations */
+   reg         ex_wben;
+   reg  [31:0] ex_wbv;
+
+   reg         ex_valid            = 0;
+   reg         ex_flush            = 0;
+   reg         ex_restart          = 1;
+   reg  [31:0] ex_next_pc          = `INIT_PC;
 
 //// INSTRUCTION FETCH ////
 
-   reg         if_valid;
+   reg         if_valid            = 0;
    reg  [31:0] if_pc;
 
    always @(posedge clk) begin
-      if_valid <= ex_valid | reset;
-      if_pc    <= reset ? `INIT_PC : ex_next_pc;
+      if (`CONFIG_PIPELINE) begin
+        if_valid <= ex_restart | if_valid;
+        if_pc    <= ex_restart ? ex_next_pc : if_pc + 4;
+      end else begin
+        if_valid <= ex_restart | ex_valid;
+        if_pc    <= ex_next_pc;
+      end
+
+      // XXXXX
+      if (ex_restart)
+         $display("%05d  RESTARTING FROM %x", $time, ex_next_pc);
    end
 
    wire [31:0] if_inst = code_mem[if_pc[9:2]];
@@ -205,13 +226,19 @@ module yarvi( input  wire        clk
    reg  [31:0] de_csr_val;
 
    always @(posedge clk) begin
-      de_valid  <= if_valid & !reset;
+      de_valid  <= if_valid & !ex_flush;
       de_pc     <= if_pc;
       de_inst   <= if_inst;
    end
 
-   wire [31:0] de_rs1_val      = regs[de_inst`rs1];
-   wire [31:0] de_rs2_val      = regs[de_inst`rs2];
+   wire [31:0] de_rs1_val_r    = regs[de_inst`rs1];
+   wire [31:0] de_rs2_val_r    = regs[de_inst`rs2];
+
+   wire        de_rs1_forward  = `CONFIG_BYPASS && de_inst`rs1 == ex_inst`rd && ex_wben;
+   wire        de_rs2_forward  = `CONFIG_BYPASS && de_inst`rs2 == ex_inst`rd && ex_wben;
+
+   wire [31:0] de_rs1_val      = de_rs1_forward ? ex_wbv : de_rs1_val_r;
+   wire [31:0] de_rs2_val      = de_rs2_forward ? ex_wbv : de_rs2_val_r;
 
    wire [31:0] de_rs1_val_cmp  = (~de_inst`br_unsigned << 31) ^ de_rs1_val;
    wire [31:0] de_rs2_val_cmp  = (~de_inst`br_unsigned << 31) ^ de_rs2_val;
@@ -303,7 +330,7 @@ module yarvi( input  wire        clk
    reg  [31:0] ex_csr_res;
 
    always @(posedge clk) begin
-      ex_valid     <= de_valid & !reset & !interrupt;
+      ex_valid     <= de_valid & !ex_flush;
       ex_inst      <= de_inst;
       ex_load_addr <= de_load_addr;
       ex_csrd      <= de_csrd;
@@ -336,24 +363,52 @@ module yarvi( input  wire        clk
    // Note, this could be done in stage DE and thus give a pipelined
    // implementation a single cycle branch penalty
 
-   always @(posedge clk) begin
-      ex_next_pc <= de_pc + 4;
-      case (de_inst`opcode)
-      `BRANCH: if (de_branch_taken) ex_next_pc <= de_pc + de_sb_imm;
-      `JALR: ex_next_pc <= (de_rs1_val + de_i_imm) & 32 'h ffff_fffe;
-      `JAL: ex_next_pc <= de_pc + de_uj_imm;
-      `SYSTEM: case (de_inst`funct3)
+   always @(posedge clk) if (reset) begin
+      ex_flush      <= 1;
+      ex_restart    <= 1;
+      ex_next_pc    <= `INIT_PC;
+   end else begin
+      ex_flush      <= 0;
+      ex_restart    <= 0;
+      ex_next_pc    <= de_pc + 4;
+
+      if (de_valid)
+        case (de_inst`opcode)
+        `BRANCH:
+          if (de_branch_taken) begin
+            ex_flush      <= 1;
+            ex_restart    <= 1;
+            ex_next_pc    <= de_pc + de_sb_imm;
+          end
+        `JALR: begin
+            ex_flush      <= 1;
+            ex_restart    <= 1;
+            ex_next_pc    <= (de_rs1_val + de_i_imm) & 32 'h ffff_fffe;
+          end
+        `JAL: begin
+            ex_flush      <= 1;
+            ex_restart    <= 1;
+            ex_next_pc    <= de_pc + de_uj_imm;
+          end
+        `SYSTEM: begin
+            ex_flush      <= 1;
+            ex_restart    <= 1;
+            case (de_inst`funct3)
                `SCALLSBREAK:
                    if (de_i_imm[11:0] == 12'h 800 && csr_status`S)
                        ex_next_pc <= csr_epc;
                    else
                        ex_next_pc <= csr_evec;
                endcase
+          end
       endcase
 
       // Interrupts
-      if (interrupt)
-          ex_next_pc <= csr_evec;
+      if (interrupt) begin
+        ex_flush      <= 1;
+        ex_restart    <= 1;
+        ex_next_pc    <= csr_evec;
+      end
    end
 
    // XXX This violates the code style above but is trivial to fix
@@ -397,9 +452,13 @@ module yarvi( input  wire        clk
 
 //// WRITE BACK ////
 
+   always @(*) ex_wbv = ex_inst`opcode == `LOAD ? ex_ld_res : ex_res;
+   always @(*) ex_wben = ex_valid && ex_inst`rd &&
+                         ex_inst`opcode != `BRANCH && ex_inst`opcode != `STORE;
+
    always @(posedge clk)
-      if (ex_valid && ex_inst`rd && ex_inst`opcode != `BRANCH && ex_inst`opcode != `STORE)
-         regs[ex_inst`rd] <= ex_inst`opcode == `LOAD ? ex_ld_res : ex_res;
+      if (ex_wben)
+         regs[ex_inst`rd] <= ex_wbv;
 
    always @(posedge clk) begin
       if (csr_count == csr_compare)
