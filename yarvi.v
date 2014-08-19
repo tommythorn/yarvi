@@ -182,7 +182,7 @@ module yarvi( input  wire        clk
 
    /* Forwarded EX registers */
    reg         ex_valid = 0;
-   reg  [31:0] ex_pc_next;
+   reg  [31:0] ex_next_pc;
 
 //// INSTRUCTION FETCH ////
 
@@ -191,7 +191,7 @@ module yarvi( input  wire        clk
 
    always @(posedge clk) begin
       if_valid <= ex_valid | reset;
-      if_pc    <= reset ? `INIT_PC : ex_pc_next;
+      if_pc    <= reset ? `INIT_PC : ex_next_pc;
    end
 
    wire [31:0] if_inst = code_mem[if_pc[9:2]];
@@ -337,23 +337,23 @@ module yarvi( input  wire        clk
    // implementation a single cycle branch penalty
 
    always @(posedge clk) begin
-      ex_pc_next <= de_pc + 4;
+      ex_next_pc <= de_pc + 4;
       case (de_inst`opcode)
-      `BRANCH: if (de_branch_taken) ex_pc_next <= de_pc + de_sb_imm;
-      `JALR: ex_pc_next <= (de_rs1_val + de_i_imm) & 32 'h ffff_fffe;
-      `JAL: ex_pc_next <= de_pc + de_uj_imm;
+      `BRANCH: if (de_branch_taken) ex_next_pc <= de_pc + de_sb_imm;
+      `JALR: ex_next_pc <= (de_rs1_val + de_i_imm) & 32 'h ffff_fffe;
+      `JAL: ex_next_pc <= de_pc + de_uj_imm;
       `SYSTEM: case (de_inst`funct3)
                `SCALLSBREAK:
                    if (de_i_imm[11:0] == 12'h 800 && csr_status`S)
-                       ex_pc_next <= csr_epc;
+                       ex_next_pc <= csr_epc;
                    else
-                       ex_pc_next <= csr_evec;
+                       ex_next_pc <= csr_evec;
                endcase
       endcase
 
       // Interrupts
       if (interrupt)
-          ex_pc_next <= csr_evec;
+          ex_next_pc <= csr_evec;
    end
 
    // XXX This violates the code style above but is trivial to fix
