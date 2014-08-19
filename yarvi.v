@@ -434,7 +434,7 @@ module yarvi( input  wire        clk
 //      `CSR_FATC:      csr_fatc           <= de_csr_val;
 //      `CSR_SEND_IPI:  csr_send_ipi       <= de_csr_val;
 //      `CSR_CLEAR_IPI: csr_clear_ipi      <= de_csr_val;
-        `CSR_TOHOST:    $display("TOHOST %d", ex_csr_res);
+        `CSR_TOHOST:    $display("%05d  TOHOST %d", $time, ex_csr_res);
         `CSR_FROMHOST:  csr_fromhost       <= de_csr_val;
 
         `CSR_CYCLE:     csr_cycle          <= de_csr_val;
@@ -507,122 +507,123 @@ module yarvi( input  wire        clk
    end
 
    always @(posedge clk)
-      case (de_inst`opcode)
-      `LOAD: if (/*!de_load_addr[31] &&*/
-                 de_load_addr[31:`MEMWORDS_LG2+2] != (`DATA_START >> (`MEMWORDS_LG2 + 2)))
-                 $display("LOAD from %x is outside mapped memory (%x)",
-                          de_load_addr, de_load_addr[28:`MEMWORDS_LG2]);
-      `STORE:
-             if (de_store_addr[31:`MEMWORDS_LG2+2] != (`DATA_START >> (`MEMWORDS_LG2 + 2)))
-                 $display("STORE to %x is outside mapped memory (%x != %x)",
-                          de_store_addr,
-                          de_store_addr[31:`MEMWORDS_LG2+2], (`DATA_START >> (`MEMWORDS_LG2 + 2)));
-      endcase
+      if (de_valid)
+        case (de_inst`opcode)
+        `LOAD: if (/*!de_load_addr[31] &&*/
+                   de_load_addr[31:`MEMWORDS_LG2+2] != (`DATA_START >> (`MEMWORDS_LG2 + 2)))
+                   $display("%05d  LOAD from %x is outside mapped memory (%x)", $time,
+                            de_load_addr, de_load_addr[28:`MEMWORDS_LG2]);
+        `STORE:
+               if (de_store_addr[31:`MEMWORDS_LG2+2] != (`DATA_START >> (`MEMWORDS_LG2 + 2)))
+                   $display("%05d  STORE to %x is outside mapped memory (%x != %x)", $time,
+                            de_store_addr,
+                            de_store_addr[31:`MEMWORDS_LG2+2], (`DATA_START >> (`MEMWORDS_LG2 + 2)));
+        endcase
 
    always @(posedge clk) begin
       if (ex_valid)
          case (ex_inst`opcode)
           `BRANCH:
               case (ex_inst`funct3)
-              0: $display("%x beq    r%1d, r%1d, %x", ex_pc, ex_inst`rs1, ex_inst`rs2, ex_pc + ex_sb_imm);
-              1: $display("%x bne    r%1d, r%1d, %x", ex_pc, ex_inst`rs1, ex_inst`rs2, ex_pc + ex_sb_imm);
-              4: $display("%x blt    r%1d, r%1d, %x", ex_pc, ex_inst`rs1, ex_inst`rs2, ex_pc + ex_sb_imm);
-              5: $display("%x bge    r%1d, r%1d, %x", ex_pc, ex_inst`rs1, ex_inst`rs2, ex_pc + ex_sb_imm);
-              6: $display("%x bltu   r%1d, r%1d, %x", ex_pc, ex_inst`rs1, ex_inst`rs2, ex_pc + ex_sb_imm);
-              7: $display("%x bgeu   r%1d, r%1d, %x", ex_pc, ex_inst`rs1, ex_inst`rs2, ex_pc + ex_sb_imm);
+              0: $display("%05d  %x beq    r%1d, r%1d, %x", $time, ex_pc, ex_inst`rs1, ex_inst`rs2, ex_pc + ex_sb_imm);
+              1: $display("%05d  %x bne    r%1d, r%1d, %x", $time, ex_pc, ex_inst`rs1, ex_inst`rs2, ex_pc + ex_sb_imm);
+              4: $display("%05d  %x blt    r%1d, r%1d, %x", $time, ex_pc, ex_inst`rs1, ex_inst`rs2, ex_pc + ex_sb_imm);
+              5: $display("%05d  %x bge    r%1d, r%1d, %x", $time, ex_pc, ex_inst`rs1, ex_inst`rs2, ex_pc + ex_sb_imm);
+              6: $display("%05d  %x bltu   r%1d, r%1d, %x", $time, ex_pc, ex_inst`rs1, ex_inst`rs2, ex_pc + ex_sb_imm);
+              7: $display("%05d  %x bgeu   r%1d, r%1d, %x", $time, ex_pc, ex_inst`rs1, ex_inst`rs2, ex_pc + ex_sb_imm);
               endcase
 
           `OP_IMM: case (ex_inst`funct3)
               `ADDSUB:
                  if (ex_inst == 32 'h 00000013)
-                       $display("%x nop", ex_pc);
+                       $display("%05d  %x nop", $time, ex_pc);
                  else
-                       $display("%x addi   r%1d, r%1d, %1d", ex_pc, ex_inst`rd, ex_inst`rs1, $signed(ex_i_imm));
-              `SLL:    $display("%x slli   r%1d, r%1d, %1d", ex_pc, ex_inst`rd, ex_inst`rs1, ex_i_imm[4:0]);
-              `SLT:    $display("%x slti   r%1d, r%1d, %1d", ex_pc, ex_inst`rd, ex_inst`rs1, $signed(ex_i_imm));
-              `SLTU:   $display("%x sltui  r%1d, r%1d, %1d", ex_pc, ex_inst`rd, ex_inst`rs1, $signed(ex_i_imm));
-              `XOR:    $display("%x xori   r%1d, r%1d, %1d", ex_pc, ex_inst`rd, ex_inst`rs1, $signed(ex_i_imm));
+                       $display("%05d  %x addi   r%1d, r%1d, %1d", $time, ex_pc, ex_inst`rd, ex_inst`rs1, $signed(ex_i_imm));
+              `SLL:    $display("%05d  %x slli   r%1d, r%1d, %1d", $time, ex_pc, ex_inst`rd, ex_inst`rs1, ex_i_imm[4:0]);
+              `SLT:    $display("%05d  %x slti   r%1d, r%1d, %1d", $time, ex_pc, ex_inst`rd, ex_inst`rs1, $signed(ex_i_imm));
+              `SLTU:   $display("%05d  %x sltui  r%1d, r%1d, %1d", $time, ex_pc, ex_inst`rd, ex_inst`rs1, $signed(ex_i_imm));
+              `XOR:    $display("%05d  %x xori   r%1d, r%1d, %1d", $time, ex_pc, ex_inst`rd, ex_inst`rs1, $signed(ex_i_imm));
               `SR_:  if (ex_inst[30])
-                       $display("%x srai   r%1d, r%1d, %1d", ex_pc, ex_inst`rd, ex_inst`rs1, ex_i_imm[4:0]);
+                       $display("%05d  %x srai   r%1d, r%1d, %1d", $time, ex_pc, ex_inst`rd, ex_inst`rs1, ex_i_imm[4:0]);
                      else
-                       $display("%x srli   r%1d, r%1d, %1d", ex_pc, ex_inst`rd, ex_inst`rs1, ex_i_imm[4:0]);
-              `OR:     $display("%x ori    r%1d, r%1d, %1d", ex_pc, ex_inst`rd, ex_inst`rs1, $signed(ex_i_imm));
-              `AND:    $display("%x andi   r%1d, r%1d, %1d", ex_pc, ex_inst`rd, ex_inst`rs1, $signed(ex_i_imm));
-              default: $display("%x OP_IMM %1d", ex_pc, ex_inst`funct3);
+                       $display("%05d  %x srli   r%1d, r%1d, %1d", $time, ex_pc, ex_inst`rd, ex_inst`rs1, ex_i_imm[4:0]);
+              `OR:     $display("%05d  %x ori    r%1d, r%1d, %1d", $time, ex_pc, ex_inst`rd, ex_inst`rs1, $signed(ex_i_imm));
+              `AND:    $display("%05d  %x andi   r%1d, r%1d, %1d", $time, ex_pc, ex_inst`rd, ex_inst`rs1, $signed(ex_i_imm));
+              default: $display("%05d  %x OP_IMM %1d", $time, ex_pc, ex_inst`funct3);
               endcase
 
           `OP: case (ex_inst`funct3)
               `ADDSUB: if (ex_inst[30])
-                       $display("%x sub    r%1d, r%1d, r%1d", ex_pc, ex_inst`rd, ex_inst`rs1, ex_inst`rs2);
+                       $display("%05d  %x sub    r%1d, r%1d, r%1d", $time, ex_pc, ex_inst`rd, ex_inst`rs1, ex_inst`rs2);
                      else
-                       $display("%x add    r%1d, r%1d, r%1d", ex_pc, ex_inst`rd, ex_inst`rs1, ex_inst`rs2);
-              `SLL:    $display("%x sll    r%1d, r%1d, r%1d", ex_pc, ex_inst`rd, ex_inst`rs1, ex_inst`rs2);
-              `SLT:    $display("%x slt    r%1d, r%1d, r%1d", ex_pc, ex_inst`rd, ex_inst`rs1, ex_inst`rs2);
-              `SLTU:   $display("%x sltu   r%1d, r%1d, r%1d", ex_pc, ex_inst`rd, ex_inst`rs1, ex_inst`rs2);
-              `XOR:    $display("%x xor    r%1d, r%1d, r%1d", ex_pc, ex_inst`rd, ex_inst`rs1, ex_inst`rs2);
+                       $display("%05d  %x add    r%1d, r%1d, r%1d", $time, ex_pc, ex_inst`rd, ex_inst`rs1, ex_inst`rs2);
+              `SLL:    $display("%05d  %x sll    r%1d, r%1d, r%1d", $time, ex_pc, ex_inst`rd, ex_inst`rs1, ex_inst`rs2);
+              `SLT:    $display("%05d  %x slt    r%1d, r%1d, r%1d", $time, ex_pc, ex_inst`rd, ex_inst`rs1, ex_inst`rs2);
+              `SLTU:   $display("%05d  %x sltu   r%1d, r%1d, r%1d", $time, ex_pc, ex_inst`rd, ex_inst`rs1, ex_inst`rs2);
+              `XOR:    $display("%05d  %x xor    r%1d, r%1d, r%1d", $time, ex_pc, ex_inst`rd, ex_inst`rs1, ex_inst`rs2);
               `SR_:  if (ex_inst[30])
-                       $display("%x sra    r%1d, r%1d, r%1d", ex_pc, ex_inst`rd, ex_inst`rs1, ex_inst`rs2);
+                       $display("%05d  %x sra    r%1d, r%1d, r%1d", $time, ex_pc, ex_inst`rd, ex_inst`rs1, ex_inst`rs2);
                      else
-                       $display("%x srl    r%1d, r%1d, r%1d", ex_pc, ex_inst`rd, ex_inst`rs1, ex_inst`rs2);
-              `OR:     $display("%x ori    r%1d, r%1d, r%1d", ex_pc, ex_inst`rd, ex_inst`rs1, ex_inst`rs2);
-              `AND:    $display("%x and    r%1d, r%1d, r%1d", ex_pc, ex_inst`rd, ex_inst`rs1, ex_inst`rs2);
-              default: $display("%x OP %1d", ex_pc, ex_inst`funct3);
+                       $display("%05d  %x srl    r%1d, r%1d, r%1d", $time, ex_pc, ex_inst`rd, ex_inst`rs1, ex_inst`rs2);
+              `OR:     $display("%05d  %x ori    r%1d, r%1d, r%1d", $time, ex_pc, ex_inst`rd, ex_inst`rs1, ex_inst`rs2);
+              `AND:    $display("%05d  %x and    r%1d, r%1d, r%1d", $time, ex_pc, ex_inst`rd, ex_inst`rs1, ex_inst`rs2);
+              default: $display("%05d  %x OP %1d", $time, ex_pc, ex_inst`funct3);
               endcase
 
-          `LUI:  $display("%x lui    r%1d, 0x%1x", ex_pc, ex_inst`rd, ex_inst[31:12] & 32'hFFFFF000);
-          `AUIPC:$display("%x auipc  r%1d, 0x%1x", ex_pc, ex_inst`rd, ex_inst[31:12] & 32'hFFFFF000);
+          `LUI:  $display("%05d  %x lui    r%1d, 0x%1x", $time, ex_pc, ex_inst`rd, ex_inst[31:12] & 32'hFFFFF000);
+          `AUIPC:$display("%05d  %x auipc  r%1d, 0x%1x", $time, ex_pc, ex_inst`rd, ex_inst[31:12] & 32'hFFFFF000);
 
           `LOAD: case (ex_inst`funct3)
-              0: $display("%x lb     r%1d, %1d(r%1d)", ex_pc, ex_inst`rd, $signed(ex_i_imm), ex_inst`rs1);
-              1: $display("%x lh     r%1d, %1d(r%1d)", ex_pc, ex_inst`rd, $signed(ex_i_imm), ex_inst`rs1);
-              2: $display("%x lw     r%1d, %1d(r%1d)", ex_pc, ex_inst`rd, $signed(ex_i_imm), ex_inst`rs1);
-              4: $display("%x lbu    r%1d, %1d(r%1d)", ex_pc, ex_inst`rd, $signed(ex_i_imm), ex_inst`rs1);
-              5: $display("%x lhu    r%1d, %1d(r%1d)", ex_pc, ex_inst`rd, $signed(ex_i_imm), ex_inst`rs1);
-              default: $display("%x l??%1d?? r%1d, %1d(r%1d)", ex_pc, ex_inst`funct3, ex_inst`rd, $signed(ex_i_imm), ex_inst`rs1);
+              0: $display("%05d  %x lb     r%1d, %1d(r%1d)", $time, ex_pc, ex_inst`rd, $signed(ex_i_imm), ex_inst`rs1);
+              1: $display("%05d  %x lh     r%1d, %1d(r%1d)", $time, ex_pc, ex_inst`rd, $signed(ex_i_imm), ex_inst`rs1);
+              2: $display("%05d  %x lw     r%1d, %1d(r%1d)", $time, ex_pc, ex_inst`rd, $signed(ex_i_imm), ex_inst`rs1);
+              4: $display("%05d  %x lbu    r%1d, %1d(r%1d)", $time, ex_pc, ex_inst`rd, $signed(ex_i_imm), ex_inst`rs1);
+              5: $display("%05d  %x lhu    r%1d, %1d(r%1d)", $time, ex_pc, ex_inst`rd, $signed(ex_i_imm), ex_inst`rs1);
+              default: $display("%05d  %x l??%1d?? r%1d, %1d(r%1d)", $time, ex_pc, ex_inst`funct3, ex_inst`rd, $signed(ex_i_imm), ex_inst`rs1);
               endcase
 
           `STORE: case (ex_inst`funct3)
-              0: $display("%x sb     r%1d, %1d(r%1d)", ex_pc, ex_inst`rs2, $signed(ex_s_imm), ex_inst`rs1);
-              1: $display("%x sh     r%1d, %1d(r%1d)", ex_pc, ex_inst`rs2, $signed(ex_s_imm), ex_inst`rs1);
-              2: $display("%x sw     r%1d, %1d(r%1d)", ex_pc, ex_inst`rs2, $signed(ex_s_imm), ex_inst`rs1);
-              default: $display("%x s??%1d?? r%1d, %1d(r%1d)", ex_pc, ex_inst`funct3, ex_inst`rs2, $signed(ex_s_imm), ex_inst`rs1);
+              0: $display("%05d  %x sb     r%1d, %1d(r%1d)", $time, ex_pc, ex_inst`rs2, $signed(ex_s_imm), ex_inst`rs1);
+              1: $display("%05d  %x sh     r%1d, %1d(r%1d)", $time, ex_pc, ex_inst`rs2, $signed(ex_s_imm), ex_inst`rs1);
+              2: $display("%05d  %x sw     r%1d, %1d(r%1d)", $time, ex_pc, ex_inst`rs2, $signed(ex_s_imm), ex_inst`rs1);
+              default: $display("%05d  %x s??%1d?? r%1d, %1d(r%1d)", $time, ex_pc, ex_inst`funct3, ex_inst`rs2, $signed(ex_s_imm), ex_inst`rs1);
               endcase
 
-          `JAL: $display("%x jal    r%1d, %x", ex_pc, ex_inst`rd, ex_pc + ex_uj_imm);
+          `JAL: $display("%05d  %x jal    r%1d, %x", $time, ex_pc, ex_inst`rd, ex_pc + ex_uj_imm);
           `JALR: if (ex_inst`rd == 0 && ex_i_imm == 0)
-                    $display("%x ret", ex_pc);
+                    $display("%05d  %x ret", $time, ex_pc);
                  else
-                    $display("%x jalr   r%1d, r%1d, %x", ex_pc, ex_inst`rd, ex_inst`rs1, $signed(ex_i_imm));
+                    $display("%05d  %x jalr   r%1d, r%1d, %x", $time, ex_pc, ex_inst`rd, ex_inst`rs1, $signed(ex_i_imm));
 
          `SYSTEM:
             case (ex_inst`funct3)
             // XXX `SCALLSBREAK: these affect control-flow
-            `CSRRS:  $display("%x csrrs  r%1d, csr%03X, r%1d", ex_pc, ex_inst`rd, ex_inst`imm11_0, ex_inst`rs1);
-            `CSRRC:  $display("%x csrrc  r%1d, csr%03X, r%1d", ex_pc, ex_inst`rd, ex_inst`imm11_0, ex_inst`rs1);
-            `CSRRW:  $display("%x csrrw  r%1d, csr%03X, r%1d", ex_pc, ex_inst`rd, ex_inst`imm11_0, ex_inst`rs1);
-            `CSRRSI: $display("%x csrrsi r%1d, csr%03X, r%1d", ex_pc, ex_inst`rd, ex_inst`imm11_0, ex_inst`rs1);
-            `CSRRCI: $display("%x csrrci r%1d, csr%03X, r%1d", ex_pc, ex_inst`rd, ex_inst`imm11_0, ex_inst`rs1);
-            `CSRRWI: $display("%x csrrwi r%1d, csr%03X, r%1d", ex_pc, ex_inst`rd, ex_inst`imm11_0, ex_inst`rs1);
+            `CSRRS:  $display("%05d  %x csrrs  r%1d, csr%03X, r%1d", $time, ex_pc, ex_inst`rd, ex_inst`imm11_0, ex_inst`rs1);
+            `CSRRC:  $display("%05d  %x csrrc  r%1d, csr%03X, r%1d", $time, ex_pc, ex_inst`rd, ex_inst`imm11_0, ex_inst`rs1);
+            `CSRRW:  $display("%05d  %x csrrw  r%1d, csr%03X, r%1d", $time, ex_pc, ex_inst`rd, ex_inst`imm11_0, ex_inst`rs1);
+            `CSRRSI: $display("%05d  %x csrrsi r%1d, csr%03X, r%1d", $time, ex_pc, ex_inst`rd, ex_inst`imm11_0, ex_inst`rs1);
+            `CSRRCI: $display("%05d  %x csrrci r%1d, csr%03X, r%1d", $time, ex_pc, ex_inst`rd, ex_inst`imm11_0, ex_inst`rs1);
+            `CSRRWI: $display("%05d  %x csrrwi r%1d, csr%03X, r%1d", $time, ex_pc, ex_inst`rd, ex_inst`imm11_0, ex_inst`rs1);
             default: begin
-                 $display("%x SYSTEM ? opcode %1d", ex_pc, ex_inst`funct3);
+                 $display("%05d  %x SYSTEM ? opcode %1d", $time, ex_pc, ex_inst`funct3);
                  $finish;
               end
             endcase
 
 
           default: begin
-                 $display("%x ? opcode %1d", ex_pc, ex_inst`opcode);
+                 $display("%05d  %x ? opcode %1d", $time, ex_pc, ex_inst`opcode);
                  $finish;
               end
          endcase
 
       if (ex_valid && ex_inst`rd && ex_inst`opcode != `BRANCH && ex_inst`opcode != `STORE)
-         $display("                                          r%1d <- 0x%x",
+         $display("%05d                                            r%1d <- 0x%x", $time,
                   ex_inst`rd, ex_inst`opcode == `LOAD ? ex_ld_res : ex_res);
    end
 
    always @(posedge clk)
      if (de_store_local && de_byteena)
-         $display("                                          [%x] <- %x/%x", de_store_addr, de_rs2_val_shl, de_byteena);
+         $display("%05d                                            [%x] <- %x/%x", $time, de_store_addr, de_rs2_val_shl, de_byteena);
 `endif
 endmodule
