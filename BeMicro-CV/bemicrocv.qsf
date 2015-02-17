@@ -55,6 +55,6 @@ set_location_assignment PIN_P17  -to eeprom_scl
 set_global_assignment -name VERILOG_FILE bemicrocv.v
 set_global_assignment -name VERILOG_FILE rs232tx.v
 set_global_assignment -name VERILOG_FILE rs232rx.v
-set_global_assignment -name VERILOG_FILE yarvi.v
+set_global_assignment -name VERILOG_FILE ../shared/yarvi.v
 set_global_assignment -name SDC_FILE bemicrocv.sdc
 set_global_assignment -name CDF_FILE bemicrocv.cdf

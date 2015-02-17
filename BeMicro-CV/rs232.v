@@ -61,11 +61,11 @@ module rs232
      rs232tx.bps        = bps;
 
 `ifdef __ICARUS__
-   parameter inputtext  = "input.txt";
+   parameter inputtext  = {`INITDIR,"input.txt"};
    integer   file, ch;
 `endif
 
-   always @(posedge clk)
+   always @(posedge clk) begin
       if (readenable)
          case (address)
          0: readdata <= {15'd0, pending_avail, pending_avail, 7'd0, pending_data};
@@ -78,26 +78,25 @@ module rs232
       else
          readdata <= 32 'h 6666_6666;
 
-   always @(posedge clk) begin
 `ifdef __ICARUS__
-      if (readenable && address == 0)
-         if (pending_avail) begin
-            ch = $fgetc(file);
-            if (ch >= 0) begin
-               pending_avail = 1;
-               $display("RS232 READ %x (%c)", pending_data, pending_data);
-               pending_data = ch;
-               //$display("RS232 PENDING %x (%c)", pending_data, pending_data);
-            end else
-               $display("RS232 READ %c", pending_data);
-         end /*else $display("RS232 READ at EOF");*/
+      if (readenable && address == 0) begin
+         if (pending_avail)
+            $display("RS232 READ %x '%c'", pending_data, pending_data);
+
+         pending_avail = 0;
+         ch = $fgetc(file);
+         if (ch >= 0) begin
+            pending_avail = 1;
+            pending_data = ch;
+         end
+      end
 
       if (writeenable && address == 0)
-         $display("RS232 WROTE %x (%c)", writedata[7:0], writedata[7:0]);
+         $display("RS232 WROTE %x '%c'", writedata[7:0], writedata[7:0]);
 `else
-      if (readenable) begin
+      if (readenable && address == 0)
          pending_avail <= 0;
-      end
+
       if (rx_valid) begin
         // if (pending_avail) OVERFLOW
         pending_avail <= 1;

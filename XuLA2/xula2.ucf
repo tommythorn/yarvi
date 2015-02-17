@@ -1,0 +1,4 @@
+net fpgaClk_i     loc=a9;  # 12 MHz input clock.
+#Created by Constraints Editor (xc6slx25-ftg256-2) - 2015/01/04
+NET "fpgaClk_i" TNM_NET = fpgaClk_i;
+TIMESPEC TS_fpgaClk_i = PERIOD "fpgaClk_i" 12 MHz HIGH 50%;

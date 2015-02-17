@@ -1,6 +1,6 @@
 // -----------------------------------------------------------------------
 //
-//   Copyright 2014 Tommy Thorn - All Rights Reserved
+//   Copyright 2015 Tommy Thorn - All Rights Reserved
 //
 //   This program is free software; you can redistribute it and/or modify
 //   it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@ There are two obvious directions from here:
       compensate for mistakes.
 
       The compensation implies interlocks (stalling) and/or
-      restarts/flushes.  All of this is likely to add to a critical path.
+      restarts.  All of this is likely to add to a critical path.
 
 
 
@@ -101,17 +101,13 @@ There are two obvious directions from here:
 
 `include "riscv.h"
 
-`ifndef CONFIG_BYPASS
-`define CONFIG_BYPASS  1
-`endif
-`ifndef CONFIG_PIPELINE
-`define CONFIG_PIPELINE 1  // requires CONFIG_BYPASS
-`endif
-
-`define MEMWORDS_LG2 15 // 128 KiB
+`define MEMWORDS_LG2 14 // 64 KiB
 `define MEMWORDS (1 << `MEMWORDS_LG2)
-`define INIT_PC 'h1000_0054
-`define DATA_START 32'h1000_0000
+`define INIT_PC    32'h80_0000
+`define DATA_START 32'h80_0000
+`ifndef INITDIR
+`define INITDIR "../shared/"
+`endif
 
 module yarvi( input  wire        clk
             , input  wire        reset
@@ -123,6 +119,9 @@ module yarvi( input  wire        clk
             , output reg         readenable = 0
             , input  wire [31:0] readdata
             );
+
+   reg reset_internal = 1;
+   always @(posedge clk) reset_internal <= 0;
 
    /* Global state */
 
@@ -174,6 +173,8 @@ module yarvi( input  wire        clk
 
    wire interrupt = (csr_status`IM & csr_status`IP) != 0 && csr_status`EI;
    reg [2:0] interrupt_cause;
+   wire [7:0] interrupt_mask = csr_status`IM & csr_status`IP;
+   /* Xilinx's ISE is broken and can't accept the following.
    always @(*)
        case (csr_status`IM & csr_status`IP)
        'bxxxxxxx1: interrupt_cause = 0;
@@ -186,29 +187,40 @@ module yarvi( input  wire        clk
        'b10000000: interrupt_cause = 7;
        'b00000000: interrupt_cause = 'h x;
        endcase
+   */
+
+   always @(*)
+     if      (interrupt_mask[0]) interrupt_cause = 0;
+     else if (interrupt_mask[1]) interrupt_cause = 1;
+     else if (interrupt_mask[2]) interrupt_cause = 2;
+     else if (interrupt_mask[3]) interrupt_cause = 3;
+     else if (interrupt_mask[4]) interrupt_cause = 4;
+     else if (interrupt_mask[5]) interrupt_cause = 5;
+     else if (interrupt_mask[6]) interrupt_cause = 6;
+     else interrupt_cause = 7;
 
    /* Forward declarations */
+   reg         ex_restart          = 0;
+   reg         ex_valid_           = 0;
+   wire        ex_valid            = ex_valid_;
+   reg  [31:0] ex_inst;
    reg         ex_wben;
    reg  [31:0] ex_wbv;
+   reg  [31:0] ex_next_pc;
 
-   reg         ex_valid            = 0;
-   reg         ex_flush            = 0;
-   reg         ex_restart          = 1;
-   reg  [31:0] ex_next_pc          = `INIT_PC;
+   reg  [31:0] wb_inst;
+   reg         wb_wben;
+   reg  [31:0] wb_wbv;
 
 //// INSTRUCTION FETCH ////
 
-   reg         if_valid            = 0;
-   reg  [31:0] if_pc;
+   reg         if_valid_           = 0;
+   wire        if_valid            = if_valid_ && !ex_restart;
+   reg  [31:0] if_pc               = 0;
 
    always @(posedge clk) begin
-      if (`CONFIG_PIPELINE) begin
-        if_valid <= ex_restart | if_valid;
-        if_pc    <= ex_restart ? ex_next_pc : if_pc + 4;
-      end else begin
-        if_valid <= ex_restart | ex_valid;
-        if_pc    <= ex_next_pc;
-      end
+      if_valid_ <= if_valid || ex_restart;
+      if_pc     <= ex_restart ? ex_next_pc : if_pc + 4;
 
       // XXXXX
 `ifdef SIMULATION2
@@ -221,26 +233,42 @@ module yarvi( input  wire        clk
 
 //// DECODE AND REGISTER FETCH ////
 
-   reg         de_valid;
+   /* If the previous cycle restarted the pipeline then this
+      invalidates this stage, eg.
+
+       IF       DE       EX
+       8:sw     4:br     0:br 20  --> restart from 20
+       20:add   8:-      4:-
+       ...      20:add   8:-
+       ...      ...      20:add
+
+    */
+
+   reg         de_valid_ = 0;
+   wire        de_valid = de_valid_ && !ex_restart;
    reg  [31:0] de_pc;
    reg  [31:0] de_inst;
 
    reg  [31:0] de_csr_val;
 
    always @(posedge clk) begin
-      de_valid  <= if_valid & !ex_flush;
+      de_valid_ <= if_valid;
       de_pc     <= if_pc;
       de_inst   <= if_inst;
    end
 
-   wire [31:0] de_rs1_val_r    = regs[de_inst`rs1];
-   wire [31:0] de_rs2_val_r    = regs[de_inst`rs2];
+   reg  [31:0] de_rs1_val_r;
+   reg  [31:0] de_rs2_val_r;
 
-   wire        de_rs1_forward  = `CONFIG_BYPASS && de_inst`rs1 == ex_inst`rd && ex_wben;
-   wire        de_rs2_forward  = `CONFIG_BYPASS && de_inst`rs2 == ex_inst`rd && ex_wben;
+   wire        de_rs1_forward_ex = de_inst`rs1 == ex_inst`rd && ex_wben;
+   wire        de_rs2_forward_ex = de_inst`rs2 == ex_inst`rd && ex_wben;
+   wire        de_rs1_forward_wb = de_inst`rs1 == wb_inst`rd && wb_wben;
+   wire        de_rs2_forward_wb = de_inst`rs2 == wb_inst`rd && wb_wben;
 
-   wire [31:0] de_rs1_val      = de_rs1_forward ? ex_wbv : de_rs1_val_r;
-   wire [31:0] de_rs2_val      = de_rs2_forward ? ex_wbv : de_rs2_val_r;
+   wire [31:0] de_rs1_val      = de_rs1_forward_ex ? ex_wbv :
+                                 de_rs1_forward_wb ? wb_wbv : de_rs1_val_r;
+   wire [31:0] de_rs2_val      = de_rs2_forward_ex ? ex_wbv :
+                                 de_rs2_forward_wb ? wb_wbv : de_rs2_val_r;
 
    wire [31:0] de_rs1_val_cmp  = (~de_inst`br_unsigned << 31) ^ de_rs1_val;
    wire [31:0] de_rs2_val_cmp  = (~de_inst`br_unsigned << 31) ^ de_rs2_val;
@@ -272,7 +300,8 @@ module yarvi( input  wire        clk
    wire [`MEMWORDS_LG2-1:0]
                de_store_ea     = de_store_addr[`MEMWORDS_LG2+1:2];
    wire [ 3:0] de_bytemask     = de_inst`funct3 == 0 ? 4'd 1 : de_inst`funct3 == 1 ? 4'd 3 : 4'd 15;
-   wire [ 3:0] de_byteena      = de_bytemask << de_store_addr[1:0];
+   wire [ 3:0] de_load_byteena = de_bytemask << de_load_addr[1:0];
+   wire [ 3:0] de_store_byteena = de_bytemask << de_store_addr[1:0];
    wire        de_store        = de_valid && de_inst`opcode == `STORE;
    wire        de_store_local  = de_store && de_store_addr[31:`MEMWORDS_LG2+2] == (`DATA_START >> (`MEMWORDS_LG2 + 2));
    wire [31:0] de_rs2_val_shl  = de_rs2_val << (de_store_addr[1:0]*8);
@@ -326,16 +355,18 @@ module yarvi( input  wire        clk
 
 //// EXECUTE ////
 
-   reg  [31:0] ex_inst, ex_load_addr;
+   reg  [31:0] /*XXX ex_inst, */ex_load_addr;
 
    reg  [11:0] ex_csrd;
    reg  [31:0] ex_csr_res;
+   reg  [ 3:0] ex_load_byteena;
 
    always @(posedge clk) begin
-      ex_valid     <= de_valid & !ex_flush;
+      ex_valid_    <= de_valid;
       ex_inst      <= de_inst;
       ex_load_addr <= de_load_addr;
       ex_csrd      <= de_csrd;
+      ex_load_byteena <= de_load_byteena;
    end
 
    wire [`MEMWORDS_LG2-1:0] ex_load_ea = ex_load_addr[`MEMWORDS_LG2+1:2];
@@ -365,12 +396,10 @@ module yarvi( input  wire        clk
    // Note, this could be done in stage DE and thus give a pipelined
    // implementation a single cycle branch penalty
 
-   always @(posedge clk) if (reset) begin
-      ex_flush      <= 1;
+   always @(posedge clk) if (reset_internal) begin
       ex_restart    <= 1;
       ex_next_pc    <= `INIT_PC;
    end else begin
-      ex_flush      <= 0;
       ex_restart    <= 0;
       ex_next_pc    <= de_pc + 4;
 
@@ -378,22 +407,18 @@ module yarvi( input  wire        clk
         case (de_inst`opcode)
         `BRANCH:
           if (de_branch_taken) begin
-            ex_flush      <= 1;
             ex_restart    <= 1;
             ex_next_pc    <= de_pc + de_sb_imm;
           end
         `JALR: begin
-            ex_flush      <= 1;
             ex_restart    <= 1;
             ex_next_pc    <= (de_rs1_val + de_i_imm) & 32 'h ffff_fffe;
           end
         `JAL: begin
-            ex_flush      <= 1;
             ex_restart    <= 1;
             ex_next_pc    <= de_pc + de_uj_imm;
           end
         `SYSTEM: begin
-            ex_flush      <= 1;
             ex_restart    <= 1;
             case (de_inst`funct3)
                `SCALLSBREAK:
@@ -407,7 +432,6 @@ module yarvi( input  wire        clk
 
       // Interrupts
       if (interrupt) begin
-        ex_flush      <= 1;
         ex_restart    <= 1;
         ex_next_pc    <= csr_evec;
       end
@@ -458,9 +482,18 @@ module yarvi( input  wire        clk
    always @(*) ex_wben = ex_valid && ex_inst`rd &&
                          ex_inst`opcode != `BRANCH && ex_inst`opcode != `STORE;
 
-   always @(posedge clk)
+   always @(posedge clk) begin
       if (ex_wben)
          regs[ex_inst`rd] <= ex_wbv;
+      de_rs1_val_r <= regs[if_inst`rs1];
+      de_rs2_val_r <= regs[if_inst`rs2];
+   end
+
+   always @(posedge clk) begin
+      wb_inst <= ex_inst;
+      wb_wben <= ex_wben;
+      wb_wbv  <= ex_wbv;
+   end
 
    always @(posedge clk) begin
       if (csr_count == csr_compare)
@@ -532,34 +565,31 @@ module yarvi( input  wire        clk
 
 //// MEMORY ACCESS ////
    always @(posedge clk) if (de_store_local) begin
-      if (de_byteena[0]) mem0[de_store_ea] <= de_rs2_val_shl[ 7: 0];
-      if (de_byteena[1]) mem1[de_store_ea] <= de_rs2_val_shl[15: 8];
-      if (de_byteena[2]) mem2[de_store_ea] <= de_rs2_val_shl[23:16];
-      if (de_byteena[3]) mem3[de_store_ea] <= de_rs2_val_shl[31:24];
+      if (de_store_byteena[0]) mem0[de_store_ea] <= de_rs2_val_shl[ 7: 0];
+      if (de_store_byteena[1]) mem1[de_store_ea] <= de_rs2_val_shl[15: 8];
+      if (de_store_byteena[2]) mem2[de_store_ea] <= de_rs2_val_shl[23:16];
+      if (de_store_byteena[3]) mem3[de_store_ea] <= de_rs2_val_shl[31:24];
    end
 
    always @(*) begin
      writedata   = de_rs2_val_shl;
-     byteena     = de_byteena;
+     byteena     = de_store ? de_store_byteena : de_load_byteena;
      writeenable = de_store;
-     readenable  = de_valid && de_inst`opcode == `LOAD /* && de_store_addr[31] */;
+     readenable  = de_valid && de_inst`opcode == `LOAD && de_load_addr[31];
      address     = de_store ? de_store_addr[31:2] : de_load_addr[31:2];
    end
 
    initial begin
-     $readmemh("initregs.txt", regs);
-     $readmemh("program.txt", code_mem);
-     $readmemh("mem0.txt", mem0);
-     $readmemh("mem1.txt", mem1);
-     $readmemh("mem2.txt", mem2);
-     $readmemh("mem3.txt", mem3);
+     $readmemh({`INITDIR,"initregs.txt"}, regs);
+     $readmemh({`INITDIR,"program.txt"}, code_mem);
+     $readmemh({`INITDIR,"mem0.txt"}, mem0);
+     $readmemh({`INITDIR,"mem1.txt"}, mem1);
+     $readmemh({`INITDIR,"mem2.txt"}, mem2);
+     $readmemh({`INITDIR,"mem3.txt"}, mem3);
    end
 
-   always @(posedge clk)
-      if (readenable & address[29] & address[0] == 0)
-         $display("%05d  LOAD from %x", $time, address);
 
-`ifdef SIMULATION2
+`ifdef VERBOSE_SIMULATION
    reg  [31:0] ex_pc, ex_sb_imm, ex_i_imm, ex_s_imm, ex_uj_imm;
 
    always @(posedge clk) begin
@@ -585,16 +615,25 @@ module yarvi( input  wire        clk
         endcase
 
    always @(posedge clk) begin
+`ifdef SIMULATION_VERBOSE_PIPELINE
+      $display("");
+      if (ex_restart)
+        $display("%05d  RESTART", $time);
+      $display("%05d  IF @ %x V %d", $time, if_pc, if_valid);
+      $display("%05d  DE @ %x V %d (%d %d)", $time, de_pc, de_valid, de_valid_, ex_restart);
+      $display("%05d  EX @ %x V %d", $time, ex_pc, ex_valid);
+`endif
+
       if (ex_valid)
          case (ex_inst`opcode)
           `BRANCH:
               case (ex_inst`funct3)
-              0: $display("%05d  %x beq    r%1d, r%1d, %x", $time, ex_pc, ex_inst`rs1, ex_inst`rs2, ex_pc + ex_sb_imm);
-              1: $display("%05d  %x bne    r%1d, r%1d, %x", $time, ex_pc, ex_inst`rs1, ex_inst`rs2, ex_pc + ex_sb_imm);
-              4: $display("%05d  %x blt    r%1d, r%1d, %x", $time, ex_pc, ex_inst`rs1, ex_inst`rs2, ex_pc + ex_sb_imm);
-              5: $display("%05d  %x bge    r%1d, r%1d, %x", $time, ex_pc, ex_inst`rs1, ex_inst`rs2, ex_pc + ex_sb_imm);
-              6: $display("%05d  %x bltu   r%1d, r%1d, %x", $time, ex_pc, ex_inst`rs1, ex_inst`rs2, ex_pc + ex_sb_imm);
-              7: $display("%05d  %x bgeu   r%1d, r%1d, %x", $time, ex_pc, ex_inst`rs1, ex_inst`rs2, ex_pc + ex_sb_imm);
+              0: $display("%05d  %x beq    r%1d, r%1d, 0x%x", $time, ex_pc, ex_inst`rs1, ex_inst`rs2, ex_pc + ex_sb_imm);
+              1: $display("%05d  %x bne    r%1d, r%1d, 0x%x", $time, ex_pc, ex_inst`rs1, ex_inst`rs2, ex_pc + ex_sb_imm);
+              4: $display("%05d  %x blt    r%1d, r%1d, 0x%x", $time, ex_pc, ex_inst`rs1, ex_inst`rs2, ex_pc + ex_sb_imm);
+              5: $display("%05d  %x bge    r%1d, r%1d, 0x%x", $time, ex_pc, ex_inst`rs1, ex_inst`rs2, ex_pc + ex_sb_imm);
+              6: $display("%05d  %x bltu   r%1d, r%1d, 0x%x", $time, ex_pc, ex_inst`rs1, ex_inst`rs2, ex_pc + ex_sb_imm);
+              7: $display("%05d  %x bgeu   r%1d, r%1d, 0x%x", $time, ex_pc, ex_inst`rs1, ex_inst`rs2, ex_pc + ex_sb_imm);
               endcase
 
           `OP_IMM: case (ex_inst`funct3)
@@ -634,8 +673,8 @@ module yarvi( input  wire        clk
               default: $display("%05d  %x OP %1d", $time, ex_pc, ex_inst`funct3);
               endcase
 
-          `LUI:  $display("%05d  %x lui    r%1d, 0x%1x", $time, ex_pc, ex_inst`rd, ex_inst[31:12] & 32'hFFFFF000);
-          `AUIPC:$display("%05d  %x auipc  r%1d, 0x%1x", $time, ex_pc, ex_inst`rd, ex_inst[31:12] & 32'hFFFFF000);
+          `LUI:  $display("%05d  %x lui    r%1d, 0x%1x000", $time, ex_pc, ex_inst`rd, ex_inst[31:12]);
+          `AUIPC:$display("%05d  %x auipc  r%1d, 0x%1x000", $time, ex_pc, ex_inst`rd, ex_inst[31:12]);
 
           `LOAD: case (ex_inst`funct3)
               0: $display("%05d  %x lb     r%1d, %1d(r%1d)", $time, ex_pc, ex_inst`rd, $signed(ex_i_imm), ex_inst`rs1);
@@ -653,11 +692,11 @@ module yarvi( input  wire        clk
               default: $display("%05d  %x s??%1d?? r%1d, %1d(r%1d)", $time, ex_pc, ex_inst`funct3, ex_inst`rs2, $signed(ex_s_imm), ex_inst`rs1);
               endcase
 
-          `JAL: $display("%05d  %x jal    r%1d, %x", $time, ex_pc, ex_inst`rd, ex_pc + ex_uj_imm);
+          `JAL: $display("%05d  %x jal    r%1d, 0x%x", $time, ex_pc, ex_inst`rd, ex_pc + ex_uj_imm);
           `JALR: if (ex_inst`rd == 0 && ex_i_imm == 0)
                     $display("%05d  %x ret", $time, ex_pc);
                  else
-                    $display("%05d  %x jalr   r%1d, r%1d, %x", $time, ex_pc, ex_inst`rd, ex_inst`rs1, $signed(ex_i_imm));
+                    $display("%05d  %x jalr   r%1d, r%1d, 0x%x", $time, ex_pc, ex_inst`rd, ex_inst`rs1, $signed(ex_i_imm));
 
          `SYSTEM:
             case (ex_inst`funct3)
@@ -682,12 +721,13 @@ module yarvi( input  wire        clk
          endcase
 
       if (ex_valid && ex_inst`rd && ex_inst`opcode != `BRANCH && ex_inst`opcode != `STORE)
-         $display("%05d                                            r%1d <- 0x%x", $time,
-                  ex_inst`rd, ex_inst`opcode == `LOAD ? ex_ld_res : ex_res);
+         $display("%05d                                            r%1d <- 0x%x/%x", $time,
+                  ex_inst`rd, ex_inst`opcode == `LOAD ? ex_ld_res : ex_res,
+                  ex_load_byteena);
    end
 
    always @(posedge clk)
-     if (de_store_local && de_byteena)
-         $display("%05d                                            [%x] <- %x/%x", $time, de_store_addr, de_rs2_val_shl, de_byteena);
+     if (de_store_local)
+         $display("%05d                                            [%x] <- %x/%x", $time, de_store_addr, de_rs2_val_shl, de_store_byteena);
 `endif
 endmodule
