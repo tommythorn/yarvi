@@ -211,8 +211,10 @@ module yarvi( input  wire        clk
       end
 
       // XXXXX
+`ifdef SIMULATION2
       if (ex_restart)
          $display("%05d  RESTARTING FROM %x", $time, ex_next_pc);
+`endif
    end
 
    wire [31:0] if_inst = code_mem[if_pc[9:2]];
@@ -553,8 +555,11 @@ module yarvi( input  wire        clk
      $readmemh("mem3.txt", mem3);
    end
 
+   always @(posedge clk)
+      if (readenable & address[29] & address[0] == 0)
+         $display("%05d  LOAD from %x", $time, address);
 
-`ifdef SIMULATION
+`ifdef SIMULATION2
    reg  [31:0] ex_pc, ex_sb_imm, ex_i_imm, ex_s_imm, ex_uj_imm;
 
    always @(posedge clk) begin
