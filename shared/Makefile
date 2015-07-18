@@ -5,7 +5,7 @@ RVPREFIX=$(RVPATH)riscv64-unknown-elf-
 CC=$(RVPREFIX)gcc -std=gnu99 -m32 -O
 
 all: hw.riscv.dis mem0.txt
-	$(MAKE) -C ../BeMicro-CV hw.sim | head -1200
+	$(MAKE) -C ../BeMicro-CV hw.sim
 
 mem3.txt mem2.txt mem1.txt mem0.txt: program.txt
 	cut -c1-2 program.txt > mem3.txt

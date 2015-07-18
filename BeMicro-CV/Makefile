@@ -21,7 +21,7 @@ bemicrocv.sta.summary: bemicrocv.fit.summary
 	@echo TIMING ANALYSING
 	@quartus_sta bemicrocv $(POST)
 
-SRC=test_yarvi.v bemicrocv.v rs232.v $(COMMON)yarvi.v $(COMMON)rs232rx.v $(COMMON)rs232tx.v
+SRC=test_yarvi.v bemicrocv.v axi_uart.v $(COMMON)htif.v $(COMMON)yarvi_soc.v $(COMMON)yarvi.v $(COMMON)rs232rx.v $(COMMON)rs232tx.v
 
 hw.sim: $(SRC) Makefile $(COMMON)program.txt $(COMMON)mem0.txt $(COMMON)mem1.txt $(COMMON)mem2.txt $(COMMON)mem3.txt
 	iverilog -DSIMULATION $(VERB) -DINITDIR=\"$(COMMON)\" $(IOPTS) -o /tmp/yarvi $(SRC)

@@ -1,0 +1,1577 @@
+make -f fpga_project_rules.mk PROJECT=XuLA2 PART=xc6slx25-2-ftg256 BRD=lx25 XuLA2_lx25.bit
+make[1]: Entering directory `/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2'
+echo XuLA2
+XuLA2
+mkdir -p xst/projnav.tmp/
+xst -intstyle ise -ifn XuLA2_lx25.xst -ofn XuLA2_lx25.syr
+Reading design: xula2.prj
+
+=========================================================================
+*                          HDL Parsing                                  *
+=========================================================================
+Analyzing Verilog file "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/shared/yarvi.v" into library work
+Parsing verilog file "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/shared/riscv.h" included at line 102.
+Parsing module <yarvi>.
+Analyzing Verilog file "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/axi_uart.v" into library work
+Parsing module <axi_uart>.
+Analyzing Verilog file "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/shared/htif.v" into library work
+Parsing module <htif>.
+Analyzing Verilog file "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/xula2.v" into library work
+Parsing module <xula2>.
+Parsing VHDL file "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/VHDL_Lib/Common.vhd" into library XESS
+Parsing package <CommonPckg>.
+Parsing package body <CommonPckg>.
+Parsing VHDL file "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/VHDL_Lib/SyncToClk.vhd" into library XESS
+Parsing package <SyncToClockPckg>.
+Parsing entity <SyncToClock>.
+Parsing architecture <arch> of entity <synctoclock>.
+Parsing entity <SyncBusToClock>.
+Parsing architecture <arch> of entity <syncbustoclock>.
+Parsing VHDL file "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/VHDL_Lib/ClkGen.vhd" into library XESS
+Parsing package <ClkGenPckg>.
+Parsing entity <ClkGen>.
+Parsing architecture <arch> of entity <clkgen>.
+Parsing entity <ClkToLogic>.
+Parsing architecture <arch> of entity <clktologic>.
+Parsing entity <SlowClkGen>.
+Parsing architecture <arch> of entity <slowclkgen>.
+Parsing VHDL file "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/VHDL_Lib/Board_Packages/XuLA2.vhd" into library work
+Parsing package <XessBoardPckg>.
+Parsing VHDL file "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/VHDL_Lib/Misc.vhd" into library XESS
+Parsing package <MiscPckg>.
+Parsing entity <ResetGenerator>.
+Parsing architecture <arch> of entity <resetgenerator>.
+Parsing entity <HandshakeIntfc>.
+Parsing architecture <arch> of entity <handshakeintfc>.
+Parsing VHDL file "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/VHDL_Lib/HostIo.vhd" into library XESS
+Parsing package <HostIoPckg>.
+Parsing entity <BscanToHostIo>.
+Parsing architecture <arch> of entity <bscantohostio>.
+Parsing entity <HostIoHdrScanner>.
+Parsing architecture <arch> of entity <hostiohdrscanner>.
+Parsing entity <HostIoToRamCore>.
+Parsing architecture <arch> of entity <hostiotoramcore>.
+Parsing entity <RamCtrlSync>.
+Parsing architecture <arch> of entity <ramctrlsync>.
+Parsing entity <HostIoToRam>.
+Parsing architecture <arch> of entity <hostiotoram>.
+Parsing entity <HostIoToDut>.
+Parsing architecture <arch> of entity <hostiotodut>.
+Parsing entity <hostio_test>.
+Parsing architecture <Behavioral> of entity <hostio_test>.
+Parsing VHDL file "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/VHDL_Lib/fifo.vhd" into library XESS
+Parsing package <FifoPckg>.
+Parsing entity <Fifo255x16cc>.
+Parsing architecture <arch> of entity <fifo255x16cc>.
+Parsing entity <Fifo255x16ic>.
+Parsing architecture <arch> of entity <fifo255x16ic>.
+Parsing entity <FifoCc>.
+Parsing architecture <arch> of entity <fifocc>.
+Parsing VHDL file "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/VHDL_Lib/Delay.vhd" into library XESS
+Parsing package <DelayPckg>.
+Parsing entity <DelayLine>.
+Parsing architecture <arch> of entity <delayline>.
+Parsing entity <DelayBus>.
+Parsing architecture <arch> of entity <delaybus>.
+Parsing VHDL file "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/VHDL_Lib/HostIoComm.vhd" into library XESS
+Parsing package <HostIoCommPckg>.
+Parsing entity <HostIoComm>.
+Parsing architecture <arch> of entity <hostiocomm>.
+WARNING:HDLCompiler:946 - "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/VHDL_Lib/HostIoComm.vhd" Line 239: Actual for formal port a_i is neither a static name nor a globally static expression
+Parsing entity <WbHostUart>.
+Parsing architecture <arch> of entity <wbhostuart>.
+Parsing entity <HostIoCommTest>.
+Parsing architecture <arch> of entity <hostiocommtest>.
+Parsing entity <EchoTest>.
+Parsing architecture <arch> of entity <echotest>.
+
+=========================================================================
+*                            HDL Elaboration                            *
+=========================================================================
+
+Elaborating module <xula2>.
+Going to vhdl side to elaborate module ClkGen
+
+Elaborating entity <ClkGen> (architecture <arch>) with generics from library <xess>.
+
+Elaborating entity <ClkToLogic> (architecture <arch>) from library <xess>.
+Back to verilog to continue elaboration
+Going to vhdl side to elaborate module ResetGenerator
+
+Elaborating entity <ResetGenerator> (architecture <arch>) with generics from library <xess>.
+Back to verilog to continue elaboration
+
+Elaborating module <axi_uart>.
+Going to vhdl side to elaborate module HostIoComm
+
+Elaborating entity <HostIoComm> (architecture <arch>) with generics from library <xess>.
+
+Elaborating entity <HostIoToRam> (architecture <arch>) with generics from library <xess>.
+
+Elaborating entity <BscanToHostIo> (architecture <arch>) with generics from library <xess>.
+
+Elaborating entity <HostIoToRamCore> (architecture <arch>) with generics from library <xess>.
+
+Elaborating entity <HostIoHdrScanner> (architecture <arch>) with generics from library <xess>.
+
+Elaborating entity <RamCtrlSync> (architecture <arch>) from library <xess>.
+
+Elaborating entity <SyncToClock> (architecture <arch>) with generics from library <xess>.
+
+Elaborating entity <DelayLine> (architecture <arch>) with generics from library <xess>.
+WARNING:HDLCompiler:746 - "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/VHDL_Lib/Delay.vhd" Line 89: Range is empty (null range)
+WARNING:HDLCompiler:92 - "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/VHDL_Lib/HostIoComm.vhd" Line 261: dnemptysr_r should be on the sensitivity list of the process
+WARNING:HDLCompiler:92 - "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/VHDL_Lib/HostIoComm.vhd" Line 264: upfilledsr_r should be on the sensitivity list of the process
+
+Elaborating entity <FifoCc> (architecture <arch>) with generics from library <xess>.
+Back to verilog to continue elaboration
+WARNING:HDLCompiler:552 - "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/axi_uart.v" Line 24: Input port inShiftDr_i is not connected on this instance
+
+Elaborating module <yarvi>.
+WARNING:HDLCompiler:872 - "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/shared/yarvi.v" Line 157: Using initial value of csr_badvaddr since it is never assigned
+WARNING:HDLCompiler:872 - "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/shared/yarvi.v" Line 164: Using initial value of csr_tohost since it is never assigned
+Reading initialization file \"../shared/initregs.txt\".
+Reading initialization file \"../shared/program.txt\".
+WARNING:HDLCompiler:1670 - "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/shared/yarvi.v" Line 584: Signal <code_mem> in initial block is partially initialized.
+Reading initialization file \"../shared/mem0.txt\".
+WARNING:HDLCompiler:1670 - "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/shared/yarvi.v" Line 585: Signal <mem0> in initial block is partially initialized.
+Reading initialization file \"../shared/mem1.txt\".
+WARNING:HDLCompiler:1670 - "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/shared/yarvi.v" Line 586: Signal <mem1> in initial block is partially initialized.
+Reading initialization file \"../shared/mem2.txt\".
+WARNING:HDLCompiler:1670 - "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/shared/yarvi.v" Line 587: Signal <mem2> in initial block is partially initialized.
+Reading initialization file \"../shared/mem3.txt\".
+WARNING:HDLCompiler:1670 - "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/shared/yarvi.v" Line 588: Signal <mem3> in initial block is partially initialized.
+WARNING:HDLCompiler:413 - "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/shared/yarvi.v" Line 313: Result of 32-bit expression is truncated to fit in 12-bit target.
+WARNING:HDLCompiler:413 - "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/shared/yarvi.v" Line 347: Result of 64-bit expression is truncated to fit in 32-bit target.
+WARNING:HDLCompiler:413 - "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/shared/yarvi.v" Line 348: Result of 64-bit expression is truncated to fit in 32-bit target.
+WARNING:HDLCompiler:413 - "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/shared/yarvi.v" Line 349: Result of 64-bit expression is truncated to fit in 32-bit target.
+WARNING:HDLCompiler:1127 - "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/shared/yarvi.v" Line 364: Assignment to ex_load_byteena ignored, since the identifier is never used
+WARNING:HDLCompiler:413 - "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/shared/yarvi.v" Line 511: Result of 32-bit expression is truncated to fit in 5-bit target.
+WARNING:HDLCompiler:413 - "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/shared/yarvi.v" Line 512: Result of 32-bit expression is truncated to fit in 3-bit target.
+WARNING:HDLCompiler:413 - "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/shared/yarvi.v" Line 513: Result of 32-bit expression is truncated to fit in 8-bit target.
+"/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/shared/yarvi.v" Line 531. $display  32'b................................
+WARNING:HDLCompiler:552 - "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/xula2.v" Line 23: Input port trigger_i is not connected on this instance
+
+=========================================================================
+*                           HDL Synthesis                               *
+=========================================================================
+
+Synthesizing Unit <xula2>.
+    Related source file is "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/xula2.v".
+WARNING:Xst:2898 - Port 'trigger_i', unconnected in block instance 'u1', is tied to GND.
+INFO:Xst:3210 - "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/xula2.v" line 18: Output port <o_b> of the instance <u0> is unconnected or connected to loadless signal.
+INFO:Xst:3210 - "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/xula2.v" line 18: Output port <clkToLogic_o> of the instance <u0> is unconnected or connected to loadless signal.
+INFO:Xst:3210 - "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/xula2.v" line 23: Output port <reset_bo> of the instance <u1> is unconnected or connected to loadless signal.
+    Found 32-bit register for signal <readdata>.
+    Summary:
+	inferred  32 D-type flip-flop(s).
+	inferred   1 Multiplexer(s).
+Unit <xula2> synthesized.
+
+Synthesizing Unit <ClkGen>.
+    Related source file is "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/VHDL_Lib/ClkGen.vhd".
+        BASE_FREQ_G = 12.0
+        CLK_MUL_G = 25
+        CLK_DIV_G = 6
+    Summary:
+	no macro.
+Unit <ClkGen> synthesized.
+
+Synthesizing Unit <ClkToLogic>.
+    Related source file is "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/VHDL_Lib/ClkGen.vhd".
+    Summary:
+	no macro.
+Unit <ClkToLogic> synthesized.
+
+Synthesizing Unit <ResetGenerator>.
+    Related source file is "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/VHDL_Lib/Misc.vhd".
+        PULSE_DURATION_G = 10
+    Found 1-bit register for signal <reset_o>.
+    Found 4-bit register for signal <resetCntr_r>.
+    Found 4-bit subtractor for signal <GND_19_o_GND_19_o_sub_2_OUT<3:0>> created at line 89.
+    Summary:
+	inferred   1 Adder/Subtractor(s).
+	inferred   5 D-type flip-flop(s).
+Unit <ResetGenerator> synthesized.
+
+Synthesizing Unit <axi_uart>.
+    Related source file is "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/axi_uart.v".
+WARNING:Xst:2898 - Port 'inShiftDr_i', unconnected in block instance 'u2', is tied to GND.
+WARNING:Xst:2898 - Port 'drck_i', unconnected in block instance 'u2', is tied to GND.
+WARNING:Xst:2898 - Port 'tdi_i', unconnected in block instance 'u2', is tied to GND.
+INFO:Xst:3210 - "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/axi_uart.v" line 24: Output port <upLevel_o> of the instance <u2> is unconnected or connected to loadless signal.
+INFO:Xst:3210 - "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/axi_uart.v" line 24: Output port <dnLevel_o> of the instance <u2> is unconnected or connected to loadless signal.
+INFO:Xst:3210 - "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/axi_uart.v" line 24: Output port <tdo_o> of the instance <u2> is unconnected or connected to loadless signal.
+INFO:Xst:3210 - "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/axi_uart.v" line 24: Output port <upEmpty_o> of the instance <u2> is unconnected or connected to loadless signal.
+INFO:Xst:3210 - "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/axi_uart.v" line 24: Output port <dnFull_o> of the instance <u2> is unconnected or connected to loadless signal.
+    Found 1-bit register for signal <tx_add>.
+    Found 1-bit register for signal <rx_pop>.
+    Summary:
+	inferred   2 D-type flip-flop(s).
+Unit <axi_uart> synthesized.
+
+Synthesizing Unit <HostIoComm>.
+    Related source file is "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/VHDL_Lib/HostIoComm.vhd".
+        ID_G = "11111111"
+        PYLD_CNTR_LENGTH_G = 32
+        FPGA_DEVICE_G = spartan6_e
+        TAP_USER_INSTR_G = user1_e
+        SIMPLE_G = true
+        FIFO_LENGTH_G = 16
+        WORD_WIDTH_G = 8
+    Found 32-bit register for signal <dnEmptySR_r>.
+    Found 1-bit register for signal <DownEmptySReg.shiftEnable_v>.
+    Found 6-bit register for signal <UpFilledSReg.cnt_v>.
+    Found 32-bit register for signal <upFilledSR_r>.
+    Found 1-bit register for signal <UpFilledSReg.shiftEnable_v>.
+    Found 6-bit register for signal <DownEmptySReg.cnt_v>.
+    Found 5-bit subtractor for signal <GND_26_o_GND_26_o_sub_9_OUT<4:0>> created at line 283.
+    Found 6-bit subtractor for signal <GND_26_o_GND_26_o_sub_10_OUT<5:0>> created at line 289.
+    Found 6-bit subtractor for signal <GND_26_o_GND_26_o_sub_22_OUT<5:0>> created at line 316.
+    Found 8-bit 5-to-1 multiplexer for signal <busToHost_s> created at line 252.
+    Summary:
+	inferred   3 Adder/Subtractor(s).
+	inferred  78 D-type flip-flop(s).
+	inferred   8 Multiplexer(s).
+Unit <HostIoComm> synthesized.
+
+Synthesizing Unit <HostIoToRam>.
+    Related source file is "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/VHDL_Lib/HostIo.vhd".
+        ID_G = "11111111"
+        PYLD_CNTR_LENGTH_G = 32
+        ADDR_INC_G = 0
+        FPGA_DEVICE_G = spartan6_e
+        TAP_USER_INSTR_G = user1_e
+        SIMPLE_G = true
+        SYNC_G = true
+WARNING:Xst:647 - Input <inShiftDr_i> is never used. This port will be preserved and left unconnected if it belongs to a top-level block or it belongs to a sub-block and the hierarchy of this sub-block is preserved.
+WARNING:Xst:647 - Input <drck_i> is never used. This port will be preserved and left unconnected if it belongs to a top-level block or it belongs to a sub-block and the hierarchy of this sub-block is preserved.
+WARNING:Xst:647 - Input <tdi_i> is never used. This port will be preserved and left unconnected if it belongs to a top-level block or it belongs to a sub-block and the hierarchy of this sub-block is preserved.
+WARNING:Xst:653 - Signal <tdo_o> is used but never assigned. This sourceless signal will be automatically connected to value GND.
+    Found 8-bit register for signal <dataToHost_r>.
+    Summary:
+	inferred   8 D-type flip-flop(s).
+Unit <HostIoToRam> synthesized.
+
+Synthesizing Unit <BscanToHostIo>.
+    Related source file is "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/VHDL_Lib/HostIo.vhd".
+        FPGA_DEVICE_G = spartan6_e
+        TAP_USER_INSTR_G = user1_e
+    Summary:
+	no macro.
+Unit <BscanToHostIo> synthesized.
+
+Synthesizing Unit <HostIoToRamCore>.
+    Related source file is "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/VHDL_Lib/HostIo.vhd".
+        ID_G = "11111111"
+        PYLD_CNTR_LENGTH_G = 32
+        ADDR_INC_G = 0
+    Found 1-bit register for signal <opcodeRcvd_r>.
+    Found 16-bit register for signal <shiftReg_r>.
+    Found 5-bit register for signal <bitCntr_r>.
+    Found 3-bit register for signal <addrFromHost_r>.
+    Found 1-bit register for signal <addrFromHostRcvd_r>.
+    Found 1-bit register for signal <wrToMemory_r>.
+    Found 8-bit register for signal <dataFromHost_o>.
+    Found 1-bit register for signal <rdFromMemory_r>.
+    Found 8-bit register for signal <dataFromMemory_r>.
+    Found 2-bit register for signal <opcode_r>.
+    Found 5-bit subtractor for signal <GND_58_o_GND_58_o_sub_17_OUT<4:0>> created at line 575.
+    Found 32-bit comparator lessequal for signal <n0022> created at line 569
+    Summary:
+	inferred   1 Adder/Subtractor(s).
+	inferred  46 D-type flip-flop(s).
+	inferred   1 Comparator(s).
+	inferred  12 Multiplexer(s).
+Unit <HostIoToRamCore> synthesized.
+
+Synthesizing Unit <HostIoHdrScanner>.
+    Related source file is "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/VHDL_Lib/HostIo.vhd".
+        ID_G = "11111111"
+        PYLD_CNTR_LENGTH_G = 32
+    Found 32-bit register for signal <pyldCntr_r>.
+    Found 1-bit register for signal <hdrRcvd_r>.
+    Found 8-bit register for signal <id_r>.
+    Found 32-bit subtractor for signal <GND_59_o_GND_59_o_sub_2_OUT<31:0>> created at line 382.
+    Summary:
+	inferred   1 Adder/Subtractor(s).
+	inferred  41 D-type flip-flop(s).
+	inferred   2 Multiplexer(s).
+Unit <HostIoHdrScanner> synthesized.
+
+Synthesizing Unit <RamCtrlSync>.
+    Related source file is "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/VHDL_Lib/HostIo.vhd".
+    Found 1-bit register for signal <prevCtrlIn_v>.
+    Found 1-bit register for signal <doneOut_r>.
+    Found 1-bit register for signal <ctrlOut_r>.
+    Summary:
+	inferred   3 D-type flip-flop(s).
+Unit <RamCtrlSync> synthesized.
+
+Synthesizing Unit <SyncToClock>.
+    Related source file is "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/VHDL_Lib/SyncToClk.vhd".
+        NUM_SYNC_STAGES_G = 2
+    Found 2-bit register for signal <sync_r>.
+    Summary:
+	inferred   2 D-type flip-flop(s).
+Unit <SyncToClock> synthesized.
+
+Synthesizing Unit <DelayLine>.
+    Related source file is "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/VHDL_Lib/Delay.vhd".
+        NUM_DELAY_CYCLES_G = 1
+    Found 1-bit register for signal <delay_r>.
+    Summary:
+	inferred   1 D-type flip-flop(s).
+Unit <DelayLine> synthesized.
+
+Synthesizing Unit <FifoCc>.
+    Related source file is "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/VHDL_Lib/fifo.vhd".
+        WIDTH_G = 8
+        LENGTH_G = 16
+    Found 16x8-bit dual-port RAM <Mram_ram_r> for signal <ram_r>.
+    Found 4-bit register for signal <addAddr_r>.
+    Found 4-bit register for signal <rmvAddr_r>.
+    Found 5-bit register for signal <level_r>.
+    Found 1-bit register for signal <shortCircuit_r>.
+    Found 8-bit register for signal <frontData_r>.
+    Found 8-bit register for signal <shortCircuitData_r>.
+    Found 4-bit adder for signal <rmvAddr_r[3]_GND_64_o_add_3_OUT> created at line 316.
+    Found 4-bit adder for signal <addAddr_r[3]_GND_64_o_add_9_OUT> created at line 322.
+    Found 5-bit adder for signal <level_r[4]_GND_64_o_add_14_OUT> created at line 331.
+    Found 5-bit subtractor for signal <GND_64_o_GND_64_o_sub_16_OUT<4:0>> created at line 333.
+    Summary:
+	inferred   1 RAM(s).
+	inferred   3 Adder/Subtractor(s).
+	inferred  30 D-type flip-flop(s).
+	inferred   4 Multiplexer(s).
+Unit <FifoCc> synthesized.
+
+Synthesizing Unit <yarvi>.
+    Related source file is "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/shared/yarvi.v".
+WARNING:Xst:647 - Input <reset> is never used. This port will be preserved and left unconnected if it belongs to a top-level block or it belongs to a sub-block and the hierarchy of this sub-block is preserved.
+WARNING:Xst:2999 - Signal 'code_mem', unconnected in block 'yarvi', is tied to its initial value.
+    Found 256x32-bit single-port Read Only RAM <Mram_code_mem> for signal <code_mem>.
+    Found 16384x8-bit dual-port RAM <Mram_mem0> for signal <mem0>.
+    Found 16384x8-bit dual-port RAM <Mram_mem1> for signal <mem1>.
+    Found 16384x8-bit dual-port RAM <Mram_mem2> for signal <mem2>.
+    Found 16384x8-bit dual-port RAM <Mram_mem3> for signal <mem3>.
+    Found 1-bit register for signal <if_valid_>.
+    Found 32-bit register for signal <if_pc>.
+    Found 1-bit register for signal <de_valid_>.
+    Found 32-bit register for signal <de_pc>.
+    Found 32-bit register for signal <de_inst>.
+    Found 1-bit register for signal <ex_valid_>.
+    Found 32-bit register for signal <ex_inst>.
+    Found 32-bit register for signal <ex_load_addr>.
+    Found 12-bit register for signal <ex_csrd>.
+    Found 1-bit register for signal <ex_restart>.
+    Found 32-bit register for signal <ex_next_pc>.
+    Found 32-bit register for signal <ex_res>.
+    Found 32-bit register for signal <ex_csr_res>.
+    Found 32-bit register for signal <de_rs1_val_r>.
+    Found 32-bit register for signal <de_rs2_val_r>.
+    Found 5-bit register for signal <wb_inst<11:7>>.
+    Found 1-bit register for signal <wb_wben>.
+    Found 32-bit register for signal <wb_wbv>.
+    Found 1-bit register for signal <csr_status<31>>.
+    Found 1-bit register for signal <csr_status<30>>.
+    Found 1-bit register for signal <csr_status<29>>.
+    Found 1-bit register for signal <csr_status<28>>.
+    Found 1-bit register for signal <csr_status<27>>.
+    Found 1-bit register for signal <csr_status<26>>.
+    Found 1-bit register for signal <csr_status<25>>.
+    Found 1-bit register for signal <csr_status<24>>.
+    Found 1-bit register for signal <csr_status<23>>.
+    Found 1-bit register for signal <csr_status<22>>.
+    Found 1-bit register for signal <csr_status<21>>.
+    Found 1-bit register for signal <csr_status<20>>.
+    Found 1-bit register for signal <csr_status<19>>.
+    Found 1-bit register for signal <csr_status<18>>.
+    Found 1-bit register for signal <csr_status<17>>.
+    Found 1-bit register for signal <csr_status<16>>.
+    Found 1-bit register for signal <csr_status<15>>.
+    Found 1-bit register for signal <csr_status<14>>.
+    Found 1-bit register for signal <csr_status<13>>.
+    Found 1-bit register for signal <csr_status<12>>.
+    Found 1-bit register for signal <csr_status<11>>.
+    Found 1-bit register for signal <csr_status<10>>.
+    Found 1-bit register for signal <csr_status<9>>.
+    Found 1-bit register for signal <csr_status<8>>.
+    Found 1-bit register for signal <csr_status<7>>.
+    Found 1-bit register for signal <csr_status<6>>.
+    Found 1-bit register for signal <csr_status<5>>.
+    Found 1-bit register for signal <csr_status<4>>.
+    Found 1-bit register for signal <csr_status<3>>.
+    Found 1-bit register for signal <csr_status<2>>.
+    Found 1-bit register for signal <csr_status<1>>.
+    Found 1-bit register for signal <csr_status<0>>.
+    Found 32-bit register for signal <csr_count>.
+    Found 64-bit register for signal <csr_cycle>.
+    Found 64-bit register for signal <csr_time>.
+    Found 64-bit register for signal <csr_instret>.
+    Found 8-bit register for signal <csr_fcsr>.
+    Found 32-bit register for signal <csr_sup0>.
+    Found 32-bit register for signal <csr_sup1>.
+    Found 32-bit register for signal <csr_epc>.
+    Found 32-bit register for signal <csr_ptbr>.
+    Found 32-bit register for signal <csr_compare>.
+    Found 32-bit register for signal <csr_evec>.
+    Found 32-bit register for signal <csr_fromhost>.
+    Found 32-bit register for signal <csr_cause>.
+    Found 1-bit register for signal <reset_internal>.
+    Found 32-bit subtractor for signal <de_rs1_val[31]_de_rs2_val_or_imm[31]_sub_136_OUT> created at line 447.
+    Found 32-bit adder for signal <if_pc[31]_GND_65_o_add_12_OUT> created at line 223.
+    Found 32-bit adder for signal <de_load_addr> created at line 298.
+    Found 32-bit adder for signal <de_store_addr> created at line 299.
+    Found 32-bit adder for signal <de_pc[31]_GND_65_o_add_111_OUT> created at line 404.
+    Found 32-bit adder for signal <de_pc[31]_de_sb_imm[31]_add_112_OUT> created at line 411.
+    Found 32-bit adder for signal <de_pc[31]_de_uj_imm[31]_add_116_OUT> created at line 419.
+    Found 32-bit adder for signal <de_rs1_val[31]_de_rs2_val_or_imm[31]_add_136_OUT> created at line 449.
+    Found 32-bit adder for signal <de_pc[31]_de_inst[31]_add_148_OUT> created at line 463.
+    Found 32-bit adder for signal <csr_count[31]_GND_65_o_add_187_OUT> created at line 504.
+    Found 64-bit adder for signal <csr_cycle[63]_GND_65_o_add_188_OUT> created at line 505.
+    Found 64-bit adder for signal <csr_time[63]_GND_65_o_add_189_OUT> created at line 506.
+    Found 64-bit adder for signal <csr_instret[63]_GND_65_o_add_190_OUT> created at line 507.
+    Found 4-bit shifter logical left for signal <de_load_byteena> created at line 303
+    Found 4-bit shifter logical left for signal <de_store_byteena> created at line 304
+    Found 32-bit shifter logical left for signal <de_rs2_val_shl> created at line 307
+    Found 32-bit shifter logical right for signal <ex_ld_shifted> created at line 386
+    Found 32-bit shifter logical left for signal <de_rs1_val[31]_de_rs2_val_or_imm[4]_shift_left_138_OUT> created at line 450
+    Found 32-bit shifter arithmetic right for signal <de_rs1_val[31]_de_rs2_val_or_imm[4]_shift_right_142_OUT> created at line 455
+    Found 32-bit shifter logical right for signal <de_rs1_val[31]_de_rs2_val_or_imm[4]_shift_right_143_OUT> created at line 457
+    Found 32x32-bit dual-port RAM <Mram_regs> for signal <regs>.
+    Found 32-bit 8-to-1 multiplexer for signal <de_inst[14]_de_rs1_val[31]_wide_mux_147_OUT> created at line 445.
+    Found 32-bit 4-to-1 multiplexer for signal <_n0789> created at line 383.
+    Found 5-bit comparator equal for signal <de_inst[19]_ex_inst[11]_equal_20_o> created at line 263
+    Found 5-bit comparator equal for signal <de_inst[24]_ex_inst[11]_equal_21_o> created at line 264
+    Found 5-bit comparator equal for signal <de_inst[19]_wb_inst[11]_equal_22_o> created at line 265
+    Found 5-bit comparator equal for signal <de_inst[24]_wb_inst[11]_equal_23_o> created at line 266
+    Found 32-bit comparator equal for signal <de_cmp_eq> created at line 275
+    Found 32-bit comparator greater for signal <de_cmp_lt> created at line 276
+    Found 32-bit comparator greater for signal <de_rs2_val_or_imm[31]_de_rs1_val[31]_LessThan_140_o> created at line 451
+    Found 32-bit comparator greater for signal <de_rs1_val[31]_de_rs2_val_or_imm[31]_LessThan_141_o> created at line 452
+    Found 32-bit comparator equal for signal <csr_count[31]_csr_compare[31]_equal_187_o> created at line 499
+    Summary:
+	inferred   7 RAM(s).
+	inferred  12 Adder/Subtractor(s).
+	inferred 895 D-type flip-flop(s).
+	inferred   9 Comparator(s).
+	inferred  56 Multiplexer(s).
+	inferred   7 Combinational logic shifter(s).
+Unit <yarvi> synthesized.
+
+=========================================================================
+HDL Synthesis Report
+
+Macro Statistics
+# RAMs                                                 : 9
+ 16384x8-bit dual-port RAM                             : 4
+ 16x8-bit dual-port RAM                                : 2
+ 256x32-bit single-port Read Only RAM                  : 1
+ 32x32-bit dual-port RAM                               : 2
+# Adders/Subtractors                                   : 24
+ 32-bit adder                                          : 8
+ 32-bit addsub                                         : 1
+ 32-bit subtractor                                     : 1
+ 4-bit adder                                           : 4
+ 4-bit subtractor                                      : 1
+ 5-bit addsub                                          : 2
+ 5-bit subtractor                                      : 2
+ 6-bit subtractor                                      : 2
+ 64-bit adder                                          : 3
+# Registers                                            : 106
+ 1-bit register                                        : 50
+ 12-bit register                                       : 1
+ 16-bit register                                       : 1
+ 2-bit register                                        : 5
+ 3-bit register                                        : 1
+ 32-bit register                                       : 24
+ 4-bit register                                        : 5
+ 5-bit register                                        : 4
+ 6-bit register                                        : 2
+ 64-bit register                                       : 3
+ 8-bit register                                        : 10
+# Comparators                                          : 10
+ 32-bit comparator equal                               : 2
+ 32-bit comparator greater                             : 3
+ 32-bit comparator lessequal                           : 1
+ 5-bit comparator equal                                : 4
+# Multiplexers                                         : 87
+ 1-bit 2-to-1 multiplexer                              : 17
+ 12-bit 2-to-1 multiplexer                             : 6
+ 16-bit 2-to-1 multiplexer                             : 6
+ 3-bit 2-to-1 multiplexer                              : 6
+ 30-bit 2-to-1 multiplexer                             : 1
+ 32-bit 2-to-1 multiplexer                             : 33
+ 32-bit 4-to-1 multiplexer                             : 1
+ 32-bit 8-to-1 multiplexer                             : 1
+ 4-bit 2-to-1 multiplexer                              : 4
+ 5-bit 2-to-1 multiplexer                              : 4
+ 6-bit 2-to-1 multiplexer                              : 2
+ 64-bit 2-to-1 multiplexer                             : 3
+ 8-bit 2-to-1 multiplexer                              : 2
+ 8-bit 5-to-1 multiplexer                              : 1
+# Logic shifters                                       : 7
+ 32-bit shifter arithmetic right                       : 1
+ 32-bit shifter logical left                           : 2
+ 32-bit shifter logical right                          : 2
+ 4-bit shifter logical left                            : 2
+# Xors                                                 : 4
+ 1-bit xor2                                            : 1
+ 32-bit xor2                                           : 3
+
+=========================================================================
+INFO:Xst:1767 - HDL ADVISOR - Resource sharing has identified that some arithmetic operations in this design can share the same physical resources for reduced device utilization. For improved clock frequency you may try to disable resource sharing.
+
+=========================================================================
+*                       Advanced HDL Synthesis                          *
+=========================================================================
+
+INFO:Xst:2261 - The FF/Latch <csr_ptbr_0> in Unit <yarvi> is equivalent to the following 12 FFs/Latches, which will be removed : <csr_ptbr_1> <csr_ptbr_2> <csr_ptbr_3> <csr_ptbr_4> <csr_ptbr_5> <csr_ptbr_6> <csr_ptbr_7> <csr_ptbr_8> <csr_ptbr_9> <csr_ptbr_10> <csr_ptbr_11> <csr_ptbr_12> 
+INFO:Xst:2261 - The FF/Latch <csr_evec_0> in Unit <yarvi> is equivalent to the following FF/Latch, which will be removed : <csr_evec_1> 
+WARNING:Xst:1426 - The value init of the FF/Latch reset_internal hinder the constant cleaning in the block yarvi.
+   You should achieve better results by setting this init to 0.
+WARNING:Xst:1293 - FF/Latch <reset_o> has a constant value of 0 in block <u1>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1293 - FF/Latch <csr_ptbr_0> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1293 - FF/Latch <csr_evec_0> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:2677 - Node <de_inst_0> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <de_inst_1> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_0> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_1> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_15> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_16> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_17> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_18> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_19> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_20> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_21> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_22> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_23> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_24> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_25> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_26> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_27> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_28> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_29> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_30> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_31> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_16> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_17> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_18> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_19> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_20> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_21> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_22> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_23> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_24> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_25> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_26> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_27> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_28> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_29> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_30> of sequential type is unconnected in block <yarvi>.
+
+Synthesizing (advanced) Unit <FifoCc>.
+The following registers are absorbed into counter <rmvAddr_r>: 1 register on signal <rmvAddr_r>.
+The following registers are absorbed into counter <level_r>: 1 register on signal <level_r>.
+The following registers are absorbed into counter <addAddr_r>: 1 register on signal <addAddr_r>.
+INFO:Xst:3231 - The small RAM <Mram_ram_r> will be implemented on LUTs in order to maximize performance and save block RAM resources. If you want to force its implementation on block, use option/constraint ram_style.
+    -----------------------------------------------------------------------
+    | ram_type           | Distributed                         |          |
+    -----------------------------------------------------------------------
+    | Port A                                                              |
+    |     aspect ratio   | 16-word x 8-bit                     |          |
+    |     clkA           | connected to signal <clk_i>         | rise     |
+    |     weA            | connected to internal node          | high     |
+    |     addrA          | connected to signal <addAddr_r>     |          |
+    |     diA            | connected to signal <data_i>        |          |
+    -----------------------------------------------------------------------
+    | Port B                                                              |
+    |     aspect ratio   | 16-word x 8-bit                     |          |
+    |     addrB          | connected to signal <rmvAddr_r[3]_rmvAddr_r[3]_mux_6_OUT> |          |
+    |     doB            | connected to internal node          |          |
+    -----------------------------------------------------------------------
+Unit <FifoCc> synthesized (advanced).
+
+Synthesizing (advanced) Unit <ResetGenerator>.
+The following registers are absorbed into counter <resetCntr_r>: 1 register on signal <resetCntr_r>.
+Unit <ResetGenerator> synthesized (advanced).
+
+Synthesizing (advanced) Unit <yarvi>.
+INFO:Xst:3226 - The RAM <Mram_mem0> will be implemented as a BLOCK RAM, absorbing the following register(s): <ex_load_addr>
+    -----------------------------------------------------------------------
+    | ram_type           | Block                               |          |
+    -----------------------------------------------------------------------
+    | Port A                                                              |
+    |     aspect ratio   | 16384-word x 8-bit                  |          |
+    |     mode           | read-first                          |          |
+    |     clkA           | connected to signal <clk>           | rise     |
+    |     weA            | connected to signal <de_store_byteena<0>_0> | high     |
+    |     addrA          | connected to signal <de_store_addr<15:2>> |          |
+    |     diA            | connected to signal <de_rs2_val_shl<7:0>> |          |
+    -----------------------------------------------------------------------
+    | optimization       | speed                               |          |
+    -----------------------------------------------------------------------
+    | Port B                                                              |
+    |     aspect ratio   | 16384-word x 8-bit                  |          |
+    |     mode           | write-first                         |          |
+    |     clkB           | connected to signal <clk>           | rise     |
+    |     addrB          | connected to signal <de_load_addr<15:2>> |          |
+    |     doB            | connected to internal node          |          |
+    -----------------------------------------------------------------------
+    | optimization       | speed                               |          |
+    -----------------------------------------------------------------------
+INFO:Xst:3226 - The RAM <Mram_mem1> will be implemented as a BLOCK RAM, absorbing the following register(s): <ex_load_addr>
+    -----------------------------------------------------------------------
+    | ram_type           | Block                               |          |
+    -----------------------------------------------------------------------
+    | Port A                                                              |
+    |     aspect ratio   | 16384-word x 8-bit                  |          |
+    |     mode           | read-first                          |          |
+    |     clkA           | connected to signal <clk>           | rise     |
+    |     weA            | connected to signal <de_store_byteena<1>_0> | high     |
+    |     addrA          | connected to signal <de_store_addr<15:2>> |          |
+    |     diA            | connected to signal <de_rs2_val_shl<15:8>> |          |
+    -----------------------------------------------------------------------
+    | optimization       | speed                               |          |
+    -----------------------------------------------------------------------
+    | Port B                                                              |
+    |     aspect ratio   | 16384-word x 8-bit                  |          |
+    |     mode           | write-first                         |          |
+    |     clkB           | connected to signal <clk>           | rise     |
+    |     addrB          | connected to signal <de_load_addr<15:2>> |          |
+    |     doB            | connected to internal node          |          |
+    -----------------------------------------------------------------------
+    | optimization       | speed                               |          |
+    -----------------------------------------------------------------------
+INFO:Xst:3226 - The RAM <Mram_mem2> will be implemented as a BLOCK RAM, absorbing the following register(s): <ex_load_addr>
+    -----------------------------------------------------------------------
+    | ram_type           | Block                               |          |
+    -----------------------------------------------------------------------
+    | Port A                                                              |
+    |     aspect ratio   | 16384-word x 8-bit                  |          |
+    |     mode           | read-first                          |          |
+    |     clkA           | connected to signal <clk>           | rise     |
+    |     weA            | connected to signal <de_store_byteena<2>_0> | high     |
+    |     addrA          | connected to signal <de_store_addr<15:2>> |          |
+    |     diA            | connected to signal <de_rs2_val_shl<23:16>> |          |
+    -----------------------------------------------------------------------
+    | optimization       | speed                               |          |
+    -----------------------------------------------------------------------
+    | Port B                                                              |
+    |     aspect ratio   | 16384-word x 8-bit                  |          |
+    |     mode           | write-first                         |          |
+    |     clkB           | connected to signal <clk>           | rise     |
+    |     addrB          | connected to signal <de_load_addr<15:2>> |          |
+    |     doB            | connected to internal node          |          |
+    -----------------------------------------------------------------------
+    | optimization       | speed                               |          |
+    -----------------------------------------------------------------------
+INFO:Xst:3226 - The RAM <Mram_mem3> will be implemented as a BLOCK RAM, absorbing the following register(s): <ex_load_addr>
+    -----------------------------------------------------------------------
+    | ram_type           | Block                               |          |
+    -----------------------------------------------------------------------
+    | Port A                                                              |
+    |     aspect ratio   | 16384-word x 8-bit                  |          |
+    |     mode           | read-first                          |          |
+    |     clkA           | connected to signal <clk>           | rise     |
+    |     weA            | connected to signal <de_store_byteena<3>_0> | high     |
+    |     addrA          | connected to signal <de_store_addr<15:2>> |          |
+    |     diA            | connected to signal <de_rs2_val_shl<31:24>> |          |
+    -----------------------------------------------------------------------
+    | optimization       | speed                               |          |
+    -----------------------------------------------------------------------
+    | Port B                                                              |
+    |     aspect ratio   | 16384-word x 8-bit                  |          |
+    |     mode           | write-first                         |          |
+    |     clkB           | connected to signal <clk>           | rise     |
+    |     addrB          | connected to signal <de_load_addr<15:2>> |          |
+    |     doB            | connected to internal node          |          |
+    -----------------------------------------------------------------------
+    | optimization       | speed                               |          |
+    -----------------------------------------------------------------------
+INFO:Xst:3226 - The RAM <Mram_regs> will be implemented as a BLOCK RAM, absorbing the following register(s): <de_rs1_val_r>
+    -----------------------------------------------------------------------
+    | ram_type           | Block                               |          |
+    -----------------------------------------------------------------------
+    | Port A                                                              |
+    |     aspect ratio   | 32-word x 32-bit                    |          |
+    |     mode           | read-first                          |          |
+    |     clkA           | connected to signal <clk>           | rise     |
+    |     weA            | connected to signal <ex_wben>       | high     |
+    |     addrA          | connected to signal <ex_inst<11:7>> |          |
+    |     diA            | connected to signal <ex_wbv>        |          |
+    -----------------------------------------------------------------------
+    | optimization       | speed                               |          |
+    -----------------------------------------------------------------------
+    | Port B                                                              |
+    |     aspect ratio   | 32-word x 32-bit                    |          |
+    |     mode           | read-first                          |          |
+    |     clkB           | connected to signal <clk>           | rise     |
+    |     addrB          | connected to signal <_n0647<19:15>> |          |
+    |     doB            | connected to signal <de_rs1_val_r>  |          |
+    -----------------------------------------------------------------------
+    | optimization       | speed                               |          |
+    -----------------------------------------------------------------------
+INFO:Xst:3226 - The RAM <Mram_regs1> will be implemented as a BLOCK RAM, absorbing the following register(s): <de_rs2_val_r>
+    -----------------------------------------------------------------------
+    | ram_type           | Block                               |          |
+    -----------------------------------------------------------------------
+    | Port A                                                              |
+    |     aspect ratio   | 32-word x 32-bit                    |          |
+    |     mode           | read-first                          |          |
+    |     clkA           | connected to signal <clk>           | rise     |
+    |     weA            | connected to signal <ex_wben>       | high     |
+    |     addrA          | connected to signal <ex_inst<11:7>> |          |
+    |     diA            | connected to signal <ex_wbv>        |          |
+    -----------------------------------------------------------------------
+    | optimization       | speed                               |          |
+    -----------------------------------------------------------------------
+    | Port B                                                              |
+    |     aspect ratio   | 32-word x 32-bit                    |          |
+    |     mode           | read-first                          |          |
+    |     clkB           | connected to signal <clk>           | rise     |
+    |     addrB          | connected to signal <_n0647<24:20>> |          |
+    |     doB            | connected to signal <de_rs2_val_r>  |          |
+    -----------------------------------------------------------------------
+    | optimization       | speed                               |          |
+    -----------------------------------------------------------------------
+INFO:Xst:3226 - The RAM <Mram_code_mem> will be implemented as a BLOCK RAM, absorbing the following register(s): <if_pc>
+    -----------------------------------------------------------------------
+    | ram_type           | Block                               |          |
+    -----------------------------------------------------------------------
+    | Port A                                                              |
+    |     aspect ratio   | 256-word x 32-bit                   |          |
+    |     mode           | write-first                         |          |
+    |     clkA           | connected to signal <clk>           | rise     |
+    |     weA            | connected to signal <GND>           | high     |
+    |     addrA          | connected to signal <if_pc[31]_ex_next_pc[31]_mux_13_OUT<9:2>> |          |
+    |     diA            | connected to signal <GND>           |          |
+    |     doA            | connected to internal node          |          |
+    -----------------------------------------------------------------------
+    | optimization       | speed                               |          |
+    -----------------------------------------------------------------------
+Unit <yarvi> synthesized (advanced).
+WARNING:Xst:2677 - Node <de_inst_0> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <de_inst_1> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_0> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_1> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_15> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_16> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_17> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_18> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_19> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_20> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_21> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_22> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_23> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_24> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_25> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_26> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_27> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_28> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_29> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_30> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_inst_31> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_2> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_3> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_4> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_5> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_6> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_7> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_8> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_9> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_10> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_11> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_12> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_13> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_14> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_15> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_16> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_17> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_18> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_19> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_20> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_21> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_22> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_23> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_24> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_25> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_26> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_27> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_28> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_29> of sequential type is unconnected in block <yarvi>.
+WARNING:Xst:2677 - Node <ex_load_addr_30> of sequential type is unconnected in block <yarvi>.
+
+=========================================================================
+Advanced HDL Synthesis Report
+
+Macro Statistics
+# RAMs                                                 : 9
+ 16384x8-bit dual-port block RAM                       : 4
+ 16x8-bit dual-port distributed RAM                    : 2
+ 256x32-bit single-port block Read Only RAM            : 1
+ 32x32-bit dual-port block RAM                         : 2
+# Adders/Subtractors                                   : 19
+ 32-bit adder                                          : 8
+ 32-bit addsub                                         : 1
+ 32-bit subtractor                                     : 1
+ 4-bit adder                                           : 2
+ 5-bit subtractor                                      : 2
+ 6-bit subtractor                                      : 2
+ 64-bit adder                                          : 3
+# Counters                                             : 7
+ 4-bit down counter                                    : 1
+ 4-bit up counter                                      : 4
+ 5-bit updown counter                                  : 2
+# Registers                                            : 1039
+ Flip-Flops                                            : 1039
+# Comparators                                          : 10
+ 32-bit comparator equal                               : 2
+ 32-bit comparator greater                             : 3
+ 32-bit comparator lessequal                           : 1
+ 5-bit comparator equal                                : 4
+# Multiplexers                                         : 180
+ 1-bit 2-to-1 multiplexer                              : 113
+ 12-bit 2-to-1 multiplexer                             : 6
+ 16-bit 2-to-1 multiplexer                             : 6
+ 3-bit 2-to-1 multiplexer                              : 6
+ 30-bit 2-to-1 multiplexer                             : 1
+ 32-bit 2-to-1 multiplexer                             : 30
+ 32-bit 4-to-1 multiplexer                             : 1
+ 32-bit 8-to-1 multiplexer                             : 1
+ 4-bit 2-to-1 multiplexer                              : 4
+ 5-bit 2-to-1 multiplexer                              : 4
+ 6-bit 2-to-1 multiplexer                              : 2
+ 64-bit 2-to-1 multiplexer                             : 3
+ 8-bit 2-to-1 multiplexer                              : 2
+ 8-bit 5-to-1 multiplexer                              : 1
+# Logic shifters                                       : 7
+ 32-bit shifter arithmetic right                       : 1
+ 32-bit shifter logical left                           : 2
+ 32-bit shifter logical right                          : 2
+ 4-bit shifter logical left                            : 2
+# Xors                                                 : 4
+ 1-bit xor2                                            : 1
+ 32-bit xor2                                           : 3
+
+=========================================================================
+
+=========================================================================
+*                         Low Level Synthesis                           *
+=========================================================================
+WARNING:Xst:1293 - FF/Latch <reset_o> has a constant value of 0 in block <ResetGenerator>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1426 - The value init of the FF/Latch reset_internal hinder the constant cleaning in the block yarvi.
+   You should achieve better results by setting this init to 0.
+WARNING:Xst:1293 - FF/Latch <csr_ptbr_0> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_ptbr_1> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_ptbr_2> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_ptbr_3> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_ptbr_4> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_ptbr_5> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_ptbr_6> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_ptbr_7> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_ptbr_8> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_ptbr_9> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_ptbr_10> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_ptbr_11> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_ptbr_12> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_evec_0> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_evec_1> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1710 - FF/Latch <dnEmptySR_r_8> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <dnEmptySR_r_9> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <dnEmptySR_r_10> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <dnEmptySR_r_11> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <dnEmptySR_r_12> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <dnEmptySR_r_13> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <dnEmptySR_r_14> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <dnEmptySR_r_15> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <dnEmptySR_r_16> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <dnEmptySR_r_17> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <dnEmptySR_r_18> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <dnEmptySR_r_19> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <dnEmptySR_r_20> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <dnEmptySR_r_21> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <dnEmptySR_r_22> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <dnEmptySR_r_23> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <dnEmptySR_r_24> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <dnEmptySR_r_25> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <dnEmptySR_r_26> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <dnEmptySR_r_27> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <dnEmptySR_r_28> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <dnEmptySR_r_29> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <dnEmptySR_r_30> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <dnEmptySR_r_31> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <UpFilledSReg.cnt_v_0> has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <UpFilledSReg.cnt_v_1> has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <UpFilledSReg.cnt_v_2> has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <DownEmptySReg.cnt_v_0> has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <DownEmptySReg.cnt_v_1> has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <DownEmptySReg.cnt_v_2> has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <upFilledSR_r_5> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <upFilledSR_r_6> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <upFilledSR_r_7> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <upFilledSR_r_8> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <upFilledSR_r_9> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <upFilledSR_r_10> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <upFilledSR_r_11> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <upFilledSR_r_12> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <upFilledSR_r_13> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <upFilledSR_r_14> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <upFilledSR_r_15> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <upFilledSR_r_16> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <upFilledSR_r_17> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <upFilledSR_r_18> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <upFilledSR_r_19> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <upFilledSR_r_20> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <upFilledSR_r_21> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <upFilledSR_r_22> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <upFilledSR_r_23> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <upFilledSR_r_24> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <upFilledSR_r_25> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <upFilledSR_r_26> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <upFilledSR_r_27> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <upFilledSR_r_28> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <upFilledSR_r_29> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <upFilledSR_r_30> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <upFilledSR_r_31> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <dnEmptySR_r_5> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <dnEmptySR_r_6> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <dnEmptySR_r_7> (without init value) has a constant value of 0 in block <HostIoComm>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1293 - FF/Latch <shiftReg_r_12> has a constant value of 0 in block <HostIoToRamCore>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <shiftReg_r_13> has a constant value of 0 in block <HostIoToRamCore>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <shiftReg_r_14> has a constant value of 0 in block <HostIoToRamCore>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <shiftReg_r_15> has a constant value of 0 in block <HostIoToRamCore>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1426 - The value init of the FF/Latch csr_cause_1 hinder the constant cleaning in the block yarvi.
+   You should achieve better results by setting this init to 1.
+WARNING:Xst:1426 - The value init of the FF/Latch csr_cause_2 hinder the constant cleaning in the block yarvi.
+   You should achieve better results by setting this init to 1.
+WARNING:Xst:1293 - FF/Latch <csr_cause_8> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_cause_9> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_cause_10> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_cause_11> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_cause_12> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_cause_13> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_cause_14> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_cause_15> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_cause_16> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_cause_17> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_cause_18> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_cause_19> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_cause_20> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_cause_21> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_cause_22> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_cause_23> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_cause_24> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_cause_25> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_cause_26> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_cause_27> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_cause_28> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_cause_29> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_cause_30> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_cause_31> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_status_30> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_status_27> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_status_29> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_status_28> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_status_26> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_status_25> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_status_14> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_status_24> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_status_15> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_status_13> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_status_12> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_status_11> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_status_10> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_status_9> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_status_8> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_status_5> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_status_7> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_status_6> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_status_4> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_cause_3> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_cause_4> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_cause_5> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_cause_6> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1896 - Due to other FF/Latch trimming, FF/Latch <csr_cause_7> has a constant value of 0 in block <yarvi>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1710 - FF/Latch <readdata_31> (without init value) has a constant value of 0 in block <xula2>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1710 - FF/Latch <readdata_30> (without init value) has a constant value of 0 in block <xula2>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1710 - FF/Latch <readdata_29> (without init value) has a constant value of 0 in block <xula2>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1710 - FF/Latch <readdata_28> (without init value) has a constant value of 0 in block <xula2>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1710 - FF/Latch <readdata_27> (without init value) has a constant value of 0 in block <xula2>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1710 - FF/Latch <readdata_26> (without init value) has a constant value of 0 in block <xula2>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1710 - FF/Latch <readdata_25> (without init value) has a constant value of 0 in block <xula2>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1710 - FF/Latch <readdata_24> (without init value) has a constant value of 0 in block <xula2>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1710 - FF/Latch <readdata_23> (without init value) has a constant value of 0 in block <xula2>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1710 - FF/Latch <readdata_22> (without init value) has a constant value of 0 in block <xula2>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1710 - FF/Latch <readdata_21> (without init value) has a constant value of 0 in block <xula2>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1710 - FF/Latch <readdata_20> (without init value) has a constant value of 0 in block <xula2>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1710 - FF/Latch <readdata_19> (without init value) has a constant value of 0 in block <xula2>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1710 - FF/Latch <readdata_18> (without init value) has a constant value of 0 in block <xula2>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1710 - FF/Latch <readdata_17> (without init value) has a constant value of 0 in block <xula2>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1710 - FF/Latch <readdata_14> (without init value) has a constant value of 0 in block <xula2>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1710 - FF/Latch <readdata_13> (without init value) has a constant value of 0 in block <xula2>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1710 - FF/Latch <readdata_12> (without init value) has a constant value of 0 in block <xula2>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1710 - FF/Latch <readdata_11> (without init value) has a constant value of 0 in block <xula2>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1710 - FF/Latch <readdata_10> (without init value) has a constant value of 0 in block <xula2>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1710 - FF/Latch <readdata_9> (without init value) has a constant value of 0 in block <xula2>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1710 - FF/Latch <readdata_8> (without init value) has a constant value of 0 in block <xula2>. This FF/Latch will be trimmed during the optimization process.
+INFO:Xst:2261 - The FF/Latch <csr_cause_1> in Unit <yarvi> is equivalent to the following FF/Latch, which will be removed : <csr_cause_2> 
+
+Optimizing unit <xula2> ...
+
+Optimizing unit <HostIoComm> ...
+
+Optimizing unit <FifoCc> ...
+
+Optimizing unit <HostIoToRam> ...
+
+Optimizing unit <HostIoToRamCore> ...
+
+Optimizing unit <HostIoHdrScanner> ...
+
+Optimizing unit <RamCtrlSync> ...
+
+Optimizing unit <yarvi> ...
+WARNING:Xst:1710 - FF/Latch <yarvi/ex_next_pc_0> (without init value) has a constant value of 0 in block <xula2>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1710 - FF/Latch <yarvi/csr_epc_0> (without init value) has a constant value of 0 in block <xula2>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1293 - FF/Latch <yarvi/if_pc_0> has a constant value of 0 in block <xula2>. This FF/Latch will be trimmed during the optimization process.
+WARNING:Xst:1895 - Due to other FF/Latch trimming, FF/Latch <yarvi/de_pc_0> (without init value) has a constant value of 0 in block <xula2>. This FF/Latch will be trimmed during the optimization process.
+
+Mapping all equations...
+Building and optimizing final netlist ...
+Found area constraint ratio of 100 (+ 5) on block xula2, actual ratio is 18.
+FlipFlop yarvi/de_inst_20 has been replicated 2 time(s)
+FlipFlop yarvi/de_inst_21 has been replicated 2 time(s)
+FlipFlop yarvi/de_inst_22 has been replicated 2 time(s)
+FlipFlop yarvi/ex_inst_12 has been replicated 1 time(s)
+FlipFlop yarvi/ex_inst_13 has been replicated 2 time(s)
+FlipFlop yarvi/ex_inst_14 has been replicated 1 time(s)
+FlipFlop yarvi/ex_load_addr_31 has been replicated 1 time(s)
+FlipFlop yarvi/ex_valid_ has been replicated 1 time(s)
+
+Final Macro Processing ...
+
+Processing Unit <xula2> :
+	Found 2-bit shift register for signal <u2/u2/u1/USync.URdRamCtrlSync/UDoneSync/sync_r_2>.
+	Found 2-bit shift register for signal <u2/u2/u1/USync.URdRamCtrlSync/UCtrlSync/sync_r_2>.
+	Found 2-bit shift register for signal <u2/u2/u1/USync.UWrRamCtrlSync/UDoneSync/sync_r_2>.
+	Found 2-bit shift register for signal <u2/u2/u1/USync.UWrRamCtrlSync/UCtrlSync/sync_r_2>.
+Unit <xula2> processed.
+
+=========================================================================
+Final Register Report
+
+Macro Statistics
+# Registers                                            : 914
+ Flip-Flops                                            : 914
+# Shift Registers                                      : 4
+ 2-bit shift register                                  : 4
+
+=========================================================================
+
+=========================================================================
+*                           Partition Report                            *
+=========================================================================
+
+Partition Implementation Status
+-------------------------------
+
+  No Partitions were found in this design.
+
+-------------------------------
+
+=========================================================================
+*                            Design Summary                             *
+=========================================================================
+
+Clock Information:
+------------------
+-----------------------------------+-------------------------------------------------+-------+
+Clock Signal                       | Clock buffer(FF name)                           | Load  |
+-----------------------------------+-------------------------------------------------+-------+
+fpgaClk_i                          | DCM_SP:CLKFX                                    | 877   |
+fpgaClk_i                          | DCM_SP:CLKFX180                                 | 1     |
+u2/u2/u1/drck_s                    | NONE(u2/u2/u1/UHostIoToRamCore/dataFromHost_o_7)| 87    |
+-----------------------------------+-------------------------------------------------+-------+
+INFO:Xst:2169 - HDL ADVISOR - Some clock signals were not automatically buffered by XST with BUFG/BUFR resources. Please use the buffer_type constraint in order to insert these buffers to the clock signals to help prevent skew problems.
+
+Asynchronous Control Signals Information:
+----------------------------------------
+No asynchronous control signals found in this design
+
+Timing Summary:
+---------------
+Speed Grade: -2
+
+   Minimum period: 55.898ns (Maximum Frequency: 17.890MHz)
+   Minimum input arrival time before clock: 3.784ns
+   Maximum output required time after clock: 4.072ns
+   Maximum combinational path delay: No path found
+
+=========================================================================
+mv XuLA2.ngc XuLA2_lx25.ngc
+ngdbuild -intstyle ise -dd _ngo -nt timestamp \
+	-uc XuLA2.ucf -aul -p xc6slx25-2-ftg256 XuLA2_lx25.ngc XuLA2_lx25.ngd
+
+Command Line: /opt/Xilinx/14.7/ISE_DS/ISE/bin/lin/unwrapped/ngdbuild -intstyle
+ise -dd _ngo -nt timestamp -uc XuLA2.ucf -aul -p xc6slx25-2-ftg256
+XuLA2_lx25.ngc XuLA2_lx25.ngd
+
+Reading NGO file "/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2/XuLA2_lx25.ngc" ...
+Gathering constraint information from source properties...
+Done.
+
+Annotating constraints to design from ucf file "XuLA2.ucf" ...
+Resolving constraint associations...
+Checking Constraint Associations...
+
+
+Done...
+
+WARNING:NgdBuild:1212 - User specified non-default attribute value
+   (83.3333333333333) was detected for the CLKIN_PERIOD attribute on DCM
+   "u0/u0".  This does not match the PERIOD constraint value (12 MHz.).  The
+   uncertainty calculation will use the non-default attribute value.  This could
+   result in incorrect uncertainty calculated for DCM output clocks.
+Checking expanded design ...
+
+Partition Implementation Status
+-------------------------------
+
+  No Partitions were found in this design.
+
+-------------------------------
+
+NGDBUILD Design Results Summary:
+  Number of errors:     0
+  Number of warnings:   1
+
+Writing NGD file "XuLA2_lx25.ngd" ...
+Total REAL time to NGDBUILD completion:  3 sec
+Total CPU time to NGDBUILD completion:   3 sec
+
+Writing NGDBUILD log file "XuLA2_lx25.bld"...
+
+NGDBUILD done.
+map -intstyle ise -p xc6slx25-2-ftg256 \
+	-w -detail -ir off -ignore_keep_hierarchy -pr b -timing -ol high -logic_opt on  \
+	-o XuLA2_lx25.ncd XuLA2_lx25.ngd XuLA2_lx25.pcf
+Using target part "6slx25ftg256-2".
+Mapping design into LUTs...
+WARNING:MapLib:41 - All members of TNM group "u0_genClkN_s" have been optimized
+   out of the design.
+WARNING:MapLib:50 - The period specification "TS_u0_genClkN_s" has been
+   discarded because the group "u0_genClkN_s" has been optimized away.
+Running directed packing...
+Running delay-based LUT packing...
+Updating timing models...
+WARNING:Timing:3402 - The Clock Modifying COMP, u0/u0, has the attribute CLK_FEEDBACK set to NONE.  No phase relationship exists between the
+   input and output clocks of this Clock Modifying COMP. Data paths between these clock domains must be constrained using FROM/TO
+   constraints.
+INFO:Map:215 - The Interim Design Summary has been generated in the MAP Report
+   (.mrp).
+Running timing-driven placement...
+Total REAL time at the beginning of Placer: 8 secs 
+Total CPU  time at the beginning of Placer: 8 secs 
+
+Phase 1.1  Initial Placement Analysis
+Phase 1.1  Initial Placement Analysis (Checksum:1f55aeb0) REAL time: 9 secs 
+
+Phase 2.7  Design Feasibility Check
+Phase 2.7  Design Feasibility Check (Checksum:1f55aeb0) REAL time: 9 secs 
+
+Phase 3.31  Local Placement Optimization
+Phase 3.31  Local Placement Optimization (Checksum:d4ec36c4) REAL time: 9 secs 
+
+Phase 4.2  Initial Placement for Architecture Specific Features
+
+Phase 4.2  Initial Placement for Architecture Specific Features
+(Checksum:9029e389) REAL time: 12 secs 
+
+Phase 5.36  Local Placement Optimization
+Phase 5.36  Local Placement Optimization (Checksum:9029e389) REAL time: 12 secs 
+
+Phase 6.30  Global Clock Region Assignment
+Phase 6.30  Global Clock Region Assignment (Checksum:9029e389) REAL time: 12 secs 
+
+Phase 7.3  Local Placement Optimization
+Phase 7.3  Local Placement Optimization (Checksum:9029e389) REAL time: 12 secs 
+
+Phase 8.5  Local Placement Optimization
+Phase 8.5  Local Placement Optimization (Checksum:9029e389) REAL time: 12 secs 
+
+Phase 9.8  Global Placement
+........................
+..................................
+...........................................................................
+.............................................................................................
+...................................
+Phase 9.8  Global Placement (Checksum:284df66f) REAL time: 32 secs 
+
+Phase 10.5  Local Placement Optimization
+Phase 10.5  Local Placement Optimization (Checksum:284df66f) REAL time: 32 secs 
+
+Phase 11.18  Placement Optimization
+Phase 11.18  Placement Optimization (Checksum:6d500d63) REAL time: 35 secs 
+
+Phase 12.5  Local Placement Optimization
+Phase 12.5  Local Placement Optimization (Checksum:6d500d63) REAL time: 35 secs 
+
+Phase 13.34  Placement Validation
+Phase 13.34  Placement Validation (Checksum:7704e9eb) REAL time: 35 secs 
+
+Total REAL time to Placer completion: 37 secs 
+Total CPU  time to Placer completion: 37 secs 
+Running physical synthesis...
+
+Physical synthesis completed.
+Running post-placement packing...
+Writing output files...
+
+Design Summary:
+Number of errors:      0
+Number of warnings:    6
+Slice Logic Utilization:
+  Number of Slice Registers:                   918 out of  30,064    3%
+    Number used as Flip Flops:                 918
+    Number used as Latches:                      0
+    Number used as Latch-thrus:                  0
+    Number used as AND/OR logics:                0
+  Number of Slice LUTs:                      2,304 out of  15,032   15%
+    Number used as logic:                    2,277 out of  15,032   15%
+      Number using O6 output only:           1,758
+      Number using O5 output only:             273
+      Number using O5 and O6:                  246
+      Number used as ROM:                        0
+    Number used as Memory:                      20 out of   3,664    1%
+      Number used as Dual Port RAM:             16
+        Number using O6 output only:             8
+        Number using O5 output only:             0
+        Number using O5 and O6:                  8
+      Number used as Single Port RAM:            0
+      Number used as Shift Register:             4
+        Number using O6 output only:             4
+        Number using O5 output only:             0
+        Number using O5 and O6:                  0
+    Number used exclusively as route-thrus:      7
+      Number with same-slice register load:      0
+      Number with same-slice carry load:         7
+      Number with other load:                    0
+
+Slice Logic Distribution:
+  Number of occupied Slices:                   754 out of   3,758   20%
+  Number of MUXCYs used:                       580 out of   7,516    7%
+  Number of LUT Flip Flop pairs used:        2,416
+    Number with an unused Flip Flop:         1,550 out of   2,416   64%
+    Number with an unused LUT:                 112 out of   2,416    4%
+    Number of fully used LUT-FF pairs:         754 out of   2,416   31%
+    Number of unique control sets:              48
+    Number of slice register sites lost
+      to control set restrictions:             182 out of  30,064    1%
+
+  A LUT Flip Flop pair for this architecture represents one LUT paired with
+  one Flip Flop within a slice.  A control set is a unique combination of
+  clock, reset, set, and enable signals for a registered element.
+  The Slice Logic Distribution report is not meaningful if the design is
+  over-mapped for a non-slice resource or if Placement fails.
+
+IO Utilization:
+  Number of bonded IOBs:                         1 out of     186    1%
+    Number of LOCed IOBs:                        1 out of       1  100%
+
+Specific Feature Utilization:
+  Number of RAMB16BWERs:                        33 out of      52   63%
+  Number of RAMB8BWERs:                          2 out of     104    1%
+  Number of BUFIO2/BUFIO2_2CLKs:                 1 out of      32    3%
+    Number used as BUFIO2s:                      1
+    Number used as BUFIO2_2CLKs:                 0
+  Number of BUFIO2FB/BUFIO2FB_2CLKs:             0 out of      32    0%
+  Number of BUFG/BUFGMUXs:                       1 out of      16    6%
+    Number used as BUFGs:                        1
+    Number used as BUFGMUX:                      0
+  Number of DCM/DCM_CLKGENs:                     1 out of       4   25%
+    Number used as DCMs:                         1
+    Number used as DCM_CLKGENs:                  0
+  Number of ILOGIC2/ISERDES2s:                   0 out of     272    0%
+  Number of IODELAY2/IODRP2/IODRP2_MCBs:         0 out of     272    0%
+  Number of OLOGIC2/OSERDES2s:                   0 out of     272    0%
+  Number of BSCANs:                              1 out of       4   25%
+  Number of BUFHs:                               0 out of     160    0%
+  Number of BUFPLLs:                             0 out of       8    0%
+  Number of BUFPLL_MCBs:                         0 out of       4    0%
+  Number of DSP48A1s:                            0 out of      38    0%
+  Number of ICAPs:                               0 out of       1    0%
+  Number of MCBs:                                0 out of       2    0%
+  Number of PCILOGICSEs:                         0 out of       2    0%
+  Number of PLL_ADVs:                            0 out of       2    0%
+  Number of PMVs:                                0 out of       1    0%
+  Number of STARTUPs:                            0 out of       1    0%
+  Number of SUSPEND_SYNCs:                       0 out of       1    0%
+
+Average Fanout of Non-Clock Nets:                4.35
+
+Peak Memory Usage:  297 MB
+Total REAL time to MAP completion:  41 secs 
+Total CPU time to MAP completion:   41 secs 
+
+Mapping completed.
+See MAP report file "XuLA2_lx25.mrp" for details.
+par -w -intstyle ise -ol high XuLA2_lx25.ncd XuLA2_lx25_routed.ncd XuLA2_lx25.pcf
+
+
+
+Constraints file: XuLA2_lx25.pcf.
+Loading device for application Rf_Device from file '6slx25.nph' in environment /opt/Xilinx/14.7/ISE_DS/ISE/.
+   "xula2" is an NCD, version 3.2, device xc6slx25, package ftg256, speed -2
+
+Initializing temperature to 85.000 Celsius. (default - Range: 0.000 to 85.000 Celsius)
+Initializing voltage to 1.140 Volts. (default - Range: 1.140 to 1.260 Volts)
+
+
+Device speed data version:  "PRODUCTION 1.23 2013-10-13".
+
+
+
+Device Utilization Summary:
+
+Slice Logic Utilization:
+  Number of Slice Registers:                   918 out of  30,064    3%
+    Number used as Flip Flops:                 918
+    Number used as Latches:                      0
+    Number used as Latch-thrus:                  0
+    Number used as AND/OR logics:                0
+  Number of Slice LUTs:                      2,304 out of  15,032   15%
+    Number used as logic:                    2,277 out of  15,032   15%
+      Number using O6 output only:           1,758
+      Number using O5 output only:             273
+      Number using O5 and O6:                  246
+      Number used as ROM:                        0
+    Number used as Memory:                      20 out of   3,664    1%
+      Number used as Dual Port RAM:             16
+        Number using O6 output only:             8
+        Number using O5 output only:             0
+        Number using O5 and O6:                  8
+      Number used as Single Port RAM:            0
+      Number used as Shift Register:             4
+        Number using O6 output only:             4
+        Number using O5 output only:             0
+        Number using O5 and O6:                  0
+    Number used exclusively as route-thrus:      7
+      Number with same-slice register load:      0
+      Number with same-slice carry load:         7
+      Number with other load:                    0
+
+Slice Logic Distribution:
+  Number of occupied Slices:                   754 out of   3,758   20%
+  Number of MUXCYs used:                       580 out of   7,516    7%
+  Number of LUT Flip Flop pairs used:        2,416
+    Number with an unused Flip Flop:         1,550 out of   2,416   64%
+    Number with an unused LUT:                 112 out of   2,416    4%
+    Number of fully used LUT-FF pairs:         754 out of   2,416   31%
+    Number of slice register sites lost
+      to control set restrictions:               0 out of  30,064    0%
+
+  A LUT Flip Flop pair for this architecture represents one LUT paired with
+  one Flip Flop within a slice.  A control set is a unique combination of
+  clock, reset, set, and enable signals for a registered element.
+  The Slice Logic Distribution report is not meaningful if the design is
+  over-mapped for a non-slice resource or if Placement fails.
+
+IO Utilization:
+  Number of bonded IOBs:                         1 out of     186    1%
+    Number of LOCed IOBs:                        1 out of       1  100%
+
+Specific Feature Utilization:
+  Number of RAMB16BWERs:                        33 out of      52   63%
+  Number of RAMB8BWERs:                          2 out of     104    1%
+  Number of BUFIO2/BUFIO2_2CLKs:                 1 out of      32    3%
+    Number used as BUFIO2s:                      1
+    Number used as BUFIO2_2CLKs:                 0
+  Number of BUFIO2FB/BUFIO2FB_2CLKs:             0 out of      32    0%
+  Number of BUFG/BUFGMUXs:                       1 out of      16    6%
+    Number used as BUFGs:                        1
+    Number used as BUFGMUX:                      0
+  Number of DCM/DCM_CLKGENs:                     1 out of       4   25%
+    Number used as DCMs:                         1
+    Number used as DCM_CLKGENs:                  0
+  Number of ILOGIC2/ISERDES2s:                   0 out of     272    0%
+  Number of IODELAY2/IODRP2/IODRP2_MCBs:         0 out of     272    0%
+  Number of OLOGIC2/OSERDES2s:                   0 out of     272    0%
+  Number of BSCANs:                              1 out of       4   25%
+  Number of BUFHs:                               0 out of     160    0%
+  Number of BUFPLLs:                             0 out of       8    0%
+  Number of BUFPLL_MCBs:                         0 out of       4    0%
+  Number of DSP48A1s:                            0 out of      38    0%
+  Number of ICAPs:                               0 out of       1    0%
+  Number of MCBs:                                0 out of       2    0%
+  Number of PCILOGICSEs:                         0 out of       2    0%
+  Number of PLL_ADVs:                            0 out of       2    0%
+  Number of PMVs:                                0 out of       1    0%
+  Number of STARTUPs:                            0 out of       1    0%
+  Number of SUSPEND_SYNCs:                       0 out of       1    0%
+
+
+Overall effort level (-ol):   High 
+Router effort level (-rl):    High 
+
+WARNING:Timing:3402 - The Clock Modifying COMP, u0/u0, has the attribute CLK_FEEDBACK set to NONE.  No phase relationship exists between the
+   input and output clocks of this Clock Modifying COMP. Data paths between these clock domains must be constrained using FROM/TO
+   constraints.
+Starting initial Timing Analysis.  REAL time: 5 secs 
+Finished initial Timing Analysis.  REAL time: 5 secs 
+
+WARNING:Par:288 - The signal u2/u2/UpFifo/Mram_ram_r1_RAMD_D1_O has no load.  PAR will not attempt to route this signal.
+WARNING:Par:288 - The signal u2/u2/DownFifo/Mram_ram_r1_RAMD_D1_O has no load.  PAR will not attempt to route this signal.
+Starting Router
+
+
+Phase  1  : 13679 unrouted;      REAL time: 5 secs 
+
+Phase  2  : 12351 unrouted;      REAL time: 6 secs 
+
+Phase  3  : 5632 unrouted;      REAL time: 14 secs 
+
+Phase  4  : 5632 unrouted; (Setup:0, Hold:0, Component Switching Limit:0)     REAL time: 15 secs 
+
+Updating file: XuLA2_lx25_routed.ncd with current fully routed design.
+
+Phase  5  : 0 unrouted; (Setup:0, Hold:0, Component Switching Limit:0)     REAL time: 22 secs 
+
+Phase  6  : 0 unrouted; (Setup:0, Hold:0, Component Switching Limit:0)     REAL time: 22 secs 
+
+Phase  7  : 0 unrouted; (Setup:0, Hold:0, Component Switching Limit:0)     REAL time: 22 secs 
+
+Phase  8  : 0 unrouted; (Setup:0, Hold:0, Component Switching Limit:0)     REAL time: 22 secs 
+
+Phase  9  : 0 unrouted; (Setup:0, Hold:0, Component Switching Limit:0)     REAL time: 22 secs 
+
+Phase 10  : 0 unrouted; (Setup:0, Hold:0, Component Switching Limit:0)     REAL time: 22 secs 
+Total REAL time to Router completion: 22 secs 
+Total CPU time to Router completion: 23 secs 
+
+Partition Implementation Status
+-------------------------------
+
+  No Partitions were found in this design.
+
+-------------------------------
+
+Generating "PAR" statistics.
+
+**************************
+Generating Clock Report
+**************************
+
++---------------------+--------------+------+------+------------+-------------+
+|        Clock Net    |   Resource   |Locked|Fanout|Net Skew(ns)|Max Delay(ns)|
++---------------------+--------------+------+------+------------+-------------+
+|          clk_s_BUFG |  BUFGMUX_X2Y3| No   |  335 |  0.226     |  1.750      |
++---------------------+--------------+------+------+------------+-------------+
+|     u2/u2/u1/drck_s |         Local|      |   30 |  1.834     |  4.150      |
++---------------------+--------------+------+------+------------+-------------+
+
+* Net Skew is the difference between the minimum and maximum routing
+only delays for the net. Note this is different from Clock Skew which
+is reported in TRCE timing report. Clock Skew is the difference between
+the minimum and maximum path delays which includes logic delays.
+
+* The fanout is the number of component pins not the individual BEL loads,
+for example SLICE loads not FF loads.
+
+Timing Score: 0 (Setup: 0, Hold: 0, Component Switching Limit: 0)
+
+Number of Timing Constraints that were not applied: 1
+
+Asterisk (*) preceding a constraint indicates it was not met.
+   This may be due to a setup or hold violation.
+
+----------------------------------------------------------------------------------------------------------
+  Constraint                                |    Check    | Worst Case |  Best Case | Timing |   Timing   
+                                            |             |    Slack   | Achievable | Errors |    Score   
+----------------------------------------------------------------------------------------------------------
+  TS_clk_s = PERIOD TIMEGRP "clk_s" TS_fpga | SETUP       |     2.168ns|    17.831ns|       0|           0
+  Clk_i * 4.16666667 HIGH 50%               | HOLD        |     0.218ns|            |       0|           0
+----------------------------------------------------------------------------------------------------------
+  TS_fpgaClk_i = PERIOD TIMEGRP "fpgaClk_i" | MINLOWPULSE |    51.332ns|    32.000ns|       0|           0
+   12 MHz HIGH 50%                          |             |            |            |        |            
+----------------------------------------------------------------------------------------------------------
+
+
+Derived Constraint Report
+Review Timing Report for more details on the following derived constraints.
+To create a Timing Report, run "trce -v 12 -fastpaths -o design_timing_report design.ncd design.pcf"
+or "Run Timing Analysis" from Timing Analyzer (timingan).
+Derived Constraints for TS_fpgaClk_i
++-------------------------------+-------------+-------------+-------------+-------------+-------------+-------------+-------------+
+|                               |   Period    |       Actual Period       |      Timing Errors        |      Paths Analyzed       |
+|           Constraint          | Requirement |-------------+-------------|-------------+-------------|-------------+-------------|
+|                               |             |   Direct    | Derivative  |   Direct    | Derivative  |   Direct    | Derivative  |
++-------------------------------+-------------+-------------+-------------+-------------+-------------+-------------+-------------+
+|TS_fpgaClk_i                   |     83.333ns|     32.000ns|     74.296ns|            0|            0|            0|     15355637|
+| TS_clk_s                      |     20.000ns|     17.831ns|          N/A|            0|            0|     15355637|            0|
++-------------------------------+-------------+-------------+-------------+-------------+-------------+-------------+-------------+
+
+All constraints were met.
+
+
+Generating Pad Report.
+
+All signals are completely routed.
+
+WARNING:Par:283 - There are 2 loadless signals in this design. This design will cause Bitgen to issue DRC warnings.
+
+Total REAL time to PAR completion: 24 secs 
+Total CPU time to PAR completion: 24 secs 
+
+Peak Memory Usage:  244 MB
+
+Placer: Placement generated during map.
+Routing: Completed - No errors found.
+Timing: Completed - No errors found.
+
+Number of error messages: 0
+Number of warning messages: 5
+Number of info messages: 0
+
+Writing design to file XuLA2_lx25_routed.ncd
+
+
+
+PAR done!
+bitgen -f XuLA2.ut XuLA2_lx25_routed.ncd XuLA2_lx25.bit
+Release 14.7 - Bitgen P.20131013 (lin)
+Copyright (c) 1995-2013 Xilinx, Inc.  All rights reserved.
+Loading device for application Rf_Device from file '6slx25.nph' in environment
+/opt/Xilinx/14.7/ISE_DS/ISE/.
+   "xula2" is an NCD, version 3.2, device xc6slx25, package ftg256, speed -2
+
+Mon Jul  6 00:16:45 2015
+
+INFO:Bitgen:341 - This design is using one or more 9K Block RAMs (RAMB8BWER). 
+   9K Block RAM initialization data, both user defined and default, requires a
+   special bit stream format.  For more information, please reference Xilinx
+   Answer Record 39999.
+Running DRC.
+WARNING:PhysDesignRules:367 - The signal <u2/u2/UpFifo/Mram_ram_r1_RAMD_D1_O> is
+   incomplete. The signal does not drive any load pins in the design.
+WARNING:PhysDesignRules:367 - The signal <u2/u2/DownFifo/Mram_ram_r1_RAMD_D1_O>
+   is incomplete. The signal does not drive any load pins in the design.
+INFO:PhysDesignRules:1861 - To achieve optimal frequency synthesis performance
+   with the CLKFX and CLKFX180 outputs of the DCM comp u0/u0, consult the device
+   Data Sheet.
+WARNING:PhysDesignRules:2410 - This design is using one or more 9K Block RAMs
+   (RAMB8BWER).  9K Block RAM initialization data, both user defined and
+   default, may be incorrect and should not be used.  For more information,
+   please reference Xilinx Answer Record 39999.
+DRC detected 0 errors and 3 warnings.  Please see the previously displayed
+individual error or warning messages for more details.
+Creating bit map...
+Saving bit stream in "XuLA2_lx25.bit".
+Bitstream generation is complete.
+make[1]: Leaving directory `/mnt/hgfs/tommy/Dropbox/FPGA/yarvi/XuLA2'
+xsload.py --fpga xula2_lx25.bit
+ERROR: No XESS Boards found!
+touch load
+python xula2.py
+ERROR: XESS USB device could not be found.

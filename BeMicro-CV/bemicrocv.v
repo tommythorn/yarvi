@@ -7,19 +7,7 @@ module bemicrocv
    output        gpio1,
    input         gpio2);
 
-   assign        user_led_n = address[7:0];
-
-   wire          tx_busy;
-
-   wire   [ 7:0] rx_q;
-   wire          rx_valid;
-
-   wire   [29:0] address;
-   wire   [31:0] writedata;
-   wire          writeenable;
-   wire   [31:0] readdata;
-   wire          readenable;
-   wire   [ 3:0] byteena;
+   wire          clk = clk_50;
 
    reg           reset = 1;
    always @(posedge clk_50)
@@ -27,46 +15,45 @@ module bemicrocv
 
    wire          serial_out, serial_in;
 
-   assign gpio1 = serial_out;
+   assign gpio1     = serial_out;
    assign serial_in = gpio2;
 
-   yarvi yarvi
-     ( .clk             (clk_50)
+   wire        tx_ready;
+   wire        tx_valid;
+   wire  [7:0] tx_data;
+
+   wire        rx_ready;
+   wire        rx_valid;
+   wire  [7:0] rx_data;
+
+   axi_uart axi_uart
+     ( .clk             (clk)
      , .reset           (reset)
-     , .address         (address)
-     , .writeenable     (writeenable)
-     , .writedata       (writedata)
-     , .byteena         (byteena)
-     , .readenable      (readenable)
-     , .readdata        (readdata)
+
+     , .tx_ready        (tx_ready)
+     , .tx_valid        (tx_valid)
+     , .tx_data         (tx_data)
+
+     , .rx_ready        (rx_ready)
+     , .rx_valid        (rx_valid)
+     , .rx_data         (rx_data)
      );
 
-   rs232 rs232
-     ( .clk             (clk_50)
-     , .serial_out      (serial_out)
-     , .serial_in       (serial_in)
+   yarvi_soc yarvi_soc
+     ( .clk             (clk)
 
-     , .address         (address[0])
-     , .writeenable     (writeenable & address[29])
-     , .writedata       (writedata)
-     , .readenable      (readenable  & address[29])
-     , .readdata        (readdata));
+     , .rx_ready        (rx_ready)
+     , .rx_valid        (rx_valid)
+     , .rx_data         (rx_data)
 
-   reg 		 readdatavalid = 0;
-   always @(posedge clk_50)
-      readdatavalid <= readenable && address[29];
+     , .tx_ready        (tx_ready)
+     , .tx_valid        (tx_valid)
+     , .tx_data         (tx_data)
+     );
 
-`ifdef NOTDEF
-   always @(posedge clk_50)
-      if (writeenable /* && address[29] */)
-	$display("IO write %8x/%d -> [%8x]", writedata, byteena, address * 4);
-
-   always @(posedge clk_50)
-      if (readenable /* && address[29] */)
-	$display("IO read from [%8x]", writedata, byteena, address * 4);
-
-   always @(posedge clk_50)
-      if (readdatavalid)
-	$display("IO read -> %8x", readdata);
-`endif
+   initial begin
+      $dumpfile("test.vcd");
+      $dumpvars(0,bemicrocv);
+      #1000 $finish;
+   end
 endmodule

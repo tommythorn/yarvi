@@ -110,7 +110,6 @@ There are two obvious directions from here:
 `endif
 
 module yarvi( input  wire        clk
-            , input  wire        reset
 
             , output reg  [29:0] address
             , output reg         writeenable = 0
@@ -118,19 +117,24 @@ module yarvi( input  wire        clk
             , output reg  [ 3:0] byteena
             , output reg         readenable = 0
             , input  wire [31:0] readdata
+
+            , output wire        bus_req_ready
+            , input  wire        bus_req_read
+            , input  wire        bus_req_write
+            , input  wire        bus_req_read_csr   // XXX Not implemented yet
+            , input  wire        bus_req_write_csr  // XXX Not implemented yet
+            , input  wire [31:0] bus_req_address
+            , input  wire [31:0] bus_req_data
+
+            , output reg         bus_res_valid
+            , output reg  [31:0] bus_res_data
             );
 
-   reg reset_internal = 1;
-   always @(posedge clk) reset_internal <= 0;
+   wire bus_req_read_go  = bus_req_ready & bus_req_read;
+   wire bus_req_write_go = bus_req_ready & bus_req_write;
+   wire bus_req_rw_go    = bus_req_read_go | bus_req_write_go;
 
    /* Global state */
-
-   reg  [31:0] code_mem [0:255];
-   reg  [ 7:0] mem0[`MEMWORDS-1:0];
-   reg  [ 7:0] mem1[`MEMWORDS-1:0];
-   reg  [ 7:0] mem2[`MEMWORDS-1:0];
-   reg  [ 7:0] mem3[`MEMWORDS-1:0];
-
 
    /* CPU state.  These are a special-case of pipeline registers.  As
       they are only (and must only be) written by the EX stage, we
@@ -200,13 +204,13 @@ module yarvi( input  wire        clk
      else interrupt_cause = 7;
 
    /* Forward declarations */
-   reg         ex_restart          = 0;
+   reg         ex_restart          = 1;
+   reg  [31:0] ex_next_pc          = `INIT_PC;
    reg         ex_valid_           = 0;
    wire        ex_valid            = ex_valid_;
    reg  [31:0] ex_inst;
    reg         ex_wben;
    reg  [31:0] ex_wbv;
-   reg  [31:0] ex_next_pc;
 
    reg  [31:0] wb_inst;
    reg         wb_wben;
@@ -220,7 +224,7 @@ module yarvi( input  wire        clk
 
    always @(posedge clk) begin
       if_valid_ <= if_valid || ex_restart;
-      if_pc     <= ex_restart ? ex_next_pc : if_pc + 4;
+      if_pc     <= ex_next_pc;
 
       // XXXXX
 `ifdef SIMULATION2
@@ -229,7 +233,7 @@ module yarvi( input  wire        clk
 `endif
    end
 
-   wire [31:0] if_inst = code_mem[if_pc[9:2]];
+   wire [31:0] if_inst;
 
 //// DECODE AND REGISTER FETCH ////
 
@@ -297,13 +301,15 @@ module yarvi( input  wire        clk
 
    wire [31:0] de_load_addr    = de_rs1_val + de_i_imm;
    wire [31:0] de_store_addr   = de_rs1_val + de_s_imm;
-   wire [`MEMWORDS_LG2-1:0]
-               de_store_ea     = de_store_addr[`MEMWORDS_LG2+1:2];
+   wire [`MEMWORDS_LG2-1:0] de_load_wa  = de_load_addr[`MEMWORDS_LG2+1:2];
+   wire [`MEMWORDS_LG2-1:0] de_store_wa = de_store_addr[`MEMWORDS_LG2+1:2];
    wire [ 3:0] de_bytemask     = de_inst`funct3 == 0 ? 4'd 1 : de_inst`funct3 == 1 ? 4'd 3 : 4'd 15;
    wire [ 3:0] de_load_byteena = de_bytemask << de_load_addr[1:0];
    wire [ 3:0] de_store_byteena = de_bytemask << de_store_addr[1:0];
    wire        de_store        = de_valid && de_inst`opcode == `STORE;
    wire        de_store_local  = de_store && de_store_addr[31:`MEMWORDS_LG2+2] == (`DATA_START >> (`MEMWORDS_LG2 + 2));
+   wire        de_load        = de_valid && de_inst`opcode == `LOAD;
+   wire        de_load_local  = de_load && de_load_addr[31:`MEMWORDS_LG2+2] == (`DATA_START >> (`MEMWORDS_LG2 + 2));
    wire [31:0] de_rs2_val_shl  = de_rs2_val << (de_store_addr[1:0]*8);
 
    reg [11:0] de_csrd;
@@ -355,11 +361,12 @@ module yarvi( input  wire        clk
 
 //// EXECUTE ////
 
-   reg  [31:0] /*XXX ex_inst, */ex_load_addr;
+   reg  [31:0] ex_load_addr;
 
    reg  [11:0] ex_csrd;
    reg  [31:0] ex_csr_res;
    reg  [ 3:0] ex_load_byteena;
+   wire [31:0] ex_loaded_data;
 
    always @(posedge clk) begin
       ex_valid_    <= de_valid;
@@ -369,17 +376,13 @@ module yarvi( input  wire        clk
       ex_load_byteena <= de_load_byteena;
    end
 
-   wire [`MEMWORDS_LG2-1:0] ex_load_ea = ex_load_addr[`MEMWORDS_LG2+1:2];
-
 
    // XXX It would be easy to support unaligned memory
-   // with this setup by just calculating a different ex_load_ea for
+   // with this setup by just calculating a different de_load_wa for
    // every slice and rotate the loaded word rather than just shifting
    // it. Similar for store.  Of course, IO access must still be
    // aligned as well as atomics.
-   wire [31:0] ex_ld =
-       ex_load_addr[31] ? readdata :
-       {mem3[ex_load_ea], mem2[ex_load_ea], mem1[ex_load_ea], mem0[ex_load_ea]};
+   wire [31:0] ex_ld = ex_load_addr[31] ? readdata : ex_loaded_data;
    reg  [31:0] ex_ld_shifted, ex_ld_res;
 
    always @(*) begin
@@ -396,12 +399,10 @@ module yarvi( input  wire        clk
    // Note, this could be done in stage DE and thus give a pipelined
    // implementation a single cycle branch penalty
 
-   always @(posedge clk) if (reset_internal) begin
-      ex_restart    <= 1;
-      ex_next_pc    <= `INIT_PC;
-   end else begin
+   always @(posedge clk) begin
+
       ex_restart    <= 0;
-      ex_next_pc    <= de_pc + 4;
+      ex_next_pc    <= ex_next_pc + 4;
 
       if (de_valid)
         case (de_inst`opcode)
@@ -564,12 +565,72 @@ module yarvi( input  wire        clk
     end
 
 //// MEMORY ACCESS ////
-   always @(posedge clk) if (de_store_local) begin
-      if (de_store_byteena[0]) mem0[de_store_ea] <= de_rs2_val_shl[ 7: 0];
-      if (de_store_byteena[1]) mem1[de_store_ea] <= de_rs2_val_shl[15: 8];
-      if (de_store_byteena[2]) mem2[de_store_ea] <= de_rs2_val_shl[23:16];
-      if (de_store_byteena[3]) mem3[de_store_ea] <= de_rs2_val_shl[31:24];
-   end
+
+   wire [`MEMWORDS_LG2-1:0]
+     b_addr = bus_req_rw_go ? bus_req_address[`MEMWORDS_LG2+1:2] :
+              de_store_local ? de_store_wa : de_load_wa;
+   wire [31:0] b_din = bus_req_write_go ? bus_req_data : de_rs2_val_shl;
+
+
+   // XXX A store followed immediately by a load overlapping what was
+   // stored will return the wrong data.  We _could_ forward the data
+   // for the cases where the loaded data completely covers what was
+   // loaded, but it would likely incur a cycle time penalty for this
+   // extremely rare situation and it wouldn't help cases where
+   // there's only a partial overlap.  Instead we should detect this
+   // load-hit-store hazard and restart the load.  This still needs to
+   // be done!
+   bram_tdp #(8, `MEMWORDS_LG2, {`INITDIR,"mem0.txt"}) mem0
+     ( .a_clk(clk)
+     , .a_wr(1'd 0)
+     , .a_addr(ex_next_pc[`MEMWORDS_LG2+1:2])
+     , .a_din(8'h x)
+     , .a_dout(if_inst[7:0])
+
+     , .b_clk(clk)
+     , .b_wr(de_store_local && de_store_byteena[0] || bus_req_write_go)
+     , .b_addr(b_addr)
+     , .b_din(b_din[7:0])
+     , .b_dout(ex_loaded_data[7:0]));
+
+   bram_tdp #(8, `MEMWORDS_LG2, {`INITDIR,"mem1.txt"}) mem1
+     ( .a_clk(clk)
+     , .a_wr(1'd 0)
+     , .a_addr(ex_next_pc[`MEMWORDS_LG2+1:2])
+     , .a_din(8'h x)
+     , .a_dout(if_inst[15:8])
+
+     , .b_clk(clk)
+     , .b_wr(de_store_local && de_store_byteena[1] || bus_req_write_go)
+     , .b_addr(b_addr)
+     , .b_din(b_din[15:8])
+     , .b_dout(ex_loaded_data[15:8]));
+
+   bram_tdp #(8, `MEMWORDS_LG2, {`INITDIR,"mem2.txt"}) mem2
+     ( .a_clk(clk)
+     , .a_wr(1'd 0)
+     , .a_addr(ex_next_pc[`MEMWORDS_LG2+1:2])
+     , .a_din(8'h x)
+     , .a_dout(if_inst[23:16])
+
+     , .b_clk(clk)
+     , .b_wr(de_store_local && de_store_byteena[2] || bus_req_write_go)
+     , .b_addr(b_addr)
+     , .b_din(b_din[23:16])
+     , .b_dout(ex_loaded_data[23:16]));
+
+   bram_tdp #(8, `MEMWORDS_LG2, {`INITDIR,"mem3.txt"}) mem3
+     ( .a_clk(clk)
+     , .a_wr(1'd 0)
+     , .a_addr(ex_next_pc[`MEMWORDS_LG2+1:2])
+     , .a_din(8'h x)
+     , .a_dout(if_inst[31:24])
+
+     , .b_clk(clk)
+     , .b_wr(de_store_local && de_store_byteena[3] || bus_req_write_go)
+     , .b_addr(b_addr)
+     , .b_din(b_din[31:24])
+     , .b_dout(ex_loaded_data[31:24]));
 
    always @(*) begin
      writedata   = de_rs2_val_shl;
@@ -579,15 +640,15 @@ module yarvi( input  wire        clk
      address     = de_store ? de_store_addr[31:2] : de_load_addr[31:2];
    end
 
-   initial begin
-     $readmemh({`INITDIR,"initregs.txt"}, regs);
-     $readmemh({`INITDIR,"program.txt"}, code_mem);
-     $readmemh({`INITDIR,"mem0.txt"}, mem0);
-     $readmemh({`INITDIR,"mem1.txt"}, mem1);
-     $readmemh({`INITDIR,"mem2.txt"}, mem2);
-     $readmemh({`INITDIR,"mem3.txt"}, mem3);
+   assign bus_req_ready = !de_load && !de_store;
+   reg ex_loaded_data_is_bus_res = 0;
+   always @(posedge clk) begin
+      ex_loaded_data_is_bus_res <= bus_req_read_go;
+      bus_res_valid             <= ex_loaded_data_is_bus_res;
+      bus_res_data              <= ex_loaded_data;
    end
 
+   initial $readmemh({`INITDIR,"initregs.txt"}, regs);
 
 `ifdef VERBOSE_SIMULATION
    reg  [31:0] ex_pc, ex_sb_imm, ex_i_imm, ex_s_imm, ex_uj_imm;
@@ -730,4 +791,50 @@ module yarvi( input  wire        clk
      if (de_store_local)
          $display("%05d                                            [%x] <- %x/%x", $time, de_store_addr, de_rs2_val_shl, de_store_byteena);
 `endif
+endmodule
+
+// From http://danstrother.com/2010/09/11/inferring-rams-in-fpgas/
+// A parameterized, inferable, true dual-port, dual-clock block RAM in Verilog.
+module bram_tdp #(
+    parameter DATA = 72,
+    parameter ADDR = 10,
+    parameter INIT = ""
+) (
+    // Port A
+    input   wire                a_clk,
+    input   wire                a_wr,
+    input   wire    [ADDR-1:0]  a_addr,
+    input   wire    [DATA-1:0]  a_din,
+    output  reg     [DATA-1:0]  a_dout,
+
+    // Port B
+    input   wire                b_clk,
+    input   wire                b_wr,
+    input   wire    [ADDR-1:0]  b_addr,
+    input   wire    [DATA-1:0]  b_din,
+    output  reg     [DATA-1:0]  b_dout
+);
+
+// Shared memory
+reg [DATA-1:0] mem [(2**ADDR)-1:0];
+
+// Port A
+always @(posedge a_clk) begin
+    a_dout      <= mem[a_addr];
+    if (a_wr) begin
+        a_dout      <= a_din;
+        mem[a_addr] <= a_din;
+    end
+end
+
+// Port B
+always @(posedge b_clk) begin
+    b_dout      <= mem[b_addr];
+    if (b_wr) begin
+        b_dout      <= b_din;
+        mem[b_addr] <= b_din;
+    end
+end
+
+initial $readmemh(INIT,mem);
 endmodule
