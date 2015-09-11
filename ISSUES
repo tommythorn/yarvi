@@ -1,3 +1,5 @@
+THIS IS A BIT OUT OF DATE
+
 Issues/todos:
 
   #-1 Add support for stalling and convert to an Avalon master,
@@ -29,6 +31,3 @@ Issues/todos:
   #5 Traps: instruction {misalignment, address, illegal, priviledged},
      fp disabled, {load,store} {misalignment, fault}.
 
-  #6 Reading serial register DATA AVAIL triggers a read side effect.  The
-     proper way to deal with this is to generate the read byte enable
-     as well and propagate that.
