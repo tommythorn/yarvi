@@ -7,10 +7,10 @@ module bemicrocv
    output        gpio1,
    input         gpio2);
 
-   wire          clk = clk_50;
+   wire          clock = clk_50;
 
    reg           reset = 1;
-   always @(posedge clk_50)
+   always @(posedge clock)
       reset <= 1'd0;
 
    wire          serial_out, serial_in;
@@ -27,7 +27,7 @@ module bemicrocv
    wire  [7:0] rx_data;
 
    axi_uart axi_uart
-     ( .clk             (clk)
+     ( .clock           (clock)
      , .reset           (reset)
 
      , .tx_ready        (tx_ready)
@@ -40,7 +40,7 @@ module bemicrocv
      );
 
    yarvi_soc yarvi_soc
-     ( .clk             (clk)
+     ( .clock           (clock)
 
      , .rx_ready        (rx_ready)
      , .rx_valid        (rx_valid)

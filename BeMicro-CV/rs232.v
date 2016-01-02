@@ -21,7 +21,7 @@
 `timescale 1ns/10ps
 
 module rs232
-   (input  wire        clk,
+   (input  wire        clock,
     output wire        serial_out,
     input  wire        serial_in,
 
@@ -41,7 +41,7 @@ module rs232
    reg         pending_avail = 0;
 
    rs232rx rs232rx
-     ( .clock		(clk)
+     ( .clock		(clock)
      , .serial_in	(serial_in)
      , .valid     	(rx_valid)
      , .q		(rx_q));
@@ -51,7 +51,7 @@ module rs232
 
 
    rs232tx rs232tx
-      ( .clock		(clk)
+      ( .clock		(clock)
       , .serial_out	(serial_out)
       , .d		(writedata[7:0])
       , .we		(address == 0 && writeenable)
@@ -65,7 +65,7 @@ module rs232
    integer   file, ch;
 `endif
 
-   always @(posedge clk) begin
+   always @(posedge clock) begin
       if (readenable)
          case (address)
          0: readdata <= {15'd0, pending_avail, pending_avail, 7'd0, pending_data};

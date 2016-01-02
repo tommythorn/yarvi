@@ -9,7 +9,7 @@
  *   'w' D0 D1 D2 D3       -- write to address and advance by four
  */
 
-module htif ( input  wire        clk
+module htif ( input  wire        clock
 
             // from host
 
@@ -53,7 +53,7 @@ module htif ( input  wire        clk
    wire      rx_go = rx_ready & rx_valid;
    wire      tx_go = tx_ready & tx_valid;
 
-   always @(posedge clk)
+   always @(posedge clock)
      case (s)
        0: begin
           cmd <= rx_data;

@@ -109,7 +109,7 @@ There are two obvious directions from here:
 `define INITDIR "../shared/"
 `endif
 
-module yarvi( input  wire        clk
+module yarvi( input  wire        clock
 
             , output reg  [29:0] address
             , output reg         writeenable = 0
@@ -222,7 +222,7 @@ module yarvi( input  wire        clk
    wire        if_valid            = if_valid_ && !ex_restart;
    reg  [31:0] if_pc               = 0;
 
-   always @(posedge clk) begin
+   always @(posedge clock) begin
       if_valid_ <= if_valid || ex_restart;
       if_pc     <= ex_next_pc;
 
@@ -255,7 +255,7 @@ module yarvi( input  wire        clk
 
    reg  [31:0] de_csr_val;
 
-   always @(posedge clk) begin
+   always @(posedge clock) begin
       de_valid_ <= if_valid;
       de_pc     <= if_pc;
       de_inst   <= if_inst;
@@ -368,7 +368,7 @@ module yarvi( input  wire        clk
    reg  [ 3:0] ex_load_byteena;
    wire [31:0] ex_loaded_data;
 
-   always @(posedge clk) begin
+   always @(posedge clock) begin
       ex_valid_    <= de_valid;
       ex_inst      <= de_inst;
       ex_load_addr <= de_load_addr;
@@ -399,7 +399,7 @@ module yarvi( input  wire        clk
    // Note, this could be done in stage DE and thus give a pipelined
    // implementation a single cycle branch penalty
 
-   always @(posedge clk) begin
+   always @(posedge clock) begin
 
       ex_restart    <= 0;
       ex_next_pc    <= ex_next_pc + 4;
@@ -440,7 +440,7 @@ module yarvi( input  wire        clk
 
    // XXX This violates the code style above but is trivial to fix
    reg  [31:0] ex_res;
-   always @(posedge clk)
+   always @(posedge clock)
       case (de_inst`opcode)
          `OP_IMM, `OP:
             case (de_inst`funct3)
@@ -483,20 +483,20 @@ module yarvi( input  wire        clk
    always @(*) ex_wben = ex_valid && ex_inst`rd &&
                          ex_inst`opcode != `BRANCH && ex_inst`opcode != `STORE;
 
-   always @(posedge clk) begin
+   always @(posedge clock) begin
       if (ex_wben)
          regs[ex_inst`rd] <= ex_wbv;
       de_rs1_val_r <= regs[if_inst`rs1];
       de_rs2_val_r <= regs[if_inst`rs2];
    end
 
-   always @(posedge clk) begin
+   always @(posedge clock) begin
       wb_inst <= ex_inst;
       wb_wben <= ex_wben;
       wb_wbv  <= ex_wbv;
    end
 
-   always @(posedge clk) begin
+   always @(posedge clock) begin
       if (csr_count == csr_compare)
           csr_status[24 + 7] <= 1; // INTR_TIMER
 
@@ -581,52 +581,52 @@ module yarvi( input  wire        clk
    // load-hit-store hazard and restart the load.  This still needs to
    // be done!
    bram_tdp #(8, `MEMWORDS_LG2, {`INITDIR,"mem0.txt"}) mem0
-     ( .a_clk(clk)
+     ( .a_clk(clock)
      , .a_wr(1'd 0)
      , .a_addr(ex_next_pc[`MEMWORDS_LG2+1:2])
      , .a_din(8'h x)
      , .a_dout(if_inst[7:0])
 
-     , .b_clk(clk)
+     , .b_clk(clock)
      , .b_wr(de_store_local && de_store_byteena[0] || bus_req_write_go)
      , .b_addr(b_addr)
      , .b_din(b_din[7:0])
      , .b_dout(ex_loaded_data[7:0]));
 
    bram_tdp #(8, `MEMWORDS_LG2, {`INITDIR,"mem1.txt"}) mem1
-     ( .a_clk(clk)
+     ( .a_clk(clock)
      , .a_wr(1'd 0)
      , .a_addr(ex_next_pc[`MEMWORDS_LG2+1:2])
      , .a_din(8'h x)
      , .a_dout(if_inst[15:8])
 
-     , .b_clk(clk)
+     , .b_clk(clock)
      , .b_wr(de_store_local && de_store_byteena[1] || bus_req_write_go)
      , .b_addr(b_addr)
      , .b_din(b_din[15:8])
      , .b_dout(ex_loaded_data[15:8]));
 
    bram_tdp #(8, `MEMWORDS_LG2, {`INITDIR,"mem2.txt"}) mem2
-     ( .a_clk(clk)
+     ( .a_clk(clock)
      , .a_wr(1'd 0)
      , .a_addr(ex_next_pc[`MEMWORDS_LG2+1:2])
      , .a_din(8'h x)
      , .a_dout(if_inst[23:16])
 
-     , .b_clk(clk)
+     , .b_clk(clock)
      , .b_wr(de_store_local && de_store_byteena[2] || bus_req_write_go)
      , .b_addr(b_addr)
      , .b_din(b_din[23:16])
      , .b_dout(ex_loaded_data[23:16]));
 
    bram_tdp #(8, `MEMWORDS_LG2, {`INITDIR,"mem3.txt"}) mem3
-     ( .a_clk(clk)
+     ( .a_clk(clock)
      , .a_wr(1'd 0)
      , .a_addr(ex_next_pc[`MEMWORDS_LG2+1:2])
      , .a_din(8'h x)
      , .a_dout(if_inst[31:24])
 
-     , .b_clk(clk)
+     , .b_clk(clock)
      , .b_wr(de_store_local && de_store_byteena[3] || bus_req_write_go)
      , .b_addr(b_addr)
      , .b_din(b_din[31:24])
@@ -642,7 +642,7 @@ module yarvi( input  wire        clk
 
    assign bus_req_ready = !de_load && !de_store;
    reg ex_loaded_data_is_bus_res = 0;
-   always @(posedge clk) begin
+   always @(posedge clock) begin
       ex_loaded_data_is_bus_res <= bus_req_read_go;
       bus_res_valid             <= ex_loaded_data_is_bus_res;
       bus_res_data              <= ex_loaded_data;
@@ -653,7 +653,7 @@ module yarvi( input  wire        clk
 `ifdef VERBOSE_SIMULATION
    reg  [31:0] ex_pc, ex_sb_imm, ex_i_imm, ex_s_imm, ex_uj_imm;
 
-   always @(posedge clk) begin
+   always @(posedge clock) begin
       ex_pc        <= de_pc;
       ex_sb_imm    <= de_sb_imm;
       ex_i_imm     <= de_i_imm;
@@ -661,7 +661,7 @@ module yarvi( input  wire        clk
       ex_uj_imm    <= de_uj_imm;
    end
 
-   always @(posedge clk)
+   always @(posedge clock)
       if (de_valid)
         case (de_inst`opcode)
         `LOAD: if (/*!de_load_addr[31] &&*/
@@ -675,7 +675,7 @@ module yarvi( input  wire        clk
                             de_store_addr[31:`MEMWORDS_LG2+2], (`DATA_START >> (`MEMWORDS_LG2 + 2)));
         endcase
 
-   always @(posedge clk) begin
+   always @(posedge clock) begin
 `ifdef SIMULATION_VERBOSE_PIPELINE
       $display("");
       if (ex_restart)
@@ -787,7 +787,7 @@ module yarvi( input  wire        clk
                   ex_load_byteena);
    end
 
-   always @(posedge clk)
+   always @(posedge clock)
      if (de_store_local)
          $display("%05d                                            [%x] <- %x/%x", $time, de_store_addr, de_rs2_val_shl, de_store_byteena);
 `endif

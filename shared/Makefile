@@ -1,5 +1,5 @@
 # Adjust to match your RISC-V toolchain
-RVPATH=/opt/rvc/bin/
+RVPATH=
 RVPREFIX=$(RVPATH)riscv64-unknown-elf-
 
 CC=$(RVPREFIX)gcc -std=gnu99 -m32 -O

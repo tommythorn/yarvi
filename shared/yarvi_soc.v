@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 module yarvi_soc
-            ( input  wire        clk
+            ( input  wire        clock
             , input  wire        reset
 
             // from host
@@ -27,7 +27,7 @@ module yarvi_soc
    wire [31:0] bus_res_data;
 
    htif htif
-     ( .clk             (clk)
+     ( .clock           (clock)
 
      , .rx_ready        (rx_ready)
      , .rx_valid        (rx_valid)
@@ -48,7 +48,7 @@ module yarvi_soc
      );
 
    yarvi yarvi
-     ( .clk             (clk)
+     ( .clock           (clock)
 
      , .bus_req_ready   (bus_req_ready)
      , .bus_req_read    (bus_req_read)

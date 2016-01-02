@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 module axi_uart
-  ( input  wire        clk
+  ( input  wire        clock
   , input  wire        reset
 
   , input  wire        serial_in
@@ -31,7 +31,7 @@ module axi_uart
    wire [ 7:0] rs232rx_q;
 
    rs232rx rs232rx
-     ( .clock		(clk)
+     ( .clock		(clock)
      , .serial_in	(serial_in)
      , .valid     	(rs232rx_valid)
      , .q		(rs232rx_q));
@@ -40,7 +40,7 @@ module axi_uart
      rs232rx.bps        = bps;
 
    rs232tx rs232tx
-      ( .clock		(clk)
+      ( .clock		(clock)
       , .serial_out	(serial_out)
       , .d		(tx_data)
       , .we		(tx_valid & tx_ready)
@@ -52,7 +52,7 @@ module axi_uart
    parameter inputtext  = {`INITDIR,"input.txt"};
    integer   file, ch;
 
-   always @(posedge clk) begin
+   always @(posedge clock) begin
       if (rx_ready & rx_valid) begin
          rx_valid <= 0;
 
@@ -73,7 +73,7 @@ module axi_uart
    end
 
 `ifdef __ICARUS__
-   always @(posedge clk)
+   always @(posedge clock)
       if (tx_ready & tx_valid)
          $display("RS232 WROTE %x '%c'", tx_data, tx_data);
 
