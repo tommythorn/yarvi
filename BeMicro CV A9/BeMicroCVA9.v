@@ -6,7 +6,7 @@ module BeMicroCVA9
   , input   wire                DDR3_CLK_50MHZ   // DDR3 HMC Clock Input
 
     // User I/O (LED, push buttons, DIP switch)
-  , output  reg     [ 7:0]      LEDn             // Green User LEDs
+  , output  wire    [ 7:0]      LEDn             // Green User LEDs
   , input   wire    [ 1:0]      KEYn             // user push buttons
   , input   wire    [ 3:0]      DIP_SW           // user DIP switch
 
@@ -63,6 +63,15 @@ module BeMicroCVA9
    always @(posedge clock)
       reset <= 1'd0;
 
+   wire [3:0] htif_state;
+   wire       tx_ready, tx_valid, rx_ready, rx_valid;
+   wire [7:0] tx_data, rx_data;
+   reg  [1:0] tx_count = 0, rx_count = 0;
+   assign LEDn = ~{tx_count,rx_count,htif_state};
+
+   always @(posedge clock) tx_count <= tx_count + (tx_ready & tx_valid);
+   always @(posedge clock) rx_count <= rx_count + (rx_ready & rx_valid);
+
    axi_jtaguart axi_jtaguart_inst
      ( .clock           (clock)
      , .reset           (reset)
@@ -86,5 +95,7 @@ module BeMicroCVA9
      , .tx_ready        (tx_ready)
      , .tx_valid        (tx_valid)
      , .tx_data         (tx_data)
+
+     , .htif_state      (htif_state)
      );
 endmodule

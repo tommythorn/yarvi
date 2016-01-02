@@ -36,10 +36,13 @@ module htif ( input  wire        clock
             , output wire        tx_valid
             , output reg   [7:0] tx_data
 
+	    // debug
+            , output reg [3:0]   s = 0
+
             );
 
 
-   reg [3:0] s = 0;
+//   reg [3:0] s = 0;
    reg [31:0] data = 0;
    reg [ 7:0] cmd;
 

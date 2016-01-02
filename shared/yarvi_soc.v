@@ -15,6 +15,8 @@ module yarvi_soc
             , output wire        tx_valid
             , output wire  [7:0] tx_data
 
+	    // debug
+            , output wire  [3:0] htif_state
             );
 
    wire        bus_req_ready;
@@ -45,6 +47,9 @@ module yarvi_soc
      , .tx_ready        (tx_ready)
      , .tx_valid        (tx_valid)
      , .tx_data         (tx_data)
+
+     // debug
+     , .s               (htif_state)
      );
 
    yarvi yarvi
