@@ -507,7 +507,7 @@ module yarvi( input  wire        clock
       csr_time    <= csr_time  + 1;
       csr_instret <= csr_instret + ex_valid;
 
-      if (ex_valid && ex_csrd) // XXX check permissions
+      if (ex_valid && ex_csrd && ex_inst`opcode == `SYSTEM) // XXX check permissions
         case (ex_csrd)
         `CSR_FFLAGS:    csr_fcsr[4:0]      <= ex_csr_res;
         `CSR_FRM:       csr_fcsr[7:5]      <= ex_csr_res;
