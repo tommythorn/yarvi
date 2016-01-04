@@ -121,13 +121,17 @@ module yarvi( input  wire        clock
             , output wire        bus_req_ready
             , input  wire        bus_req_read
             , input  wire        bus_req_write
-            , input  wire        bus_req_read_csr   // XXX Not implemented yet
-            , input  wire        bus_req_write_csr  // XXX Not implemented yet
             , input  wire [31:0] bus_req_address
             , input  wire [31:0] bus_req_data
-
             , output reg         bus_res_valid
             , output reg  [31:0] bus_res_data
+
+            , input  wire [11:0] bus_csr_no
+            , input  wire        bus_csr_read_enable
+            , input  wire        bus_csr_write_enable
+            , input  wire [31:0] bus_csr_writedata
+            , output reg  [31:0] bus_csr_readdata
+            , output reg         bus_csr_readdata_valid
             );
 
    wire bus_req_read_go  = bus_req_ready & bus_req_read;
@@ -148,39 +152,38 @@ module yarvi( input  wire        clock
       the pipeline whenever the update occurs (eg. writes of
       csr_ptbr).
 
-      Exceptions to this are CSR count, cycle, and, time which are
+      Exceptions to this are CSR cycle and time which are
       generally updated independent of what happens in the
       pipeline. */
 
    reg  [31:0] regs[0:31];
 
    reg  [ 7:0] csr_fcsr         = 0;
-   reg  [31:0] csr_sup0         = 0;
-   reg  [31:0] csr_sup1         = 0;
-   reg  [31:0] csr_epc;         // NB: csr_epc[1:0] === 0
-   reg  [31:0] csr_badvaddr     = 0;
-   reg  [31:0] csr_ptbr         = 0;
-   reg  [31:0] csr_count        = 0;
-   reg  [31:0] csr_compare      = 0;
-   reg  [31:0] csr_evec         = 'h 2000;
-   reg  [31:0] csr_cause        = 0;
-   reg  [31:0] csr_status       = 'h 1;  /* S */
-   reg  [31:0] csr_tohost       = 0;
-   reg  [31:0] csr_fromhost     = 0;
-
    reg  [63:0] csr_cycle        = 0;
    reg  [63:0] csr_time         = 0;
    reg  [63:0] csr_instret      = 0;
 
-   // XXX experimental
-   reg  [31:0] csr_storeaddr;
+   reg  [31:0] csr_mstatus      = 0;
+   reg  [ 7:0] csr_mie          = 0;
+   reg  [31:0] csr_mtimecmp     = 0;
 
-   wire interrupt = (csr_status`IM & csr_status`IP) != 0 && csr_status`EI;
+   reg  [31:0] csr_mtime        = 0;
+   reg  [31:0] csr_mscratch     = 0;
+   reg  [31:0] csr_mepc         = 0;
+   reg  [31:0] csr_mcause       = 0;
+   reg  [31:0] csr_mbadaddr     = 0;
+   reg  [ 7:0] csr_mip          = 0;
+
+   reg  [31:0] csr_mtohost      = 0;
+   reg  [31:0] csr_mfromhost    = 0;
+
+
+   wire interrupt = (csr_mie & csr_mip) != 0 && csr_mstatus`EI;
    reg [2:0] interrupt_cause;
-   wire [7:0] interrupt_mask = csr_status`IM & csr_status`IP;
+   wire [7:0] interrupt_mask = csr_mie & csr_mip;
    /* Xilinx's ISE is broken and can't accept the following.
    always @(*)
-       case (csr_status`IM & csr_status`IP)
+       case (csr_mstatus`IM & csr_mstatus`IP)
        'bxxxxxxx1: interrupt_cause = 0;
        'bxxxxxx10: interrupt_cause = 1;
        'bxxxxx100: interrupt_cause = 2;
@@ -309,7 +312,6 @@ module yarvi( input  wire        clock
    wire        de_store        = de_valid && de_inst`opcode == `STORE;
    wire        de_store_local  = de_store && de_store_addr[31:`MEMWORDS_LG2+2] == (`DATA_START >> (`MEMWORDS_LG2 + 2));
    wire        de_load        = de_valid && de_inst`opcode == `LOAD;
-   wire        de_load_local  = de_load && de_load_addr[31:`MEMWORDS_LG2+2] == (`DATA_START >> (`MEMWORDS_LG2 + 2));
    wire [31:0] de_rs2_val_shl  = de_rs2_val << (de_store_addr[1:0]*8);
 
    reg [11:0] de_csrd;
@@ -331,24 +333,51 @@ module yarvi( input  wire        clock
      `CSR_FRM:          de_csr_val = csr_fcsr[7:5];
      `CSR_FCSR:         de_csr_val = csr_fcsr;
 
-     `CSR_SUP0:         de_csr_val = csr_sup0;
-     `CSR_SUP1:         de_csr_val = csr_sup1;
-     `CSR_EPC:          de_csr_val = csr_epc;
-     `CSR_BADVADDR:     de_csr_val = csr_badvaddr;
-     `CSR_PTBR:         de_csr_val = csr_ptbr;
-     `CSR_ASID:         de_csr_val = 0;
-     `CSR_COUNT:        de_csr_val = csr_count;
-     `CSR_COMPARE:      de_csr_val = csr_compare;
-     `CSR_EVEC:         de_csr_val = csr_evec;
-     `CSR_CAUSE:        de_csr_val = csr_cause;
-     `CSR_STATUS:       de_csr_val = csr_status;
-     `CSR_HARTID:       de_csr_val = 0;
-     `CSR_IMPL:         de_csr_val = 0;
-     `CSR_FATC:         de_csr_val = 0; // XXX illegal, trap
-     `CSR_SEND_IPI:     de_csr_val = 0; // XXX illegal, trap
-     `CSR_CLEAR_IPI:    de_csr_val = 0; // XXX illegal, trap
-     `CSR_TOHOST:       de_csr_val = csr_tohost;
-     `CSR_FROMHOST:     de_csr_val = csr_fromhost;
+     `CSR_CYCLE:        de_csr_val = csr_cycle;
+     `CSR_TIME:         de_csr_val = csr_time;
+     `CSR_INSTRET:      de_csr_val = csr_instret;
+     `CSR_CYCLEH:       de_csr_val = csr_cycle[63:32];
+     `CSR_TIMEH:        de_csr_val = csr_time[63:32];
+     `CSR_INSTRETH:     de_csr_val = csr_instret[63:32];
+
+     `CSR_MCPUID:       de_csr_val = {2'h 0, 30'h1 << 8}; // RV32I
+     `CSR_MIMPID:       de_csr_val = 'h5454; // 'TT'
+     `CSR_MHARTID:      de_csr_val = 0;
+
+     `CSR_MSTATUS:      de_csr_val = csr_mstatus;
+     `CSR_MTVEC:        de_csr_val = 'h 100;
+     `CSR_MTDELEG:      de_csr_val = 0;
+     `CSR_MIE:          de_csr_val = csr_mie;
+     `CSR_MTIMECMP:     de_csr_val = csr_mtimecmp;
+
+     `CSR_MSCRATCH:     de_csr_val = csr_mscratch;
+     `CSR_MEPC:         de_csr_val = csr_mepc;
+     `CSR_MCAUSE:       de_csr_val = csr_mcause;
+     `CSR_MBADADDR:     de_csr_val = csr_mbadaddr;
+     `CSR_MIP:          de_csr_val = csr_mip;
+
+     `CSR_MBASE:        de_csr_val = 0;
+     `CSR_MBOUND:       de_csr_val = 0;
+     `CSR_MIBASE:       de_csr_val = 0;
+     `CSR_MIBOUND:      de_csr_val = 0;
+     `CSR_MDBASE:       de_csr_val = 0;
+     `CSR_MDBOUND:      de_csr_val = 0;
+
+     `CSR_HTIMEW:       de_csr_val = 0; // XXX It's not clear
+     `CSR_HTIMEHW:      de_csr_val = 0;
+
+     `CSR_MTOHOST:      de_csr_val = csr_mtohost;
+     `CSR_MFROMHOST:    de_csr_val = csr_mfromhost;
+
+     default:           de_csr_val = 'h X;
+     endcase
+
+   // XXX Yeah, this code duplication isn't real clever
+   always @(*)
+     case (csr_)
+     `CSR_FFLAGS:       de_csr_val = csr_fcsr[4:0];
+     `CSR_FRM:          de_csr_val = csr_fcsr[7:5];
+     `CSR_FCSR:         de_csr_val = csr_fcsr;
 
      `CSR_CYCLE:        de_csr_val = csr_cycle;
      `CSR_TIME:         de_csr_val = csr_time;
@@ -356,6 +385,36 @@ module yarvi( input  wire        clock
      `CSR_CYCLEH:       de_csr_val = csr_cycle[63:32];
      `CSR_TIMEH:        de_csr_val = csr_time[63:32];
      `CSR_INSTRETH:     de_csr_val = csr_instret[63:32];
+
+     `CSR_MCPUID:       de_csr_val = {2'h 0, 30'h1 << 8}; // RV32I
+     `CSR_MIMPID:       de_csr_val = 'h5454; // 'TT'
+     `CSR_MHARTID:      de_csr_val = 0;
+
+     `CSR_MSTATUS:      de_csr_val = csr_mstatus;
+     `CSR_MTVEC:        de_csr_val = 'h 100;
+     `CSR_MTDELEG:      de_csr_val = 0;
+     `CSR_MIE:          de_csr_val = csr_mie;
+     `CSR_MTIMECMP:     de_csr_val = csr_mtimecmp;
+
+     `CSR_MSCRATCH:     de_csr_val = csr_mscratch;
+     `CSR_MEPC:         de_csr_val = csr_mepc;
+     `CSR_MCAUSE:       de_csr_val = csr_mcause;
+     `CSR_MBADADDR:     de_csr_val = csr_mbadaddr;
+     `CSR_MIP:          de_csr_val = csr_mip;
+
+     `CSR_MBASE:        de_csr_val = 0;
+     `CSR_MBOUND:       de_csr_val = 0;
+     `CSR_MIBASE:       de_csr_val = 0;
+     `CSR_MIBOUND:      de_csr_val = 0;
+     `CSR_MDBASE:       de_csr_val = 0;
+     `CSR_MDBOUND:      de_csr_val = 0;
+
+     `CSR_HTIMEW:       de_csr_val = 0; // XXX It's not clear
+     `CSR_HTIMEHW:      de_csr_val = 0;
+
+     `CSR_MTOHOST:      de_csr_val = csr_mtohost;
+     `CSR_MFROMHOST:    de_csr_val = csr_mfromhost;
+
      default:           de_csr_val = 'h X;
      endcase
 
@@ -423,10 +482,10 @@ module yarvi( input  wire        clock
             ex_restart    <= 1;
             case (de_inst`funct3)
                `SCALLSBREAK:
-                   if (de_i_imm[11:0] == 12'h 800 && csr_status`S)
-                       ex_next_pc <= csr_epc;
+                   if (de_i_imm[11:0] == 12'h 800)
+                       ex_next_pc <= csr_mepc;
                    else
-                       ex_next_pc <= csr_evec;
+                       ex_next_pc <= 'h 1C0; // Trap from machine-mode
                endcase
           end
       endcase
@@ -434,7 +493,7 @@ module yarvi( input  wire        clock
       // Interrupts
       if (interrupt) begin
         ex_restart    <= 1;
-        ex_next_pc    <= csr_evec;
+        ex_next_pc    <= 'h 1C0;
       end
    end
 
@@ -497,14 +556,14 @@ module yarvi( input  wire        clock
    end
 
    always @(posedge clock) begin
-      if (csr_count == csr_compare)
-          csr_status[24 + 7] <= 1; // INTR_TIMER
+      if (csr_mtime == csr_mtimecmp)
+          csr_mip`MTIP <= 1;
 
       //// outside pipeline ////
 
-      csr_count   <= csr_count + 1;
       csr_cycle   <= csr_cycle + 1;
       csr_time    <= csr_time  + 1;
+      csr_mtime   <= csr_mtime + 1;
       csr_instret <= csr_instret + ex_valid;
 
       if (ex_valid && ex_csrd && ex_inst`opcode == `SYSTEM) // XXX check permissions
@@ -512,54 +571,43 @@ module yarvi( input  wire        clock
         `CSR_FFLAGS:    csr_fcsr[4:0]      <= ex_csr_res;
         `CSR_FRM:       csr_fcsr[7:5]      <= ex_csr_res;
         `CSR_FCSR:      csr_fcsr           <= ex_csr_res;
-        `CSR_SUP0:      csr_sup0           <= ex_csr_res;
-        `CSR_SUP1:      csr_sup1           <= ex_csr_res;
-        `CSR_EPC:       csr_epc            <= ex_csr_res & 32'h FFFFFFFC;
-//      `CSR_BADVADDR:  csr_badvaddr       <= de_csr_val; // writes are ignored
-        `CSR_PTBR:      csr_ptbr           <= de_csr_val & 32'h FFFFE000;
-//      `CSR_ASID:      csr_asid           <= de_csr_val;
-        `CSR_COUNT:     csr_count          <= de_csr_val;
-        `CSR_COMPARE:   csr_compare        <= de_csr_val;
-        `CSR_EVEC:      csr_evec           <= ex_csr_res & 32'h FFFFFFFC;
-//      `CSR_CAUSE:     csr_cause          <= de_csr_val; // writes are ignored
-        // IM,PEI,EI,PS,S
-        `CSR_STATUS:    csr_status         <= de_csr_val & 32'h 00FF000F;
-//      `CSR_HARTID:    csr_hartid         <= de_csr_val; // writes are ignored
-//      `CSR_IMPL:      csr_hartid         <= de_csr_val; // writes are ignored
-//      `CSR_FATC:      csr_fatc           <= de_csr_val;
-//      `CSR_SEND_IPI:  csr_send_ipi       <= de_csr_val;
-//      `CSR_CLEAR_IPI: csr_clear_ipi      <= de_csr_val;
-        `CSR_TOHOST:    $display("%05d  TOHOST %d", $time, ex_csr_res);
-        `CSR_FROMHOST:  csr_fromhost       <= de_csr_val;
 
-        `CSR_CYCLE:     csr_cycle          <= de_csr_val;
-        `CSR_TIME:      csr_time           <= de_csr_val;
-        `CSR_INSTRET:   csr_instret        <= de_csr_val;
-        `CSR_CYCLEH:    csr_cycle[63:32]   <= de_csr_val;
-        `CSR_TIMEH:     csr_time[63:32]    <= de_csr_val;
-        `CSR_INSTRETH:  csr_instret[63:32] <= de_csr_val;
+        `CSR_CYCLE:     csr_cycle          <= ex_csr_res;
+        `CSR_TIME:      csr_time           <= ex_csr_res;
+        `CSR_INSTRET:   csr_instret        <= ex_csr_res;
+        `CSR_CYCLEH:    csr_cycle[63:32]   <= ex_csr_res;
+        `CSR_TIMEH:     csr_time[63:32]    <= ex_csr_res;
+        `CSR_INSTRETH:  csr_instret[63:32] <= ex_csr_res;
+
+        `CSR_MSTATUS:   csr_mstatus        <= ex_csr_res;
+        `CSR_MIE:	csr_mie		   <= ex_csr_res;
+        `CSR_MTIMECMP:	csr_mtimecmp	   <= ex_csr_res;
+
+        `CSR_MSCRATCH:  csr_mscratch       <= ex_csr_res;
+        `CSR_MEPC:      csr_mepc           <= ex_csr_res;
+        `CSR_MIP:       csr_mip[3]         <= ex_csr_res[3];
+
+        `CSR_MTOHOST:    csr_mtohost       <= ex_csr_res;
+        `CSR_MFROMHOST:  csr_mfromhost     <= ex_csr_res;
         endcase
 
       if (de_inst`opcode == `SYSTEM &&
           de_inst`funct3 == `SCALLSBREAK &&
-          (de_i_imm[11:0] == 12'h 800 && csr_status`S)) begin
+          de_i_imm[11:0] == 12'h 800)
 
-          csr_status`S   <= csr_status`PS;
-          csr_status`EI  <= csr_status`PEI;
-      end
+         csr_mstatus[8:0] <= csr_mstatus[11:3];         // POP
 
       if (interrupt ||
           (de_inst`opcode == `SYSTEM &&
            de_inst`funct3 == `SCALLSBREAK &&
-           (de_i_imm[11:0] != 12'h 800 || !csr_status`S))) begin
+           de_i_imm[11:0] != 12'h 800)) begin
 
-          csr_epc        <= de_pc;
-          csr_status`PS  <= csr_status`S;
-          csr_status`S   <= 1;
-          csr_status`PEI <= csr_status`EI;
-          csr_status`EI  <= 0;
-          csr_cause      <= interrupt ? interrupt_cause
-                                      : `TRAP_SYSTEM_CALL | de_i_imm[0];
+          csr_mepc        <= de_pc;
+          csr_mstatus[11:3] <= csr_mstatus[8:0];         // PUSH
+          csr_mstatus`EI <= 0;
+          csr_mstatus`PRV <= 3;
+          csr_mcause      <= interrupt ? interrupt_cause
+                                       : `TRAP_SYSTEM_CALL | de_i_imm[0];
       end
 
     end
