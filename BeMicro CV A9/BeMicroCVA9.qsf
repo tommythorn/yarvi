@@ -1,3 +1,15 @@
+# -----------------------------------------------------------------------
+#
+#   Copyright 2016 Tommy Thorn - All Rights Reserved
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation, Inc., 53 Temple Place Ste 330,
+#   Bostom MA 02111-1307, USA; either version 2 of the License, or
+#   (at your option) any later version; incorporated herein by reference.
+#
+# -----------------------------------------------------------------------
+
 set_global_assignment -name FAMILY "Cyclone V"
 set_global_assignment -name DEVICE 5CEFA9F23C8
 set_global_assignment -name TOP_LEVEL_ENTITY BeMicroCVA9
@@ -368,7 +380,7 @@ set_global_assignment -name VERILOG_FILE BeMicroCVA9.v
 set_global_assignment -name VERILOG_FILE ../shared/yarvi_soc.v
 set_global_assignment -name VERILOG_FILE ../shared/yarvi.v
 set_global_assignment -name VERILOG_FILE ../shared/htif.v
-set_global_assignment -name VERILOG_FILE axi_jtaguart.v
+set_global_assignment -name VERILOG_FILE ../shared/axi_jtaguart.v
 set_global_assignment -name SDC_FILE BeMicroCVA9.sdc
 set_global_assignment -name CDF_FILE BeMicroCVA9.cdf
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
