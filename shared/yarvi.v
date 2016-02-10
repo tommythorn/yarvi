@@ -374,49 +374,51 @@ module yarvi( input  wire        clock
 
    // XXX Yeah, this code duplication isn't real clever
    always @(*)
-     case (csr_)
-     `CSR_FFLAGS:       de_csr_val = csr_fcsr[4:0];
-     `CSR_FRM:          de_csr_val = csr_fcsr[7:5];
-     `CSR_FCSR:         de_csr_val = csr_fcsr;
+     case (bus_csr_no)
+     `CSR_FFLAGS:       bus_csr_readdata = csr_fcsr[4:0];
+     `CSR_FRM:          bus_csr_readdata = csr_fcsr[7:5];
+     `CSR_FCSR:         bus_csr_readdata = csr_fcsr;
 
-     `CSR_CYCLE:        de_csr_val = csr_cycle;
-     `CSR_TIME:         de_csr_val = csr_time;
-     `CSR_INSTRET:      de_csr_val = csr_instret;
-     `CSR_CYCLEH:       de_csr_val = csr_cycle[63:32];
-     `CSR_TIMEH:        de_csr_val = csr_time[63:32];
-     `CSR_INSTRETH:     de_csr_val = csr_instret[63:32];
+     `CSR_CYCLE:        bus_csr_readdata = csr_cycle;
+     `CSR_TIME:         bus_csr_readdata = csr_time;
+     `CSR_INSTRET:      bus_csr_readdata = csr_instret;
+     `CSR_CYCLEH:       bus_csr_readdata = csr_cycle[63:32];
+     `CSR_TIMEH:        bus_csr_readdata = csr_time[63:32];
+     `CSR_INSTRETH:     bus_csr_readdata = csr_instret[63:32];
 
-     `CSR_MCPUID:       de_csr_val = {2'h 0, 30'h1 << 8}; // RV32I
-     `CSR_MIMPID:       de_csr_val = 'h5454; // 'TT'
-     `CSR_MHARTID:      de_csr_val = 0;
+     `CSR_MCPUID:       bus_csr_readdata = {2'h 0, 30'h1 << 8}; // RV32I
+     `CSR_MIMPID:       bus_csr_readdata = 'h5454; // 'TT'
+     `CSR_MHARTID:      bus_csr_readdata = 0;
 
-     `CSR_MSTATUS:      de_csr_val = csr_mstatus;
-     `CSR_MTVEC:        de_csr_val = 'h 100;
-     `CSR_MTDELEG:      de_csr_val = 0;
-     `CSR_MIE:          de_csr_val = csr_mie;
-     `CSR_MTIMECMP:     de_csr_val = csr_mtimecmp;
+     `CSR_MSTATUS:      bus_csr_readdata = csr_mstatus;
+     `CSR_MTVEC:        bus_csr_readdata = 'h 100;
+     `CSR_MTDELEG:      bus_csr_readdata = 0;
+     `CSR_MIE:          bus_csr_readdata = csr_mie;
+     `CSR_MTIMECMP:     bus_csr_readdata = csr_mtimecmp;
 
-     `CSR_MSCRATCH:     de_csr_val = csr_mscratch;
-     `CSR_MEPC:         de_csr_val = csr_mepc;
-     `CSR_MCAUSE:       de_csr_val = csr_mcause;
-     `CSR_MBADADDR:     de_csr_val = csr_mbadaddr;
-     `CSR_MIP:          de_csr_val = csr_mip;
+     `CSR_MSCRATCH:     bus_csr_readdata = csr_mscratch;
+     `CSR_MEPC:         bus_csr_readdata = csr_mepc;
+     `CSR_MCAUSE:       bus_csr_readdata = csr_mcause;
+     `CSR_MBADADDR:     bus_csr_readdata = csr_mbadaddr;
+     `CSR_MIP:          bus_csr_readdata = csr_mip;
 
-     `CSR_MBASE:        de_csr_val = 0;
-     `CSR_MBOUND:       de_csr_val = 0;
-     `CSR_MIBASE:       de_csr_val = 0;
-     `CSR_MIBOUND:      de_csr_val = 0;
-     `CSR_MDBASE:       de_csr_val = 0;
-     `CSR_MDBOUND:      de_csr_val = 0;
+     `CSR_MBASE:        bus_csr_readdata = 0;
+     `CSR_MBOUND:       bus_csr_readdata = 0;
+     `CSR_MIBASE:       bus_csr_readdata = 0;
+     `CSR_MIBOUND:      bus_csr_readdata = 0;
+     `CSR_MDBASE:       bus_csr_readdata = 0;
+     `CSR_MDBOUND:      bus_csr_readdata = 0;
 
-     `CSR_HTIMEW:       de_csr_val = 0; // XXX It's not clear
-     `CSR_HTIMEHW:      de_csr_val = 0;
+     `CSR_HTIMEW:       bus_csr_readdata = 0; // XXX It's not clear
+     `CSR_HTIMEHW:      bus_csr_readdata = 0;
 
-     `CSR_MTOHOST:      de_csr_val = csr_mtohost;
-     `CSR_MFROMHOST:    de_csr_val = csr_mfromhost;
+     `CSR_MTOHOST:      bus_csr_readdata = csr_mtohost;
+     `CSR_MFROMHOST:    bus_csr_readdata = csr_mfromhost;
 
-     default:           de_csr_val = 'h X;
+     default:           bus_csr_readdata = 'h X;
      endcase
+
+   assign bus_csr_readdata_valid = 1;
 
 //// EXECUTE ////
 
