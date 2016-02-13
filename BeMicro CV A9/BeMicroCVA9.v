@@ -18,8 +18,8 @@ module BeMicroCVA9
   , input   wire                DDR3_CLK_50MHZ   // DDR3 HMC Clock Input
 
     // User I/O (LED, push buttons, DIP switch)
-  , output  wire    [ 7:0]      LEDn             // Green User LEDs
-  , input   wire    [ 1:0]      KEYn             // user push buttons
+  , output  wire    [ 7:0]      USER_LED         // Green User LEDs
+  , input   wire    [ 1:0]      TACT             // user push buttons
   , input   wire    [ 3:0]      DIP_SW           // user DIP switch
 
 `ifdef eeprom
@@ -68,22 +68,73 @@ module BeMicroCVA9
   , output  wire    [ 3:0]      ENET_TXD         // RGMII TX Data Input to PHY
   , input   wire    [ 3:0]      ENET_RXD         // RGMII RX Data Output from PHY
 `endif
-);
 
-   wire          clock = DDR3_CLK_50MHZ;
-   reg           reset = 1;
-   always @(posedge clock)
-      reset <= 1'd0;
 
-   wire [3:0] htif_state;
-   wire       tx_ready, tx_valid, rx_ready, rx_valid;
-   wire [7:0] tx_data, rx_data;
-   reg  [1:0] tx_count = 0, rx_count = 0;
-   assign LEDn = ~{tx_count,rx_count,htif_state};
+  , input   wire                GPIO2            // J1.2
+  , output  wire                GPIO3            // J1.3
+  , output  wire                GPIO4            // J1.4
+  , output  wire                GPIO5            // J1.5
+  , output  wire                GPIO6            // J1.6
+  , output  wire                GPIO7            // J1.7
+  , output  wire                GPIO8            // J1.8
+  , output  wire                GPIO1            // J1.9
+  , output  wire                GPIO_D           // J1.10
 
-   always @(posedge clock) tx_count <= tx_count + (tx_ready & tx_valid);
-   always @(posedge clock) rx_count <= rx_count + (rx_ready & rx_valid);
+  , output  wire                DIFF_TX_P9       // J1.13
+  , input   wire                DIFF_TX_N9       // J1.14
+  , output  wire                LVDS_TX_O_N3     // J1.15
+  );
 
+   parameter CLOCK_FREQUENCY = 50_000_000;
+   wire          clock = DDR3_CLK_50MHZ; //CLK_24MHZ;
+   reg           reset = 1; always @(posedge clock) reset <= 1'd0;
+
+   parameter BPS = 115200;
+
+   reg [7:0] leds;
+
+   // mirror the LEDs so they make sense when facing the Ethernet port
+   assign {USER_LED[0],USER_LED[1],USER_LED[2],USER_LED[3],
+           USER_LED[4],USER_LED[5],USER_LED[6],USER_LED[7]} = ~leds;
+
+   wire [7:0] tx_data;
+   wire       tx_valid;
+   wire       tx_ready;
+   wire       tx_serial_out = DIFF_TX_P9;
+
+   wire [7:0] rx_data;
+   wire       rx_valid;
+   wire       rx_ready;
+   wire       rx_overflow;
+   wire       rx_serial_in;
+
+`ifdef USE_SERIAL
+   rs232tx rs232tx_inst
+   ( .clock             (clock)
+   , .valid             (tx_valid)
+   , .data              (tx_data)
+   , .ready             (tx_ready)
+   , .serial_out        (tx_serial_out)
+   );
+   defparam
+     rs232tx_inst.frequency = CLOCK_FREQUENCY,
+     rs232tx_inst.bps       = BPS;
+
+   rs232rx rs232rx_inst
+   ( .clock             (clock)
+   , .valid             (rx_valid)
+   , .data              (rx_data)
+   , .ready             (rx_ready)
+   , .overflow          (rx_overflow)
+   , .serial_in         (rx_serial_in)
+   );
+   defparam
+     rs232rx_inst.frequency = CLOCK_FREQUENCY,
+     rs232rx_inst.bps       = BPS;
+
+   assign rx_serial_in      = DIFF_TX_N9;
+   assign DIFF_TX_P9        = tx_serial_out;
+`else
    axi_jtaguart axi_jtaguart_inst
      ( .clock           (clock)
      , .reset           (reset)
@@ -96,6 +147,13 @@ module BeMicroCVA9
      , .rx_valid        (rx_valid)
      , .rx_data         (rx_data)
      );
+`endif
+
+   wire [3:0] htif_state;
+   reg  [1:0] tx_count = 0, rx_count = 0;
+
+   always @(posedge clock) tx_count <= tx_count + (tx_ready & tx_valid);
+   always @(posedge clock) rx_count <= rx_count + (rx_ready & rx_valid);
 
    yarvi_soc yarvi_soc_inst
      ( .clock           (clock)
@@ -110,4 +168,7 @@ module BeMicroCVA9
 
      , .htif_state      (htif_state)
      );
+
+   always @(posedge clock)
+     leds <= {htif_state,tx_count,rx_count};
 endmodule

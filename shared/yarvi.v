@@ -116,7 +116,7 @@ module yarvi( input  wire        clock
             , output reg  [31:0] writedata
             , output reg  [ 3:0] byteena
             , output reg         readenable = 0
-            , input  wire [31:0] readdata
+            , input  wire [31:0] readdata // XXX Must be ready next cycle!
 
             , output wire        bus_req_ready
             , input  wire        bus_req_read
@@ -131,7 +131,7 @@ module yarvi( input  wire        clock
             , input  wire        bus_csr_write_enable
             , input  wire [31:0] bus_csr_writedata
             , output reg  [31:0] bus_csr_readdata
-            , output reg         bus_csr_readdata_valid
+            , output wire        bus_csr_readdata_valid
             );
 
    wire bus_req_read_go  = bus_req_ready & bus_req_read;
@@ -582,8 +582,8 @@ module yarvi( input  wire        clock
         `CSR_INSTRETH:  csr_instret[63:32] <= ex_csr_res;
 
         `CSR_MSTATUS:   csr_mstatus        <= ex_csr_res;
-        `CSR_MIE:	csr_mie		   <= ex_csr_res;
-        `CSR_MTIMECMP:	csr_mtimecmp	   <= ex_csr_res;
+        `CSR_MIE:       csr_mie            <= ex_csr_res;
+        `CSR_MTIMECMP:  csr_mtimecmp       <= ex_csr_res;
 
         `CSR_MSCRATCH:  csr_mscratch       <= ex_csr_res;
         `CSR_MEPC:      csr_mepc           <= ex_csr_res;
