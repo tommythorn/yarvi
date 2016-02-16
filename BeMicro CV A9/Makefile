@@ -10,9 +10,9 @@
 #
 # -----------------------------------------------------------------------
 
+# You might not need this, I did.
 export LD_LIBRARY_PATH:=/lib:/usr/lib:$(QUARTUS_BINDIR)
 export PATH:=$(PATH):$(QUARTUS_BINDIR):$(QUARTUS_BINDIR)/../adm
-export TERM=dumb
 
 program: output_files/BeMicroCVA9.sof
 	time quartus_pgm BeMicroCVA9.cdf

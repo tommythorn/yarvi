@@ -87,7 +87,7 @@ module BeMicroCVA9
 
    parameter CLOCK_FREQUENCY = 50_000_000;
    wire          clock = DDR3_CLK_50MHZ; //CLK_24MHZ;
-   reg           reset = 1; always @(posedge clock) reset <= 1'd0;
+   reg           reset = 1; always @(posedge clock) reset <= 0;
 
    parameter BPS = 115200;
 

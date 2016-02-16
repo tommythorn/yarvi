@@ -4,10 +4,9 @@
 set_global_assignment -name FAMILY "Cyclone V"
 set_global_assignment -name DEVICE 5CEFA9F23C8
 set_global_assignment -name TOP_LEVEL_ENTITY BeMicroCVA9
-set_global_assignment -name ORIGINAL_QUARTUS_VERSION 15.0.0
+set_global_assignment -name ORIGINAL_QUARTUS_VERSION 15.1.0
 set_global_assignment -name PROJECT_CREATION_TIME_DATE "21:37:14  JUNE 29, 2015"
 set_global_assignment -name LAST_QUARTUS_VERSION 15.1.0
-set_global_assignment -name SDC_FILE bemicro_cva9_start.sdc
 
 #------------------------------------------------------------
 # CLOCK
@@ -451,4 +450,3 @@ set_global_assignment -name VERILOG_FILE ../shared/htif.v
 set_global_assignment -name VERILOG_FILE ../shared/axi_jtaguart.v
 set_global_assignment -name SDC_FILE BeMicroCVA9.sdc
 set_global_assignment -name CDF_FILE BeMicroCVA9.cdf
-set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

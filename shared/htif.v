@@ -24,12 +24,12 @@
  */
 
 // XXX -> header file?
-`define S_START		4'd0
-`define S_CMD_AW_ADDR0	4'd1
-`define S_CMD_AW_ADDR1	4'd2
-`define S_CMD_AW_ADDR2	4'd3
-`define S_CMD_AW_ADDR3	4'd4
-`define S_CMD_RD_DATA	4'd5
+`define S_START         4'd0
+`define S_CMD_AW_ADDR0  4'd1
+`define S_CMD_AW_ADDR1  4'd2
+`define S_CMD_AW_ADDR2  4'd3
+`define S_CMD_AW_ADDR3  4'd4
+`define S_CMD_RD_DATA   4'd5
 `define S_CMD_READ_0    4'd6
 `define S_CMD_READ_1    4'd7
 `define S_CMD_READ_2    4'd8
@@ -63,7 +63,7 @@ module htif ( input  wire        clock
             , output reg         tx_valid        = 0
             , output reg   [7:0] tx_data
 
-	    // debug
+            // debug
             , output reg   [3:0] s = `S_START
 
             );
