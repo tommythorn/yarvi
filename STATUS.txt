@@ -1,0 +1,42 @@
+YARVI implements all of RV32I and some of the privledged subset.
+
+To see the status, run testall in sim:
+
+  $ make -s -C sim testall
+  Basic UI tests:
+    Total:   76
+    Passing: 74
+  Atomic tests:
+    Total:   17
+    Passing: 0
+  Mul/Div tests:
+    Total:   16
+    Passing: 0
+  Supervisor tests:
+    Total:   15
+    Passing: 2
+
+The failures are expected, unimplemented features.  The two failing UI
+tests are fence.i, which isn't implemented (yet).
+
+Problems with the current YARVI implementation and Verilog:
+
+ - The structure is not ideal because Verilog makes it difficult to
+   keep the updates together.  For example:
+
+   * There are many conditions that can effect a pipeline restart,
+     branches, hazards, exceptions, etc.  However, ex_restart can't be
+     set in the same always block unless I keep everything in the same
+     always block.
+
+   * The instructions (and in general, field) parsing is ad-hoc and
+     have had many mistakes.  Also importantly, it's difficult to trap
+     on non-matches (a.k.a. illegal instructions).
+
+   * Shifting "variables" around in time (say, from a combinatorial
+     calculation to a one- or two-delayed), either require much
+     rewrite or a convention where everything is held combinatorial
+     and registers are explicitly assigned:
+
+          wire [N:0] value0 = <big expressions>;
+          reg  [N:0] value1 = 0; always @(posedge clock) value1 <= value0;

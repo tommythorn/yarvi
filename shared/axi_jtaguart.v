@@ -20,12 +20,11 @@ module axi_jtaguart
   , input  wire  [7:0] tx_data
 
   , input  wire        rx_ready
-  , output reg         rx_valid = 0
-  , output reg   [7:0] rx_data = 'h XX
+  , output wire        rx_valid
+  , output wire  [7:0] rx_data
   );
 
   wire jtaguart_idle_o;
-
 
   alt_jtag_atlantic jtag_uart_0_alt_jtag_atlantic
     ( .clk     (clock)

@@ -6,7 +6,7 @@ set_global_assignment -name DEVICE 5CEFA9F23C8
 set_global_assignment -name TOP_LEVEL_ENTITY BeMicroCVA9
 set_global_assignment -name ORIGINAL_QUARTUS_VERSION 15.1.0
 set_global_assignment -name PROJECT_CREATION_TIME_DATE "21:37:14  JUNE 29, 2015"
-set_global_assignment -name LAST_QUARTUS_VERSION 15.1.0
+set_global_assignment -name LAST_QUARTUS_VERSION 16.0.0
 
 #------------------------------------------------------------
 # CLOCK

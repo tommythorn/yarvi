@@ -12,7 +12,7 @@ SEARCH_DIR("/opt/rvc/riscv64-unknown-elf/lib32"); SEARCH_DIR("/opt/rvc/riscv64-u
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */
-  PROVIDE (__executable_start = SEGMENT_START("text-segment", 0x800000)); . = SEGMENT_START("text-segment", 0x800000) /*+ SIZEOF_HEADERS*/;
+  PROVIDE (__executable_start = SEGMENT_START("text-segment", 0x0)); . = SEGMENT_START("text-segment", 0x0) /*+ SIZEOF_HEADERS*/;
   .interp         : { *(.interp) }
   .note.gnu.build-id : { *(.note.gnu.build-id) }
   .hash           : { *(.hash) }

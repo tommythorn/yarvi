@@ -76,13 +76,14 @@ module htif ( input  wire        clock
    wire      rx_go = rx_ready & rx_valid;
    wire      tx_go = tx_ready & tx_valid;
 
+   always @(*)
+     bus_req_read = s == `S_CMD_RD_DATA && (cmd == "r" || cmd == "R");
 
    always @(posedge clock) begin
       if (tx_go)
         tx_valid <= 0;
       rx_ready <= 0;
       bus_req_write <= 0;
-      bus_req_read <= 0;
 
       case (s)
         `S_START: begin
@@ -133,9 +134,6 @@ module htif ( input  wire        clock
               bus_req_data <= data;
               bus_req_write <= 1;
            end
-
-           if (cmd == "r" || cmd == "R")
-             bus_req_read <= 1;
 
           if (bus_req_ready & (bus_req_write | bus_req_read)) begin
              bus_req_address <= bus_req_address + 4;

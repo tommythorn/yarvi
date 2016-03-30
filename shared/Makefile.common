@@ -1,0 +1,22 @@
+# Adjust to match your RISC-V toolchain
+RVPATH=/opt/rv32/bin/
+RVPREFIX=$(RVPATH)riscv32-unknown-elf-
+CC=$(RVPREFIX)gcc -std=gnu99 -m32 -O
+
+%.txt: %
+	$(RVPREFIX)objcopy -O binary $^ mem.bin
+	(dd if=/dev/zero bs=256 count=1 2> /dev/null;cat mem.bin)|hexdump -ve '"%08x\n"' > mem.hex
+	cut -c1-2 mem.hex > mem3.txt
+	cut -c3-4 mem.hex > mem2.txt
+	cut -c5-6 mem.hex > mem1.txt
+	cut -c7-8 mem.hex > mem0.txt
+	cp $(COMMON)/initregs.txt .
+
+%.riscv: $(COMMON)crt0.o %.o
+	$(RVPREFIX)ld -T$(COMMON)yarvi.ld -melf32lriscv -o $@ $^
+
+%.bin: %.riscv
+	$(RVPREFIX)objcopy -O binary $^ $@
+
+%.riscv.dis: %.riscv
+	$(RVPREFIX)objdump -d $^ > $@

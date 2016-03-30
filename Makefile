@@ -1,5 +1,5 @@
-all:
-	$(MAKE) -C shared
-	$(MAKE) -C BeMicro-CV hw.sim |head -200
+status:
+	$(MAKE) -s -C sim testall
 
-
+fpgademo:
+	$(MAKE) -C BeMicroCV-A9

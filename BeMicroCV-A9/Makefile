@@ -14,13 +14,19 @@
 export LD_LIBRARY_PATH:=/lib:/usr/lib:$(QUARTUS_BINDIR)
 export PATH:=$(PATH):$(QUARTUS_BINDIR):$(QUARTUS_BINDIR)/../adm
 
+TESTDIR=
+PROGRAM=demo
+COMMON=../shared/
+
 program: output_files/BeMicroCVA9.sof
 	time quartus_pgm BeMicroCVA9.cdf
 
 timing: output_files/BeMicroCVA9.sof
 	quartus_sta BeMicroCVA9
 
-output_files/BeMicroCVA9.sof: BeMicroCVA9.v ../shared/yarvi_soc.v ../shared/yarvi.v ../shared/htif.v ../shared/axi_jtaguart.v
+include $(COMMON)Makefile.common
+
+output_files/BeMicroCVA9.sof: demo.riscv.txt BeMicroCVA9.v ../shared/yarvi_soc.v ../shared/yarvi.v ../shared/htif.v ../shared/axi_jtaguart.v
 	time quartus_map BeMicroCVA9
 	time quartus_fit BeMicroCVA9
 	time quartus_asm BeMicroCVA9

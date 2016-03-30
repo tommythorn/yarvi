@@ -14,6 +14,8 @@
 `define LOAD_FP          1
 `define CUSTOM0          2
 `define MISC_MEM         3
+`define   FENCE             0 // funct3
+`define   FENCE_I           1
 `define OP_IMM           4
 `define AUIPC            5
 `define OP_IMM_32        6
@@ -52,14 +54,16 @@
 `define OR              6
 `define AND             7
 
-`define SCALLSBREAK     0
+`define PRIV            0
+`define   ECALL             0
+`define   EBREAK            1
+`define   ERET            256
 `define CSRRW           1
 `define CSRRS           2
 `define CSRRC           3
 `define CSRRWI          5
 `define CSRRSI          6
 `define CSRRCI          7
-
 
 `define opext    [1 : 0]
 `define opcode   [6 : 2]
@@ -133,6 +137,14 @@
 `define CSR_MDBASE              'h 384
 `define CSR_MDBOUND             'h 385
 
+// User-level, counter/timers
+`define CSR_CYCLEW              'h 900
+`define CSR_TIMEW               'h 901
+`define CSR_INSTRETW            'h 902
+`define CSR_CYCLEHW             'h 980
+`define CSR_TIMEHW              'h 981
+`define CSR_INSTRETHW           'h 982
+
 `define CSR_HTIMEW              'h B01
 `define CSR_HTIMEHW             'h B81
 
@@ -145,11 +157,12 @@
 `define TRAP_INST_MISALIGN      0
 `define TRAP_INST_ADDR          1
 `define TRAP_INST_ILLEGAL       2
-`define TRAP_INST_PRIVILEGE     3
-`define TRAP_FP_DISABLED        4
-`define TRAP_SYSTEM_CALL        6
-`define TRAP_BREAKPOINT         7
-`define TRAP_LOAD_MISALIGN      8
-`define TRAP_STORE_MISALIGN     9
-`define TRAP_LOAD_FAULT         10
-`define TRAP_STORE_FAULT        11
+`define TRAP_BREAKPOINT         3
+`define TRAP_LOAD_MISALIGN      4
+`define TRAP_LOAD_FAULT         5
+`define TRAP_STORE_MISALIGN     6
+`define TRAP_STORE_FAULT        7
+`define TRAP_ECALL_UMODE        8
+`define TRAP_ECALL_SMODE        9
+`define TRAP_ECALL_HMODE        10
+`define TRAP_ECALL_MMODE        11

@@ -101,8 +101,6 @@ htif_read(uint32_t addr, int32_t len)
     }
 
     for (; len >= 8; len -= 8) {
-        uint64_t data = 0;
-
         buf[0] = 'R';
 
 	if (jtagatlantic_write(atlantic, buf, 1) != 1) {
@@ -110,12 +108,10 @@ htif_read(uint32_t addr, int32_t len)
 	  goto exit;
 	}
 
-        /*
 	if (jtagatlantic_flush(atlantic)) {
 	  fprintf(stderr, "flush error\n");
 	  goto exit;
 	}
-        */
 
 	int n = 8;
 	char *p = buf;
@@ -136,7 +132,7 @@ htif_read(uint32_t addr, int32_t len)
 	  n -= got;
 	} while (n > 0);
 
-	fwrite(&data, 8, 1, stdout);
+	fwrite(buf, 8, 1, stdout);
     }
 
  exit:
