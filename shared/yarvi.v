@@ -624,7 +624,7 @@ module yarvi( input  wire        clock
            `CSR_FRM:       csr_frm              <= ex_csr_res;
            `CSR_FCSR:      {csr_frm,csr_fflags} <= ex_csr_res;
 
-           `CSR_MSTATUS:   csr_mstatus          <= ex_csr_res;
+           `CSR_MSTATUS:   csr_mstatus          <= ex_csr_res & ~(15 << 12); // No FP or XS;
            `CSR_MIE:       csr_mie              <= ex_csr_res;
            `CSR_MTIMECMP:  csr_mtimecmp         <= ex_csr_res;
 
