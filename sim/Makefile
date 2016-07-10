@@ -1,5 +1,6 @@
+# Program Under Test, PUT
 TESTDIR=/opt/rv32/riscv32-unknown-elf/share/riscv-tests/isa/
-PROGRAM=rv32si-p-csr
+PUT=$(TESTDIR)rv32ui-p-fence_i
 OUTDIR=/tmp/
 
 COMMON=../shared/
@@ -147,7 +148,7 @@ TEST_SUPERVISOR= \
 
 TEST_ALL=$(TEST_BASIC) $(TEST_ATOMIC) $(TEST_MULDIV) $(TEST_SUPERVISOR)
 
-test1: $(TESTDIR)$(PROGRAM).txt
+test1: $(PUT).txt
 	iverilog -I$(COMMON) -DSIMULATION $(VERB) -DINITDIR=\"./\" $(IOPTS) -o yarvi $(SRC)
 	./yarvi
 
@@ -155,7 +156,7 @@ test:
 	@echo -n "  Total:   "
 	@echo $(TESTS) | wc -w
 	@echo -n "  Passing: "
-	@for x in $(TESTS);do $(MAKE) PROGRAM=$$x | tee $(OUTDIR)$$x.sim;done | tee testall.log | grep 'TOHOST 00000001'|wc -l
+	@for x in $(TESTS);do $(MAKE) PUT=$(TESTDIR)$$x | tee $(OUTDIR)$$x.sim;done | tee testall.log | grep 'TOHOST 00000001'|wc -l
 
 testall:
 	@echo "Basic UI tests:"

@@ -1,11 +1,11 @@
-YARVI implements all of RV32I and some of the privledged subset.
+YARVI implements all of RV32I and some of the privileged subset.
 
 To see the status, run testall in sim:
 
   $ make -s -C sim testall
   Basic UI tests:
     Total:   76
-    Passing: 74
+    Passing: 76
   Atomic tests:
     Total:   17
     Passing: 0
@@ -16,8 +16,7 @@ To see the status, run testall in sim:
     Total:   15
     Passing: 2
 
-The failures are expected, unimplemented features.  The two failing UI
-tests are fence.i, which isn't implemented (yet).
+The failures are expected, unimplemented features.
 
 Problems with the current YARVI implementation and Verilog:
 

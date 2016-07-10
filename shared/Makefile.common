@@ -5,7 +5,7 @@ CC=$(RVPREFIX)gcc -std=gnu99 -m32 -O
 
 %.txt: %
 	$(RVPREFIX)objcopy -O binary $^ mem.bin
-	(dd if=/dev/zero bs=256 count=1 2> /dev/null;cat mem.bin)|hexdump -ve '"%08x\n"' > mem.hex
+	(dd if=/dev/zero bs=256 count=1 2>/dev/null;cat mem.bin)|hexdump -ve '"%08x\n"' >mem.hex
 	cut -c1-2 mem.hex > mem3.txt
 	cut -c3-4 mem.hex > mem2.txt
 	cut -c5-6 mem.hex > mem1.txt

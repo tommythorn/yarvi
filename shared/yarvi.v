@@ -480,11 +480,11 @@ module yarvi( input  wire        clock
       ex_restart    <= 0;
       ex_next_pc    <= ex_next_pc + 4;
 
-      // Restart if the previous instruction wrote a CSR
-      if (de_valid && de_inst`opcode == `SYSTEM && de_csrd) begin
+      // Restart if the previous instruction wrote a CSR or was fence.i
+      if (de_valid && (de_inst`opcode == `SYSTEM && de_csrd ||
+                       de_inst`opcode == `MISC_MEM)) begin
          ex_restart <= 1;
          ex_next_pc <= de_pc + 4;
-         //$display("%05d  *** CSR hazard, restarting %x ***", $time, de_pc + 4);
       end
 
       // Take exception on illegal CSR access
