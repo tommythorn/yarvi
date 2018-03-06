@@ -1,7 +1,7 @@
 # Adjust to match your RISC-V toolchain
-RVPATH=/opt/rv32/bin/
-RVPREFIX=$(RVPATH)riscv32-unknown-elf-
-CC=$(RVPREFIX)gcc -std=gnu99 -m32 -O
+RVPATH=
+RVPREFIX=$(RVPATH)riscv64-unknown-elf-
+CC=$(RVPREFIX)gcc -std=gnu99 -march=rv32i -mabi=ilp32 -O
 
 %.txt: %
 	$(RVPREFIX)objcopy -O binary $^ mem.bin

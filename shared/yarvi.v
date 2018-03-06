@@ -12,87 +12,8 @@
 
 /*************************************************************************
 
-This is an attempt at making a nearly as simple as possible implementation
-of RISC-V RV32I.  The present subset is a simple one-hot state machine.
-The desire to use block ram for memories *and* register file dictates the
-need for at least three stages:
-
-                        Unpipelined State Machine
-                              IF -> DE -> EX
-                               ^----------/
-
-This guarantees a CPI of 3 as no hazards can occur (we don't currently
-deal with memory waits).  Since branches only depend on registers, we can
-trivially lower this to 2 cycles by issuing branches from DE and thus
-overlap EX with IF for the next instruction (a fairly standard trick):
-
-                    Partically Pipelined State Machine
-
-                              IF -> DE -> EX
-                               ^----/
-
-There are two obvious directions from here:
-
-1) Have two hardware threads interleave the pipeline, getting 100%
-   utilization.
-
-2) Overlap IF/EX with DE.  This requires solving two problems:
-
-   a) Back-to-back dependencies will require forwarding the result
-      from EX to DE.
-
-      Adds to the critical path through EX
-
-   b) We have to assume or "predict" the outcome of branches and
-      compensate for mistakes.
-
-      The compensation implies interlocks (stalling) and/or
-      restarts.  All of this is likely to add to a critical path.
-
-
-
- Below we focus on the Unpipelined State Machine
-
- CONVENTION:
-   var = array[r], where r is a [subfield of] a register assigned with <=
-   r <= y, only if y is a [subfield of] a name (register or wire)
-   All memory reads must be in the form:
-
-                                   wire q = mem[y];
-
-   Names reflect the stage/state from which they are outputs, eg. if_inst
-   is the instruction fetched in IF, de_rs1_val the value of rs1 fetched
-   by DE, etc.
-
- Conceptually: (where <= is a synchronous assignment and = an alias)
-
-   if_pc <= if_pc + 4
-   if_inst = code[if_pc]
-
-   de_pc <= if_pc
-   de_inst <= if_inst
-   de_rs1_val = regs[de_inst`rs1]
-   de_rs2_val = regs[de_inst`rs2]
-   ex_load_addr = de_rs1_val + de_inst`off
-
-   ex_pc <= de_pc
-   ex_inst <= de_inst
-   ex_rs1_val <= de_rs1_val
-   ex_rs2_val <= de_rs2_val
-   ex_load_addr <= de_load_addr
-
-   ex_res = ex_inst`opcode == ADD ? ex_rs1_val + ex_rs2_val
-                                  : ex_rs1_val - ex_rs2_val
-
-   ex_loaded = memory[ex_load_addr]
-
-   regs[ex_inst`rd] <= ex_inst`opcode == LOAD ? ex_loaded : ex_res
-
-
-   With bypass:
-
-      de_rs1_val = de_inst`rs1 == ex_inst`rd ? ex_res : regs[de_inst`rs1]
-      de_rs2_val = de_inst`rs2 == ex_inst`rd ? ex_res : regs[de_inst`rs2]
+This is a relatively simple RISC-V RV32 implementation, currently only
+RV32I is supported though.
 
 *************************************************************************/
 

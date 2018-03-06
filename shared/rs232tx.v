@@ -29,7 +29,7 @@ module rs232tx
 
    reg  [TTYCLK_SIGN:0] ttyclk      = 0; // [-4096; 4095]
    reg  [8:0]           shift_out   = 0;
-   reg  [COUNT_SIGN:0]  count       = 0; // [-16; 15]
+   reg  [COUNT_SIGN:0]  count       = 0; // [  -16;   15]
 
    assign               serial_out  = shift_out[0];
    assign               ready       = count[COUNT_SIGN] & ttyclk[TTYCLK_SIGN];
