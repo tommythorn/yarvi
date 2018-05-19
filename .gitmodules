@@ -1,0 +1,3 @@
+[submodule "sw/alterajtaguart"]
+	path = sw/alterajtaguart
+	url = https://github.com/thotypous/alterajtaguart.git
