@@ -8,12 +8,77 @@
 #include "jtag_atlantic.h"
 #include "common.h"
 
-static const unsigned int bytes_to_receive = 1<<20;
-static char buf[8192];
+static JTAGATLANTIC *atlantic;
+static char transmission[16*1024];
+static int pending = 0;
+static int total = 0;
+static int verbose = 0;
 
-static int
-parse_addr(const char *v, uint32_t *res)
-{
+static void htif_write(const char *data, size_t len, int flush) {
+    if ((flush && pending) || pending + len >= sizeof transmission) {
+        char *p = transmission;
+        size_t n = pending;
+
+        do {
+            int wrote = jtagatlantic_write(atlantic, p, n);
+
+            if (wrote == 0) {
+                usleep(10000);
+                if (verbose)
+                    fputc('.', stderr);
+            } else if (wrote < 0) {
+                fprintf(stderr, "write failure %d\n", wrote);
+                jtagatlantic_close(atlantic);
+                atlantic = jtagatlantic_open(NULL, -1, -1, "htif");
+                wrote = 0;
+                if (verbose)
+                    fputc('!', stderr);
+            }
+
+            n -= wrote;
+            p += wrote;
+            total += wrote;
+        } while (0 < n);
+        pending = 0;
+    }
+
+    memcpy(transmission + pending, data, len);
+    pending += len;
+
+    if (flush && jtagatlantic_flush(atlantic))
+        if (verbose)
+            fprintf(stderr, "flush error\n");
+}
+
+static void htif_read(char *data, size_t len) {
+    char *p = data;
+    size_t n = len;
+
+    htif_write(NULL, 0, 1);
+
+    do {
+        int read = jtagatlantic_read(atlantic, p, n);
+
+        if (read == 0) {
+            usleep(10000);
+            if (verbose)
+                fputc('.', stderr);
+        } else if (read < 0) {
+            fprintf(stderr, "read failure %d\n", read);
+            jtagatlantic_close(atlantic);
+            atlantic = jtagatlantic_open(NULL, -1, -1, "htif");
+            read = 0;
+            if (verbose)
+                fputc('!', stderr);
+        }
+
+        n -= read;
+        p += read;
+        total += read;
+    } while (0 < n);
+}
+
+static int parse_addr(const char *v, uint32_t *res) {
     char *p;
 
     *res = strtol(v, &p, 16);
@@ -21,9 +86,36 @@ parse_addr(const char *v, uint32_t *res)
     return *p != 0;
 }
 
-static void
-usage(void)
-{
+static void htif_cmd_write(uint32_t addr) {
+    htif_write("a", 1, 0);
+    htif_write((char *)&addr, sizeof addr, 0);
+
+    for (;;) {
+        uint32_t data = 0;
+
+        if (fread(&data, sizeof data, 1, stdin) != 1)
+            break;
+
+        htif_write("w", 1, 0);
+        htif_write((char *)&data, sizeof data, 0);
+    }
+}
+
+static void htif_cmd_read(uint32_t addr, int32_t len) {
+    htif_write("a", 1, 0);
+    htif_write((char *)&addr, sizeof addr, 0);
+
+    for (int n = 0; n < len; n += 8)
+        htif_write("R", 1, 0);
+
+    char *buf = (char*)malloc(len);
+
+    htif_read(buf, len);
+    fwrite(buf, len, 1, stdout);
+    free(buf);
+}
+
+static void usage(void) {
     fprintf(stderr,
             "htif write $ADDR < $binary_file\n"
             "htif read $ADDR $LEN > $binary_file\n"
@@ -32,125 +124,63 @@ usage(void)
     exit(EXIT_FAILURE);
 }
 
-static void
-htif_write(uint32_t addr)
-{
-    JTAGATLANTIC *atlantic = jtagatlantic_open(NULL, -1, -1, "htif");
 
+int main(int c, char **v) {
+    int device = 1;
+    int instance = 0;
+    uint32_t addr, len;
+
+    --c, ++v;
+    if (c == 0)
+        usage();
+
+    if (strcmp(v[0], "-v") == 0)
+        verbose = 1, --c, ++v;
+
+    atlantic = jtagatlantic_open(NULL, device, instance, "htif");
     if (!atlantic) {
         show_err();
-	return;
+	exit(EXIT_FAILURE);
     }
 
-    show_info(atlantic);
+    if (verbose) {
+        show_info(atlantic);
+
+        if (jtagatlantic_cable_warning(atlantic))
+            fprintf(stderr, "Warning: older ByteBlaster, might be less reliable\n");
+    }
 
     struct timespec t_start;
     clock_gettime(CLOCK_MONOTONIC, &t_start);
 
-    buf[0] = 'a';
-    memcpy(buf + 1, &addr, sizeof addr);
-    if (jtagatlantic_write(atlantic, buf, 5) != 5) {
-      fprintf(stderr, "short write\n");
-      goto exit;
-    }
-    buf[0] = 'w';
 
-    for (;;) {
-        uint32_t data = 0;
-
-        size_t n = fread(&data, sizeof data, 1, stdin);
-
-        if (n) {
-            memcpy(buf + 1, &data, sizeof data);
-            if (jtagatlantic_write(atlantic, buf, 5) != 5) {
-	      fprintf(stderr, "short write\n");
-	      goto exit;
-	    }
+    for (;;)
+        if (c >= 2 && !strcmp(v[0], "write") && !parse_addr(v[1], &addr)) {
+            htif_cmd_write(addr);
+            v += 2;
+            c -= 2;
         }
-
-        if (n < sizeof data)
+        else if (c >= 3 && !strcmp(v[0], "read") && !parse_addr(v[1], &addr) &&
+                 !parse_addr(v[2], &len)) {
+            htif_cmd_read(addr, len);
+            v += 3;
+            c -= 3;
+        } else
             break;
-    }
 
-    if (jtagatlantic_flush(atlantic)) {
-      fprintf(stderr, "fail on flush\n");
-      goto exit;
-    }
+    htif_write(NULL, 0, 1);
 
-exit:
+    struct timespec t_stop;
+    clock_gettime(CLOCK_MONOTONIC, &t_stop);
+
+    double duration =
+      t_stop.tv_sec - t_start.tv_sec +
+      (t_stop.tv_nsec - t_start.tv_nsec)*1e-9;
+
+    if (verbose)
+        fprintf(stderr, "\nTook %.2f s, %.1f kB/s\n",
+                duration, total / duration / 1000);
     jtagatlantic_close(atlantic);
-}
 
-static void
-htif_read(uint32_t addr, int32_t len)
-{
-    JTAGATLANTIC *atlantic = jtagatlantic_open(NULL, -1, -1, "htif");
-
-    if (!atlantic) {
-        show_err();
-	return;
-    }
-
-    show_info(atlantic);
-
-    buf[0] = 'a';
-    memcpy(buf + 1, &addr, sizeof addr);
-    if (jtagatlantic_write(atlantic, buf, 5) < 0) {
-      fprintf(stderr, "short write\n");
-      goto exit;
-    }
-
-    for (; len >= 8; len -= 8) {
-        buf[0] = 'R';
-
-	if (jtagatlantic_write(atlantic, buf, 1) != 1) {
-	  fprintf(stderr, "short write\n");
-	  goto exit;
-	}
-
-	if (jtagatlantic_flush(atlantic)) {
-	  fprintf(stderr, "flush error\n");
-	  goto exit;
-	}
-
-	int n = 8;
-	char *p = buf;
-
-	do {
-	  int got = jtagatlantic_read(atlantic, p, n);
-
-          if (got == 0)
-              usleep(1000);
-          else if (got < 0) {
-	    fprintf(stderr, "short read %d\n", got);
-	    jtagatlantic_close(atlantic);
-	    atlantic = jtagatlantic_open(NULL, -1, -1, "htif");
-	    got = 0;
-	  }
-
-	  p += got;
-	  n -= got;
-	} while (n > 0);
-
-	fwrite(buf, 8, 1, stdout);
-    }
-
- exit:
-    fprintf(stderr, "close\n");
-    jtagatlantic_close(atlantic);
-}
-
-int
-main(int c, char **v)
-{
-  uint32_t addr, len;
-
-  if (c == 3 && !strcmp(v[1], "write") && !parse_addr(v[2], &addr))
-    htif_write(addr);
-  else if (c == 4 && !strcmp(v[1], "read") && !parse_addr(v[2], &addr) && !parse_addr(v[3], &len))
-    htif_read(addr, len);
-  else
-    usage();
-
-  return 0;
+    return 0;
 }
