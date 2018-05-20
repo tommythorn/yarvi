@@ -1,6 +1,6 @@
 # Program Under Test, PUT
-TESTDIR=/opt/rv32/riscv32-unknown-elf/share/riscv-tests/isa/
-PUT=$(TESTDIR)rv32ui-p-fence_i
+TESTDIR=../riscv-tests-bin/
+PUT=$(TESTDIR)rv32ui-p-addi
 OUTDIR=/tmp/
 
 COMMON=../shared/
@@ -151,6 +151,9 @@ TEST_ALL=$(TEST_BASIC) $(TEST_ATOMIC) $(TEST_MULDIV) $(TEST_SUPERVISOR)
 test1: $(PUT).txt
 	iverilog -I$(COMMON) -DSIMULATION $(VERB) -DINITDIR=\"./\" $(IOPTS) -o yarvi $(SRC)
 	./yarvi
+
+%.riscv:
+	cp $(TESTDIR)/$(patsubst %.riscv,%,$@) $@
 
 test:
 	@echo -n "  Total:   "

@@ -1,19 +1,20 @@
 # Adjust to match your RISC-V toolchain
 RVPATH=
-RVPREFIX=$(RVPATH)riscv64-unknown-elf-
-CC=$(RVPREFIX)gcc -std=gnu99 -march=rv32i -mabi=ilp32 -O
+RVPREFIX=$(RVPATH)riscv32-unknown-elf-
+CC=$(RVPREFIX)gcc -std=gnu99 -O
+MEMSIZEK=128
 
-%.txt: %
-	$(RVPREFIX)objcopy -O binary $^ mem.bin
-	(dd if=/dev/zero bs=256 count=1 2>/dev/null;cat mem.bin)|hexdump -ve '"%08x\n"' >mem.hex
-	cut -c1-2 mem.hex > mem3.txt
-	cut -c3-4 mem.hex > mem2.txt
-	cut -c5-6 mem.hex > mem1.txt
-	cut -c7-8 mem.hex > mem0.txt
-	cp $(COMMON)/initregs.txt .
+%.txt: %.bin
+	(cat $^;cat /dev/zero)|dd iflag=fullblock bs=1k count=$(MEMSIZEK)|hexdump -ve '"%08x\n"' > $@
+	cut -c1-2 $@ > mem3.txt
+	cut -c3-4 $@ > mem2.txt
+	cut -c5-6 $@ > mem1.txt
+	cut -c7-8 $@ > mem0.txt
+	cp $(COMMON)initregs.txt .
 
 %.riscv: $(COMMON)crt0.o %.o
 	$(RVPREFIX)ld -T$(COMMON)yarvi.ld -melf32lriscv -o $@ $^
+	$(RVPREFIX)objdump -sd $^ > $^.dis
 
 %.bin: %.riscv
 	$(RVPREFIX)objcopy -O binary $^ $@
