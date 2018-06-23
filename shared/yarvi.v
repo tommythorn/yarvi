@@ -1,6 +1,6 @@
 // -----------------------------------------------------------------------
 //
-//   Copyright 2016 Tommy Thorn - All Rights Reserved
+//   Copyright 2016,2018 Tommy Thorn - All Rights Reserved
 //
 //   This program is free software; you can redistribute it and/or modify
 //   it under the terms of the GNU General Public License as published by
@@ -22,10 +22,10 @@ RV32I is supported though.
 
 `include "riscv.h"
 
-`define MEMWORDS_LG2 14 // 64 KiB
+`define MEMWORDS_LG2 15 // 128 KiB
 `define MEMWORDS (1 << `MEMWORDS_LG2)
-`define INIT_PC    32'h00_0200
-`define DATA_START 32'h00_0000
+`define INIT_PC    32'h8000_0000 // XXX should be 'h 1000 but we don't have memory there yet
+`define DATA_START 32'h8000_0000
 `ifndef INITDIR
 `define INITDIR ""
 `endif
