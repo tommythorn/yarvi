@@ -1,6 +1,6 @@
 # Program Under Test, PUT
-TESTDIR=../riscv-tests-bin/
-PUT=$(TESTDIR)rv32ui-p-addi
+TESTDIR=../riscv-tests/
+PUT=$(TESTDIR)rv64ui-p-addi
 OUTDIR=/tmp/
 
 COMMON=../shared/
@@ -14,139 +14,254 @@ all: test1
 
 include $(COMMON)Makefile.common
 
-TEST_BASIC= \
-  rv32ui-p-add \
-  rv32ui-p-addi \
-  rv32ui-p-and \
-  rv32ui-p-andi \
-  rv32ui-p-auipc \
-  rv32ui-p-beq \
-  rv32ui-p-bge \
-  rv32ui-p-bgeu \
-  rv32ui-p-blt \
-  rv32ui-p-bltu \
-  rv32ui-p-bne \
-  rv32ui-p-fence_i \
-  rv32ui-p-j \
-  rv32ui-p-jal \
-  rv32ui-p-jalr \
-  rv32ui-p-lb \
-  rv32ui-p-lbu \
-  rv32ui-p-lh \
-  rv32ui-p-lhu \
-  rv32ui-p-lui \
-  rv32ui-p-lw \
-  rv32ui-p-or \
-  rv32ui-p-ori \
-  rv32ui-p-sb \
-  rv32ui-p-sh \
-  rv32ui-p-simple \
-  rv32ui-p-sll \
-  rv32ui-p-slli \
-  rv32ui-p-slt \
-  rv32ui-p-slti \
-  rv32ui-p-sra \
-  rv32ui-p-srai \
-  rv32ui-p-srl \
-  rv32ui-p-srli \
-  rv32ui-p-sub \
-  rv32ui-p-sw \
-  rv32ui-pt-add \
-  rv32ui-pt-addi \
-  rv32ui-pt-and \
-  rv32ui-pt-andi \
-  rv32ui-pt-auipc \
-  rv32ui-pt-beq \
-  rv32ui-pt-bge \
-  rv32ui-pt-bgeu \
-  rv32ui-pt-blt \
-  rv32ui-pt-bltu \
-  rv32ui-pt-bne \
-  rv32ui-pt-fence_i \
-  rv32ui-pt-j \
-  rv32ui-pt-jal \
-  rv32ui-pt-jalr \
-  rv32ui-pt-lb \
-  rv32ui-pt-lbu \
-  rv32ui-pt-lh \
-  rv32ui-pt-lhu \
-  rv32ui-pt-lui \
-  rv32ui-pt-lw \
-  rv32ui-pt-or \
-  rv32ui-pt-ori \
-  rv32ui-pt-sb \
-  rv32ui-pt-sh \
-  rv32ui-pt-simple \
-  rv32ui-pt-sll \
-  rv32ui-pt-slli \
-  rv32ui-pt-slt \
-  rv32ui-pt-slti \
-  rv32ui-pt-sra \
-  rv32ui-pt-srai \
-  rv32ui-pt-srl \
-  rv32ui-pt-srli \
-  rv32ui-pt-sub \
-  rv32ui-pt-sw \
-  rv32ui-pt-xor \
-  rv32ui-pt-xori \
-  rv32ui-p-xor \
-  rv32ui-p-xori
+TESTSET_UI= \
+  rv64ui-p-add		\
+  rv64ui-p-addi		\
+  rv64ui-p-addiw	\
+  rv64ui-p-addw		\
+  rv64ui-p-and		\
+  rv64ui-p-andi		\
+  rv64ui-p-auipc	\
+  rv64ui-p-beq		\
+  rv64ui-p-bge		\
+  rv64ui-p-bgeu		\
+  rv64ui-p-blt		\
+  rv64ui-p-bltu		\
+  rv64ui-p-bne		\
+  rv64ui-p-fence_i	\
+  rv64ui-p-jal		\
+  rv64ui-p-jalr		\
+  rv64ui-p-lb		\
+  rv64ui-p-lbu		\
+  rv64ui-p-ld		\
+  rv64ui-p-lh		\
+  rv64ui-p-lhu		\
+  rv64ui-p-lui		\
+  rv64ui-p-lw		\
+  rv64ui-p-lwu		\
+  rv64ui-p-or		\
+  rv64ui-p-ori		\
+  rv64ui-p-sb		\
+  rv64ui-p-sd		\
+  rv64ui-p-sh		\
+  rv64ui-p-simple	\
+  rv64ui-p-sll		\
+  rv64ui-p-slli		\
+  rv64ui-p-slliw	\
+  rv64ui-p-sllw		\
+  rv64ui-p-slt		\
+  rv64ui-p-slti		\
+  rv64ui-p-sltiu	\
+  rv64ui-p-sltu		\
+  rv64ui-p-sra		\
+  rv64ui-p-srai		\
+  rv64ui-p-sraiw	\
+  rv64ui-p-sraw		\
+  rv64ui-p-srl		\
+  rv64ui-p-srli		\
+  rv64ui-p-srliw	\
+  rv64ui-p-srlw		\
+  rv64ui-p-sub		\
+  rv64ui-p-subw		\
+  rv64ui-p-sw		\
+  rv64ui-p-xor		\
+  rv64ui-p-xori		\
+  rv64ui-v-add		\
+  rv64ui-v-addi		\
+  rv64ui-v-addiw	\
+  rv64ui-v-addw		\
+  rv64ui-v-and		\
+  rv64ui-v-andi		\
+  rv64ui-v-auipc	\
+  rv64ui-v-beq		\
+  rv64ui-v-bge		\
+  rv64ui-v-bgeu		\
+  rv64ui-v-blt		\
+  rv64ui-v-bltu		\
+  rv64ui-v-bne		\
+  rv64ui-v-fence_i	\
+  rv64ui-v-jal		\
+  rv64ui-v-jalr		\
+  rv64ui-v-lb		\
+  rv64ui-v-lbu		\
+  rv64ui-v-ld		\
+  rv64ui-v-lh		\
+  rv64ui-v-lhu		\
+  rv64ui-v-lui		\
+  rv64ui-v-lw		\
+  rv64ui-v-lwu		\
+  rv64ui-v-or		\
+  rv64ui-v-ori		\
+  rv64ui-v-sb		\
+  rv64ui-v-sd		\
+  rv64ui-v-sh		\
+  rv64ui-v-simple	\
+  rv64ui-v-sll		\
+  rv64ui-v-slli		\
+  rv64ui-v-slliw	\
+  rv64ui-v-sllw		\
+  rv64ui-v-slt		\
+  rv64ui-v-slti		\
+  rv64ui-v-sltiu	\
+  rv64ui-v-sltu		\
+  rv64ui-v-sra		\
+  rv64ui-v-srai		\
+  rv64ui-v-sraiw	\
+  rv64ui-v-sraw		\
+  rv64ui-v-srl		\
+  rv64ui-v-srli		\
+  rv64ui-v-srliw	\
+  rv64ui-v-srlw		\
+  rv64ui-v-sub		\
+  rv64ui-v-subw		\
+  rv64ui-v-sw		\
+  rv64ui-v-xor		\
+  rv64ui-v-xori
 
-TEST_ATOMIC= \
-  rv32ui-p-amoadd_w \
-  rv32ui-p-amoand_w \
-  rv32ui-p-amomaxu_w \
-  rv32ui-p-amomax_w \
-  rv32ui-p-amominu_w \
-  rv32ui-p-amomin_w \
-  rv32ui-p-amoor_w \
-  rv32ui-p-amoswap_w \
-  rv32ui-pt-amoadd_w \
-  rv32ui-pt-amoand_w \
-  rv32ui-pt-amomaxu_w \
-  rv32ui-pt-amomax_w \
-  rv32ui-pt-amominu_w \
-  rv32ui-pt-amomin_w \
-  rv32ui-pt-amoor_w \
-  rv32ui-pt-amoswap_w \
-  rv32ui-pm-lrsc
+TESTSET_MI= \
+  rv64mi-p-access	\
+  rv64mi-p-breakpoint	\
+  rv64mi-p-csr		\
+  rv64mi-p-illegal	\
+  rv64mi-p-ma_addr	\
+  rv64mi-p-ma_fetch	\
+  rv64mi-p-ma_fetch.dump\
+  rv64mi-p-mcsr		\
+  rv64mi-p-sbreak	\
+  rv64mi-p-scall
 
-TEST_MULDIV= \
-  rv32ui-p-div \
-  rv32ui-p-divu \
-  rv32ui-p-mul \
-  rv32ui-p-mulh \
-  rv32ui-p-mulhsu \
-  rv32ui-p-mulhu \
-  rv32ui-p-rem \
-  rv32ui-p-remu \
-  rv32ui-pt-div \
-  rv32ui-pt-divu \
-  rv32ui-pt-mul \
-  rv32ui-pt-mulh \
-  rv32ui-pt-mulhsu \
-  rv32ui-pt-mulhu \
-  rv32ui-pt-rem \
-  rv32ui-pt-remu
 
-TEST_SUPERVISOR= \
-  rv32mi-p-csr \
-  rv32mi-p-illegal \
-  rv32mi-p-ma_addr \
-  rv32mi-p-ma_fetch \
-  rv32mi-pm-ipi \
-  rv32mi-p-sbreak \
-  rv32mi-p-scall \
-  rv32mi-p-timer \
-  rv32si-p-csr \
-  rv32si-p-illegal \
-  rv32si-p-ma_addr \
-  rv32si-p-ma_fetch \
-  rv32si-p-sbreak \
-  rv32si-p-scall \
-  rv32si-p-shamt
+TESTSET_SI= \
+  rv64si-p-csr		\
+  rv64si-p-dirty	\
+  rv64si-p-ma_fetch	\
+  rv64si-p-sbreak	\
+  rv64si-p-scall	\
+  rv64si-p-wfi
 
-TEST_ALL=$(TEST_BASIC) $(TEST_ATOMIC) $(TEST_MULDIV) $(TEST_SUPERVISOR)
+TESTSET_UA= \
+  rv64ua-p-amoadd_d	\
+  rv64ua-p-amoadd_w	\
+  rv64ua-p-amoand_d	\
+  rv64ua-p-amoand_w	\
+  rv64ua-p-amomax_d	\
+  rv64ua-p-amomax_w	\
+  rv64ua-p-amomaxu_d	\
+  rv64ua-p-amomaxu_w	\
+  rv64ua-p-amomin_d	\
+  rv64ua-p-amomin_w	\
+  rv64ua-p-amominu_d	\
+  rv64ua-p-amominu_w	\
+  rv64ua-p-amoor_d	\
+  rv64ua-p-amoor_w	\
+  rv64ua-p-amoswap_d	\
+  rv64ua-p-amoswap_w	\
+  rv64ua-p-amoxor_d	\
+  rv64ua-p-amoxor_w	\
+  rv64ua-p-lrsc		\
+  rv64ua-v-amoadd_d	\
+  rv64ua-v-amoadd_w	\
+  rv64ua-v-amoand_d	\
+  rv64ua-v-amoand_w	\
+  rv64ua-v-amomax_d	\
+  rv64ua-v-amomax_w	\
+  rv64ua-v-amomaxu_d	\
+  rv64ua-v-amomaxu_w	\
+  rv64ua-v-amomin_d	\
+  rv64ua-v-amomin_w	\
+  rv64ua-v-amominu_d	\
+  rv64ua-v-amominu_w	\
+  rv64ua-v-amoor_d	\
+  rv64ua-v-amoor_w	\
+  rv64ua-v-amoswap_d	\
+  rv64ua-v-amoswap_w	\
+  rv64ua-v-amoxor_d	\
+  rv64ua-v-amoxor_w	\
+  rv64ua-v-lrsc
+
+TESTSET_UC= \
+  rv64uc-p-rvc		\
+  rv64uc-v-rvc
+
+TESTSET_UD= \
+  rv64ud-p-fadd		\
+  rv64ud-p-fclass	\
+  rv64ud-p-fcmp		\
+  rv64ud-p-fcvt		\
+  rv64ud-p-fcvt_w	\
+  rv64ud-p-fdiv		\
+  rv64ud-p-fmadd	\
+  rv64ud-p-fmin		\
+  rv64ud-p-ldst		\
+  rv64ud-p-move		\
+  rv64ud-p-recoding	\
+  rv64ud-p-structural	\
+  rv64ud-v-fadd		\
+  rv64ud-v-fclass	\
+  rv64ud-v-fcmp		\
+  rv64ud-v-fcvt		\
+  rv64ud-v-fcvt_w	\
+  rv64ud-v-fdiv		\
+  rv64ud-v-fmadd	\
+  rv64ud-v-fmin		\
+  rv64ud-v-ldst		\
+  rv64ud-v-move		\
+  rv64ud-v-recoding	\
+  rv64ud-v-structural
+
+TESTSET_UF= \
+  rv64uf-p-fadd		\
+  rv64uf-p-fclass	\
+  rv64uf-p-fcmp		\
+  rv64uf-p-fcvt		\
+  rv64uf-p-fcvt_w	\
+  rv64uf-p-fdiv		\
+  rv64uf-p-fmadd	\
+  rv64uf-p-fmin		\
+  rv64uf-p-ldst		\
+  rv64uf-p-move		\
+  rv64uf-p-recoding	\
+  rv64uf-v-fadd		\
+  rv64uf-v-fclass	\
+  rv64uf-v-fcmp		\
+  rv64uf-v-fcvt		\
+  rv64uf-v-fcvt_w	\
+  rv64uf-v-fdiv		\
+  rv64uf-v-fmadd	\
+  rv64uf-v-fmin		\
+  rv64uf-v-ldst		\
+  rv64uf-v-move		\
+  rv64uf-v-recoding
+
+TESTSET_UM= \
+  rv64um-p-div		\
+  rv64um-p-divu		\
+  rv64um-p-divuw	\
+  rv64um-p-divw		\
+  rv64um-p-mul		\
+  rv64um-p-mulh		\
+  rv64um-p-mulhsu	\
+  rv64um-p-mulhu	\
+  rv64um-p-mulw		\
+  rv64um-p-rem		\
+  rv64um-p-remu		\
+  rv64um-p-remuw	\
+  rv64um-p-remw		\
+  rv64um-v-div		\
+  rv64um-v-divu		\
+  rv64um-v-divuw	\
+  rv64um-v-divw		\
+  rv64um-v-mul		\
+  rv64um-v-mulh		\
+  rv64um-v-mulhsu	\
+  rv64um-v-mulhu	\
+  rv64um-v-mulw		\
+  rv64um-v-rem		\
+  rv64um-v-remu		\
+  rv64um-v-remuw	\
+  rv64um-v-remw		\
+
+TEST_ALL=$(TESTSET_UI) $(TESTSET_MI) $(TESTSET_SI) $(TESTSET_UA) $(TESTSET_UC) $(TESTSET_UD) $(TESTSET_UF) $(TESTSET_UM)
 
 test1: $(PUT).txt
 	iverilog -I$(COMMON) -DSIMULATION $(VERB) -DINITDIR=\"./\" $(IOPTS) -o yarvi $(SRC)
@@ -163,10 +278,14 @@ test:
 
 testall:
 	@echo "Basic UI tests:"
-	@$(MAKE) -s TESTS="$(TEST_BASIC)" test
+	@$(MAKE) -s TESTS="$(TESTSET_UI)" test
 	@echo "Atomic tests:"
 	@$(MAKE) -s TESTS="$(TEST_ATOMIC)" test
 	@echo "Mul/Div tests:"
 	@$(MAKE) -s TESTS="$(TEST_MULDIV)" test
 	@echo "Supervisor tests:"
 	@$(MAKE) -s TESTS="$(TEST_SUPERVISOR)" test
+
+# Graph it
+# (echo digraph trace '{';grep RESTARTING trace.log | while read x y z a t b;do echo '"'$a'" -> "'$b'";';done;echo '}') > trace.dot && dot -Tpdf trace.dot  -o trace.pdf
+(prev=start;echo digraph trace '{';grep RESTARTING trace.log | while read x y z a t b;do echo '"'$prev'" -> "'$a'"; "'$a'" -> "'$b'" [label="branch"] ;';prev="$b";done;echo '}') > trace.dot && dot -Tpdf trace.dot  -o trace.pdf && open trace.pdf
