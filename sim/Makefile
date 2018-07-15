@@ -8,7 +8,7 @@ COMMON=../shared/
 VERB=
 VERB=-DVERBOSE_SIMULATION #-DSIMULATION_VERBOSE_PIPELINE
 
-SRC=toplevel.v $(COMMON)htif.v $(COMMON)yarvi_soc.v $(COMMON)yarvi_disass.v $(COMMON)yarvi.v
+SRC=toplevel.v $(COMMON)htif.v $(COMMON)yarvi_soc.v $(COMMON)yarvi_disass.v $(COMMON)yarvi.v $(COMMON)yarvi_fe.v $(COMMON)yarvi_rf.v $(COMMON)yarvi_ex.v
 
 all: test1
 

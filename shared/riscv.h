@@ -138,6 +138,8 @@
   `define TSR   [22]     // Trap SRET
   `define SD    [31]     // Summary Dirty (FS==11 || XS==11)
 
+`define CSR_SATP                'h 180
+
 `define CSR_MISA                'h 301
 `define CSR_MEDELEG             'h 302
 `define CSR_MIDELEG             'h 303

@@ -109,9 +109,9 @@ module yarvi_disass( input             clock
             `CSRRS:  $display("%05d  %x %x csrrs  x%1d, csr%03X, x%1d", $time, pc, insn, insn`rd, insn`imm11_0, insn`rs1);
             `CSRRC:  $display("%05d  %x %x csrrc  x%1d, csr%03X, x%1d", $time, pc, insn, insn`rd, insn`imm11_0, insn`rs1);
             `CSRRW:  $display("%05d  %x %x csrrw  x%1d, csr%03X, x%1d", $time, pc, insn, insn`rd, insn`imm11_0, insn`rs1);
-            `CSRRSI: $display("%05d  %x %x csrrsi x%1d, csr%03X, x%1d", $time, pc, insn, insn`rd, insn`imm11_0, insn`rs1);
-            `CSRRCI: $display("%05d  %x %x csrrci x%1d, csr%03X, x%1d", $time, pc, insn, insn`rd, insn`imm11_0, insn`rs1);
-            `CSRRWI: $display("%05d  %x %x csrrwi x%1d, csr%03X, x%1d", $time, pc, insn, insn`rd, insn`imm11_0, insn`rs1);
+            `CSRRSI: $display("%05d  %x %x csrrsi x%1d, csr%03X, %1d", $time, pc, insn, insn`rd, insn`imm11_0, insn`rs1);
+            `CSRRCI: $display("%05d  %x %x csrrci x%1d, csr%03X, %1d", $time, pc, insn, insn`rd, insn`imm11_0, insn`rs1);
+            `CSRRWI: $display("%05d  %x %x csrrwi x%1d, csr%03X, %1d", $time, pc, insn, insn`rd, insn`imm11_0, insn`rs1);
             `PRIV: begin
                case (insn`imm11_0)
                  `ECALL:  $display("%05d  %x %x ecall", $time, pc, insn);

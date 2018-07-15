@@ -47,7 +47,7 @@ module toplevel();
       #10
       reset = 0;
 
-      #100
+      #1000
 	$display("TIMED OUT");
       $finish;
    end
