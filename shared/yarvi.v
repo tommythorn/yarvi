@@ -17,11 +17,9 @@ module yarvi( input  wire        clock);
    wire             ex_restart;
    wire [`VMSB:0]   ex_restart_pc;
 
-   wire             fe_valid;
    wire [`VMSB:0]   fe_pc;
    wire [31:0]      fe_insn;
 
-   wire             rf_valid;
    wire [`VMSB:0]   rf_pc;
    wire [31:0]      rf_insn;
    wire [63:0]      rf_rs1_val;
@@ -40,20 +38,17 @@ module yarvi( input  wire        clock);
      , .restart         (ex_restart)
      , .restart_pc      (ex_restart_pc)
 
-     , .fe_valid        (fe_valid)
      , .fe_pc           (fe_pc)
      , .fe_insn         (fe_insn));
 
    yarvi_rf rf
      ( .clock           (clock)
-     , .valid           (fe_valid & !ex_restart)
      , .pc              (fe_pc)
      , .insn            (fe_insn)
      , .we              (ex_wben)
      , .addr            (ex_wb_rd)
      , .d               (ex_wb_val)
 
-     , .rf_valid        (rf_valid)
      , .rf_pc           (rf_pc)
      , .rf_insn         (rf_insn)
      , .rf_rs1_val      (rf_rs1_val)
@@ -61,7 +56,6 @@ module yarvi( input  wire        clock);
 
    yarvi_ex ex
      ( .clock           (clock)
-     , .valid           (rf_valid & !ex_restart)
      , .pc              (rf_pc)
      , .insn            (rf_insn)
      , .rs1_val         (rf_rs1_val)

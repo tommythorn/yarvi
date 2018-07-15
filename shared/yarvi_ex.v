@@ -16,14 +16,13 @@ XXX Need to include CSR access permission check
 
 module yarvi_ex( input  wire             clock
 
-               , input  wire             valid
                , input  wire [`VMSB:0]   pc
                , input  wire [31:0]      insn
                , input  wire [63:0]      rs1_val
                , input  wire [63:0]      rs2_val
 
-               , output reg              ex_restart = 0
-               , output reg [`VMSB:0]    ex_restart_pc
+               , output reg              ex_restart = 1
+               , output reg [`VMSB:0]    ex_restart_pc = `INIT_PC
 
                , output reg              ex_wben
                , output reg  [63:0]      ex_wb_val
@@ -35,6 +34,10 @@ module yarvi_ex( input  wire             clock
 
    reg  [ 1:0] prv              = `PRV_M; // Current priviledge level
    // CSRS
+
+   reg         ex_restart_ = 0;
+   always @(posedge clock) ex_restart_ <= ex_restart;
+   wire        valid = !ex_restart && !ex_restart_;  // restart produces two bubbles
 
    // URW
    reg  [ 4:0] csr_fflags       = 0; // 001
