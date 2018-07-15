@@ -163,15 +163,24 @@
 
 // Trap causes
 
-`define TRAP_INST_MISALIGN      0
-`define TRAP_INST_ADDR          1
-`define TRAP_INST_ILLEGAL       2
-`define TRAP_BREAKPOINT         3
-`define TRAP_LOAD_MISALIGN      4
-`define TRAP_LOAD_FAULT         5
-`define TRAP_STORE_MISALIGN     6
-`define TRAP_STORE_FAULT        7
-`define TRAP_ECALL_UMODE        8
-`define TRAP_ECALL_SMODE        9
-`define TRAP_ECALL_HMODE        10
-`define TRAP_ECALL_MMODE        11
+`define CAUSE_MISALIGNED_FETCH    'h0
+`define CAUSE_FAULT_FETCH         'h1
+`define CAUSE_ILLEGAL_INSTRUCTION 'h2
+`define CAUSE_BREAKPOINT          'h3
+`define CAUSE_MISALIGNED_LOAD     'h4
+`define CAUSE_FAULT_LOAD          'h5
+`define CAUSE_MISALIGNED_STORE    'h6
+`define CAUSE_FAULT_STORE         'h7
+`define CAUSE_USER_ECALL          'h8
+`define CAUSE_SUPERVISOR_ECALL    'h9
+`define CAUSE_HYPERVISOR_ECALL    'ha
+`define CAUSE_MACHINE_ECALL       'hb
+`define CAUSE_FETCH_PAGE_FAULT    'hc
+`define CAUSE_LOAD_PAGE_FAULT     'hd
+`define CAUSE_STORE_PAGE_FAULT    'hf
+
+// Priviledge levels
+`define PRV_U 0
+`define PRV_S 1
+`define PRV_H 2
+`define PRV_M 3

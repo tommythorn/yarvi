@@ -33,6 +33,7 @@ module yarvi_ex( input  wire             clock
                , output reg [`VMSB:0]    ex_pc
                , output reg [31:0]       ex_insn);
 
+   reg  [ 1:0] prv              = `PRV_M; // Current priviledge level
    // CSRS
 
    // URW
@@ -89,12 +90,17 @@ module yarvi_ex( input  wire             clock
    // U-type
    wire [63:0] uj_imm       = {sign44, insn[19:12], insn[20], insn[30:21], 1'd0};
 
-   wire        rs1_forward_ex = insn`rs1 == ex_insn`rd && ex_wben;
-   wire        rs2_forward_ex = insn`rs2 == ex_insn`rd && ex_wben;
-   wire        rs1_forward_wb = 0; // insn`rs1 == wb_insn`rd && wb_wben;
-   wire        rs2_forward_wb = 0; // insn`rs2 == wb_insn`rd && wb_wben;
+   reg  [63:0] wb_wb_val = 0;
+   reg  [ 4:0] wb_wb_rd = 0;
+   reg  [ 4:0] wb_wben = 0;
+   always @(posedge clock) wb_wb_val <= ex_wb_val;
+   always @(posedge clock) wb_wb_rd  <= ex_wb_rd;
+   always @(posedge clock) wb_wben   <= ex_wben;
 
-   wire [63:0] wb_wb_val = 0;
+   wire        rs1_forward_ex = insn`rs1 == ex_wb_rd && ex_wben;
+   wire        rs2_forward_ex = insn`rs2 == ex_wb_rd && ex_wben;
+   wire        rs1_forward_wb = insn`rs1 == wb_wb_rd && wb_wben;
+   wire        rs2_forward_wb = insn`rs2 == wb_wb_rd && wb_wben;
 
    wire [63:0] rs1          = rs1_forward_ex ? ex_wb_val :
                               rs1_forward_wb ? wb_wb_val : rs1_val;
@@ -233,12 +239,62 @@ module yarvi_ex( input  wire             clock
              `CSRRSI: begin csr_d <= csr_val |  insn`rs1; end
              `CSRRCI: begin csr_d <= csr_val &~ insn`rs1; end
              `CSRRWI: begin csr_d <=            insn`rs1; end
+             `PRIV: begin
+                ex_wben <= 0;
+                csr_addr <= ~0;
+                ex_restart <= valid;
+                case (insn`imm11_0)
+                  `ECALL: begin
+                     ex_restart_pc <= csr_mtvec;
+                     if (valid) begin
+                        // XXX Handle delegation if prv <= PRV_S
+                        csr_mcause <= `CAUSE_USER_ECALL | prv;
+                        csr_mepc <= pc;
+                        csr_mtval <= 0;
+                        csr_mstatus`MPIE <= csr_mstatus`MIE;
+                        csr_mstatus`MIE <= 0;
+                        csr_mstatus`MPP <= prv;
+                        prv <= `PRV_S;
+                     end
+                  end
+                  `MRET: begin
+                     ex_restart_pc <= csr_mepc;
+                     if (valid) begin
+                        csr_mstatus`MIE <= csr_mstatus`MPIE;
+                        csr_mstatus`MPIE <= 1;
+                        prv <= csr_mstatus`MPP;
+                        csr_mstatus`MPP <= `PRV_U; // ??
+                     end
+                  end
+                  //`EBREAK: $finish; // XXX
+                  default: if (valid) begin
+                     $display("NOT IMPLEMENTED SYSTEM.PRIV 0x%x (inst %x)",
+                              insn`imm11_0, insn);
+                     ex_restart <= 0;
+                     $finish;
+                  end
+                endcase
+             end
              default: begin
                 ex_wben <= 0;
                 csr_addr <= ~0;
              end
           endcase
         end
+        `MISC_MEM:
+            case (insn`funct3)
+              `FENCE:  ;
+              `FENCE_I: begin
+                 ex_restart <= valid;
+                 ex_restart_pc <= pc + 4;
+              end
+
+              default: if (valid) begin
+                 $display("%05d  %x %x *** Unsupported", $time, pc, insn, insn`opcode);
+                 $finish;
+              end
+          endcase
+
         default:
           if (valid) begin
              $display("%05d  %x %x *** Unsupported opcode %d", $time, pc, insn, insn`opcode);

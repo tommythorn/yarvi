@@ -98,10 +98,11 @@ module yarvi_disass( input             clock
                 endcase
 
         `JAL: $display("%05d  %x %x jal    x%1d, 0x%x", $time, pc, insn, insn`rd, pc + uj_imm);
-        `JALR: if (insn`rd == 0 && i_imm == 0)
-          $display("%05d  %x %x ret", $time, pc, insn);
-        else
-          $display("%05d  %x %x jalr   x%1d, x%1d, 0x%x", $time, pc, insn, insn`rd, insn`rs1, $signed(i_imm));
+        `JALR:
+          if (insn`rd == 0 && i_imm == 0 && insn`rs1 == 32)  // XXX what is the condition for ret?
+            $display("%05d  %x %x ret", $time, pc, insn);
+          else
+            $display("%05d  %x %x jalr   x%1d, x%1d, 0x%x", $time, pc, insn, insn`rd, insn`rs1, $signed(i_imm));
 
         `SYSTEM:
           case (insn`funct3)
@@ -130,7 +131,7 @@ module yarvi_disass( input             clock
             `FENCE:   $display("%05d  %x %x fence", $time, pc, insn);
             `FENCE_I: $display("%05d  %x %x fence.i", $time, pc, insn);
             default: begin
-               $display("%05d  %x %x unknown", $time, pc, insn);
+               $display("%05d  %x %x unknown MISC_MEM sub %x", $time, pc, insn, insn`funct3);
                $finish;
             end
           endcase
