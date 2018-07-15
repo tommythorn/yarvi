@@ -35,9 +35,8 @@ module yarvi_ex( input  wire             clock
    reg  [ 1:0] prv              = `PRV_M; // Current priviledge level
    // CSRS
 
-   reg         ex_restart_ = 0;
-   always @(posedge clock) ex_restart_ <= ex_restart;
-   wire        valid = !ex_restart && !ex_restart_;  // restart produces two bubbles
+   reg         valid = 0, valid_ = 0;
+   always @(posedge clock) valid_ <= valid;
 
    // URW
    reg  [ 4:0] csr_fflags       = 0; // 001
@@ -186,10 +185,13 @@ module yarvi_ex( input  wire             clock
    always @(posedge clock) begin
       ex_restart <= 0;
       csr_addr <= ~0;
+      if (!valid_)
+        valid <= 1;
 
+      if (valid)
       case (insn`opcode)
         `OP_IMM, `OP: begin
-           ex_wben   <= |insn`rd & valid;
+           ex_wben   <= |insn`rd;
            ex_wb_rd  <= insn`rd;
            case (insn`funct3)
              `ADDSUB: if (insn[30] && insn`opcode == `OP)
@@ -212,29 +214,31 @@ module yarvi_ex( input  wire             clock
 
         `BRANCH:
           if (branch_taken) begin
-             ex_restart    <= valid;
+             ex_restart    <= 1;
+             valid         <= 0;
              ex_restart_pc <= pc + sb_imm;
           end
 
         `AUIPC: begin
-           ex_wben   <= |insn`rd & valid;
+           ex_wben   <= |insn`rd;
            ex_wb_rd  <= insn`rd;
            ex_wb_val <= pc + {{32{insn[31]}},insn[31:12], 12'd0}; // XXX sign extended?
         end
 
         `JAL: begin
-           ex_wben       <= |insn`rd & valid;
+           ex_wben       <= |insn`rd;
            ex_wb_rd      <= insn`rd;
            ex_wb_val     <= pc + 4;
-           ex_restart    <= valid;
+           ex_restart    <= 1;
+           valid         <= 0;
            ex_restart_pc <= pc + uj_imm;
         end
 
         `SYSTEM: begin
-           ex_wben   <= |insn`rd & valid;
+           ex_wben   <= |insn`rd;
            ex_wb_rd  <= insn`rd;
            ex_wb_val <= csr_val;
-           if (valid) csr_addr <= insn`imm11_0;
+           csr_addr <= insn`imm11_0;
            case (insn`funct3)
              `CSRRS:  begin csr_d <= csr_val |  rs1; if (insn`rs1 == 0) csr_addr <= ~0; end
              `CSRRC:  begin csr_d <= csr_val &~ rs1; if (insn`rs1 == 0) csr_addr <= ~0; end
@@ -245,35 +249,31 @@ module yarvi_ex( input  wire             clock
              `PRIV: begin
                 ex_wben <= 0;
                 csr_addr <= ~0;
-                ex_restart <= valid;
+                ex_restart <= 1;
+                valid      <= 0;
                 case (insn`imm11_0)
                   `ECALL: begin
                      ex_restart_pc <= csr_mtvec;
-                     if (valid) begin
-                        // XXX Handle delegation if prv <= PRV_S
-                        csr_mcause <= `CAUSE_USER_ECALL | prv;
-                        csr_mepc <= pc;
-                        csr_mtval <= 0;
-                        csr_mstatus`MPIE <= csr_mstatus`MIE;
-                        csr_mstatus`MIE <= 0;
-                        csr_mstatus`MPP <= prv;
-                        prv <= `PRV_S;
-                     end
+                     // XXX Handle delegation if prv <= PRV_S
+                     csr_mcause <= `CAUSE_USER_ECALL | prv;
+                     csr_mepc <= pc;
+                     csr_mtval <= 0;
+                     csr_mstatus`MPIE <= csr_mstatus`MIE;
+                     csr_mstatus`MIE <= 0;
+                     csr_mstatus`MPP <= prv;
+                     prv <= `PRV_S;
                   end
                   `MRET: begin
                      ex_restart_pc <= csr_mepc;
-                     if (valid) begin
-                        csr_mstatus`MIE <= csr_mstatus`MPIE;
-                        csr_mstatus`MPIE <= 1;
-                        prv <= csr_mstatus`MPP;
-                        csr_mstatus`MPP <= `PRV_U; // ??
-                     end
+                     csr_mstatus`MIE <= csr_mstatus`MPIE;
+                     csr_mstatus`MPIE <= 1;
+                     prv <= csr_mstatus`MPP;
+                     csr_mstatus`MPP <= `PRV_U; // ??
                   end
                   //`EBREAK: $finish; // XXX
-                  default: if (valid) begin
+                  default: begin
                      $display("NOT IMPLEMENTED SYSTEM.PRIV 0x%x (inst %x)",
                               insn`imm11_0, insn);
-                     ex_restart <= 0;
                      $finish;
                   end
                 endcase
@@ -288,21 +288,22 @@ module yarvi_ex( input  wire             clock
             case (insn`funct3)
               `FENCE:  ;
               `FENCE_I: begin
-                 ex_restart <= valid;
+                 ex_restart    <= 1;
+                 valid         <= 0;
                  ex_restart_pc <= pc + 4;
               end
 
-              default: if (valid) begin
+              default: begin
                  $display("%05d  %x %x *** Unsupported", $time, pc, insn, insn`opcode);
                  $finish;
               end
           endcase
 
         default:
-          if (valid) begin
+          begin
              $display("%05d  %x %x *** Unsupported opcode %d", $time, pc, insn, insn`opcode);
-            $finish;
-        end
+             $finish;
+          end
       endcase
    end
 
