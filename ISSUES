@@ -1,11 +1,22 @@
-THIS IS A BIT OUT OF DATE
-
 Issues/todos:
 
-  #-1 Add support for stalling and convert to an Avalon master,
-    initially without caches.
+  # Switch to 64-bit (rv64 tests, convert to RV64I isa,
+    add the W instructions)
 
-  #? Switch to 64-bit
+  # Add priv support (but no TLB yet)
+
+  # Add M support
+
+  # Add A support
+
+  # Minimal FP load/store/convert + trap FP
+
+  # Add caches & TLBs (trap on TLB misses and sw fill?)
+
+
+
+
+
 
   #0 Interrupt support (mostly done, but untested).
 

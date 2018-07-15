@@ -41,10 +41,13 @@ module toplevel();
 
 
    initial begin
+      $dumpfile("test.vcd");
+      $dumpvars(0,yarvi_soc);
+
       #10
       reset = 0;
 
-      #500000
+      #100
 	$display("TIMED OUT");
       $finish;
    end

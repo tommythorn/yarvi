@@ -1,6 +1,6 @@
 // -----------------------------------------------------------------------
 //
-//   Copyright 2016 Tommy Thorn - All Rights Reserved
+//   Copyright 2016,2018 Tommy Thorn - All Rights Reserved
 //
 //   This program is free software; you can redistribute it and/or modify
 //   it under the terms of the GNU General Public License as published by
@@ -57,7 +57,8 @@
 `define PRIV            0
 `define   ECALL             0
 `define   EBREAK            1
-`define   ERET            256
+`define   SRET          'h102 // 0001000 00010
+`define   MRET          'h302 // 0011000 00010
 `define CSRRW           1
 `define CSRRS           2
 `define CSRRC           3
@@ -83,74 +84,78 @@
 /**  Control and Status Registers  **/
 
 // User-level, floating-point
-`define CSR_FFLAGS              'h   1
-`define CSR_FRM                 'h   2
-`define CSR_FCSR                'h   3                  /* alias for the frm + fflags */
+`define CSR_USTATUS             'h 000
+`define CSR_UIE                 'h 004
+`define CSR_UTVEC               'h 005
+
+`define CSR_USCRATCH            'h 040
+`define CSR_UEPC                'h 041
+`define CSR_UCAUSE              'h 042
+`define CSR_UTVAL               'h 043
+`define CSR_UIP                 'h 044
+
+`define CSR_FFLAGS              'h 001
+`define CSR_FRM                 'h 002
+`define CSR_FCSR                'h 003                  /* alias for the frm + fflags */
 
 // User-level, counter/timers
 `define CSR_CYCLE               'h C00
 `define CSR_TIME                'h C01
 `define CSR_INSTRET             'h C02
+// ... HPMCOUNTER3 ... 31
 `define CSR_CYCLEH              'h C80
 `define CSR_TIMEH               'h C81
 `define CSR_INSTRETH            'h C82
 
 // Machine-level
-`define CSR_MCPUID              'h F00
-`define CSR_MIMPID              'h F01
-`define CSR_MHARTID             'h F10
+`define CSR_MVENDORID           'h F11
+`define CSR_MARCHID             'h F12
+`define CSR_MIMPID              'h F13
+`define CSR_MHARTID             'h F14
 
 `define CSR_MSTATUS             'h 300
-  `define EI   [0]      // Interrupt Enable
-  `define PRV  [2:1]    // Current privilege mode
-  `define EI1  [3]      // stack of these ...
-  `define PRV1 [5:4]
-  `define EI2  [6]
-  `define PRV2 [8:7]
-  `define EI3  [9]
-  `define PRV3 [11:10]
-  `define FS   [13:12]  // Floating-point status {Off, Initial, Clean, Dirty}
-  `define XS   [15:14]  // Same for user-mode extensions
-  `define MPRV [16]     // modifies the privilege level of loads/stores
-  `define VM   [21:17]  // Active virtualization mode
-  `define SD   [31]     // FS==11 || XS==11
+  `define UIE   [0]     // User       Interrupt Enable
+  `define SIE   [1]     // Supervisor Interrupt Enable
+  //      _IE   [2]     // ...        Interrupt Enable
+  `define MIE   [3]     // Supervisor Interrupt Enable
 
-`define CSR_MTVEC               'h 301
-`define CSR_MTDELEG             'h 302
+  `define UPIE  [4]     // User       Previous Interrupt Enable
+  `define SPIE  [5]     // Supervisor Previous Interrupt Enable
+  //      _PIE  [6]     // ...        Previous Interrupt Enable
+  `define MPIE  [7]     // Supervisor Previous Interrupt Enable
+
+  //      UPP   []      // User       Previous Privilege Level
+  `define SPP   [8]     // Supervisor Previous Privilege Level
+  `define MPP   [12:11] // Machine    Previous Privilege Level
+
+  `define FS    [14:13]  // Floating-point status {Off, Initial, Clean, Dirty}
+  `define XS    [16:15]  // Same for user-mode extensions
+  `define MPRV  [17]     // modifies the privilege level of loads/stores
+  `define SUM   [18]     // permit Supervisor User Memory access
+  `define MXR   [19]     // Make eXecutable Readable
+  `define TVM   [20]     // Trap Virtual Memory
+  `define TW    [21]     // Timeout Wait
+  `define TSR   [22]     // Trap SRET
+  `define SD    [31]     // Summary Dirty (FS==11 || XS==11)
+
+`define CSR_MISA                'h 301
+`define CSR_MEDELEG             'h 302
+`define CSR_MIDELEG             'h 303
 `define CSR_MIE                 'h 304
-`define CSR_MTIMECMP            'h 321
-
-`define CSR_MTIME               'h 701
-`define CSR_MTIMEH              'h 741
+`define CSR_MTVEC               'h 305
+`define CSR_MCOUNTEREN          'h 306
 
 `define CSR_MSCRATCH            'h 340
 `define CSR_MEPC                'h 341
 `define CSR_MCAUSE              'h 342
-`define CSR_MBADADDR            'h 343
+`define CSR_MTVAL               'h 343
 `define CSR_MIP                 'h 344
-  `define MTIP [7]
 
-`define CSR_MBASE               'h 380
-`define CSR_MBOUND              'h 381
-`define CSR_MIBASE              'h 382
-`define CSR_MIBOUND             'h 383
-`define CSR_MDBASE              'h 384
-`define CSR_MDBOUND             'h 385
+`define CSR_MCYCLE              'h B00
+`define CSR_MINSTRET            'h B02
 
-// User-level, counter/timers
-`define CSR_CYCLEW              'h 900
-`define CSR_TIMEW               'h 901
-`define CSR_INSTRETW            'h 902
-`define CSR_CYCLEHW             'h 980
-`define CSR_TIMEHW              'h 981
-`define CSR_INSTRETHW           'h 982
-
-`define CSR_HTIMEW              'h B01
-`define CSR_HTIMEHW             'h B81
-
-`define CSR_MTOHOST             'h 780
-`define CSR_MFROMHOST           'h 781
-
+`define CSR_MCYCLEH             'h B80
+`define CSR_MINSTRETH           'h B82
 
 // Trap causes
 

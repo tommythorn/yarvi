@@ -8,7 +8,7 @@ COMMON=../shared/
 VERB=
 VERB=-DVERBOSE_SIMULATION #-DSIMULATION_VERBOSE_PIPELINE
 
-SRC=toplevel.v $(COMMON)htif.v $(COMMON)yarvi_soc.v $(COMMON)yarvi.v
+SRC=toplevel.v $(COMMON)htif.v $(COMMON)yarvi_soc.v $(COMMON)yarvi_disass.v $(COMMON)yarvi.v
 
 all: test1
 
@@ -264,7 +264,7 @@ TESTSET_UM= \
 TEST_ALL=$(TESTSET_UI) $(TESTSET_MI) $(TESTSET_SI) $(TESTSET_UA) $(TESTSET_UC) $(TESTSET_UD) $(TESTSET_UF) $(TESTSET_UM)
 
 test1: $(PUT).txt
-	iverilog -I$(COMMON) -DSIMULATION $(VERB) -DINITDIR=\"./\" $(IOPTS) -o yarvi $(SRC)
+	iverilog -I$(COMMON) -DSIMULATION $(VERB) -DINIT_MEM=\"$^\" $(IOPTS) -o yarvi $(SRC)
 	./yarvi
 
 %.riscv:

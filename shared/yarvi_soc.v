@@ -1,6 +1,6 @@
 // -----------------------------------------------------------------------
 //
-//   Copyright 2016 Tommy Thorn - All Rights Reserved
+//   Copyright 2016,2018 Tommy Thorn - All Rights Reserved
 //
 //   This program is free software; you can redistribute it and/or modify
 //   it under the terms of the GNU General Public License as published by
@@ -30,6 +30,8 @@ module yarvi_soc
 	    // debug
             , output wire  [3:0] htif_state
             );
+
+   reg         htif_reset = 0;
 
    wire        bus_req_ready;
    wire        bus_req_read;
@@ -64,8 +66,13 @@ module yarvi_soc
      , .s               (htif_state)
      );
 
+   always @(posedge clock)
+     if (bus_req_write && bus_req_address == 'h FFFF_FFFC)
+       htif_reset <= bus_req_data[0];
+
    yarvi yarvi
      ( .clock           (clock)
+/*   , .reset           (reset | htif_reset)
 
      , .bus_req_ready   (bus_req_ready)
      , .bus_req_read    (bus_req_read)
@@ -74,6 +81,6 @@ module yarvi_soc
      , .bus_req_data    (bus_req_data)
 
      , .bus_res_valid   (bus_res_valid)
-     , .bus_res_data    (bus_res_data)
+     , .bus_res_data    (bus_res_data) */
      );
 endmodule

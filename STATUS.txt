@@ -1,3 +1,51 @@
+TODO: Update to 2.3 (draft) / 1.11 (draft) specs
+
+- Find the CSRs needed to riscv-tests and which fields they use:
+
+  ,mhartid DONE
+  ,mcause
+  ,medeleg
+
+  medeleg,0
+  medeleg,t0
+  mie,0
+  mideleg,0
+  mepc,t0
+  mstatus,0
+  mtvec,t0
+  pmpaddr0,t0
+  pmpcfg0,t0
+  satp,0
+  stvec,t0
+
+  Table 2.4: (Currently allocated machine-level CSRs)
+
+      mvendorid
+      marchid
+      mimpid
+      mhartid
+
+      mstatus
+      misa
+      medeleg
+      mideleg
+      mie
+      mtvec
+      mcounteren
+
+      mscratch
+      mepc
+      mcause
+      mtval
+      mip
+
+  Table 2.5: (Currently allocated machine-level CSRs)
+
+      mcycle
+      minstret
+      mcycleh
+      minstreth
+
 YARVI implements all of RV32I and some of the privileged subset.
 
 To see the status, run testall in sim:
