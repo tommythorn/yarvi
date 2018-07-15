@@ -85,6 +85,10 @@
 
 // User-level, floating-point
 `define CSR_USTATUS             'h 000
+`define CSR_FFLAGS              'h 001
+`define CSR_FRM                 'h 002
+`define CSR_FCSR                'h 003                  /* alias for the frm + fflags */
+
 `define CSR_UIE                 'h 004
 `define CSR_UTVEC               'h 005
 
@@ -94,9 +98,7 @@
 `define CSR_UTVAL               'h 043
 `define CSR_UIP                 'h 044
 
-`define CSR_FFLAGS              'h 001
-`define CSR_FRM                 'h 002
-`define CSR_FCSR                'h 003                  /* alias for the frm + fflags */
+`define CSR_STVEC               'h 105
 
 // User-level, counter/timers
 `define CSR_CYCLE               'h C00

@@ -8,6 +8,8 @@
 
 This is a simple RISC-V RV64I implementation.
 
+XXX Need to include CSR access permission check
+
 *************************************************************************/
 
 `include "yarvi.h"
@@ -34,35 +36,43 @@ module yarvi_ex( input  wire             clock
    // CSRS
 
    // URW
-   reg  [ 4:0] csr_fflags       = 0;
-   reg  [ 2:0] csr_frm          = 0;
+   reg  [ 4:0] csr_fflags       = 0; // 001
+   reg  [ 2:0] csr_frm          = 0; // 002
 
-`ifdef not_used
+   reg  [63:0] csr_stvec        =    // 105
+                                  'h 100;
+`ifdef not_hard_wired_to_zero
    // MRO, Machine Information Registers
-   reg  [63:0] csr_mvendorid    = 0;
-   reg  [63:0] csr_marchid      = 0;
-   reg  [63:0] csr_mimpid       = 0;
-   reg  [63:0] csr_mhartid      = 0;
+   reg  [63:0] csr_mvendorid    = 0; // f11
+   reg  [63:0] csr_marchid      = 0; // f12
+   reg  [63:0] csr_mimpid       = 0; // f13
+   reg  [63:0] csr_mhartid      = 0; // f14
 `endif
 
+   reg  [63:0] csr_satp         = 0; // 180
+
    // MRW, Machine Trap Setup
-   reg  [63:0] csr_mstatus      = {2'd 3, 1'd 0};
-   reg  [ 7:0] csr_mie          = 0;
-   reg  [63:0] csr_mtvec        = 'h 100;
-   reg  [63:0] csr_satp         = 0;
+   reg  [63:0] csr_mstatus      =    // 300
+                                  {2'd 3, 1'd 0};
+
+   reg  [63:0] csr_medeleg      = 0; // 302
+   reg  [63:0] csr_mideleg      = 0; // 303
+   reg  [ 7:0] csr_mie          = 0; // 304
+   reg  [63:0] csr_mtvec        =    // 305
+                                  'h 100;
 
    // MRW, Machine Time and Counters
    // MRW, Machine Trap Handling
-   reg  [63:0] csr_mscratch     = 0;
-   reg  [63:0] csr_mepc         = 0;
-   reg  [63:0] csr_mcause       = 0;
-   reg  [63:0] csr_mtval        = 0;
-   reg  [ 7:0] csr_mip          = 0;
+   reg  [63:0] csr_mscratch     = 0; // 340
+   reg  [63:0] csr_mepc         = 0; // 341
+   reg  [63:0] csr_mcause       = 0; // 342
+   reg  [63:0] csr_mtval        = 0; // 343
+   reg  [ 7:0] csr_mip          = 0; // 344
 
    // URO
-   reg  [63:0] csr_mcycle       = 0;
-   reg  [63:0] csr_mtime        = 0;
-   reg  [63:0] csr_minstret     = 0;
+   reg  [63:0] csr_mcycle       = 0; // b00
+   reg  [63:0] csr_mtime        = 0; // b01? not used?
+   reg  [63:0] csr_minstret     = 0; // b02
 
 
    wire        sign         = insn[31];
@@ -109,6 +119,8 @@ module yarvi_ex( input  wire             clock
        `CSR_FCSR:      {csr_frm,csr_fflags} <= csr_d;
 
        `CSR_MSTATUS:   csr_mstatus          <= csr_d & ~(15 << 12); // No FP or XS;
+       `CSR_MEDELEG:   csr_medeleg          <= csr_d;
+       `CSR_MIDELEG:   csr_mideleg          <= csr_d;
        `CSR_MIE:       csr_mie              <= csr_d;
 //     `CSR_MTIMECMP:  csr_mtimecmp         <= csr_d; XXX ??
 
@@ -116,6 +128,7 @@ module yarvi_ex( input  wire             clock
        `CSR_MEPC:      csr_mepc             <= csr_d;
        `CSR_MIP:       csr_mip[3]           <= csr_d[3];
        `CSR_MTVEC:     csr_mtvec            <= csr_d;
+       `CSR_STVEC:     csr_stvec            <= csr_d;
        `CSR_SATP:      csr_satp             <= csr_d;
 
        4095: ;
@@ -128,8 +141,11 @@ module yarvi_ex( input  wire             clock
      case (insn`imm11_0)
        `CSR_MSTATUS:      csr_val = csr_mstatus;
        `CSR_MISA:         csr_val = (2 << 30) | (1 << ("I"-"A"));
+       `CSR_MEDELEG:      csr_val = csr_medeleg;
+       `CSR_MIDELEG:      csr_val = csr_mideleg;
        `CSR_MIE:          csr_val = csr_mie;
        `CSR_MTVEC:        csr_val = csr_mtvec;
+       `CSR_STVEC:        csr_val = csr_stvec;
        `CSR_SATP:         csr_val = csr_satp;
 
        `CSR_MSCRATCH:     csr_val = csr_mscratch;
@@ -211,12 +227,12 @@ module yarvi_ex( input  wire             clock
            ex_wb_val <= csr_val;
            if (valid) csr_addr <= insn`imm11_0;
            case (insn`funct3)
-             `CSRRS:  csr_d <= csr_val |  rs1;
-             `CSRRC:  csr_d <= csr_val &~ rs1;
-             `CSRRW:  csr_d <=            rs1;
-             `CSRRSI: csr_d <= csr_val |  insn`rs1;
-             `CSRRCI: csr_d <= csr_val &~ insn`rs1;
-             `CSRRWI: csr_d <=            insn`rs1;
+             `CSRRS:  begin csr_d <= csr_val |  rs1; if (insn`rs1 == 0) csr_addr <= ~0; end
+             `CSRRC:  begin csr_d <= csr_val &~ rs1; if (insn`rs1 == 0) csr_addr <= ~0; end
+             `CSRRW:  begin csr_d <=            rs1; end
+             `CSRRSI: begin csr_d <= csr_val |  insn`rs1; end
+             `CSRRCI: begin csr_d <= csr_val &~ insn`rs1; end
+             `CSRRWI: begin csr_d <=            insn`rs1; end
              default: begin
                 ex_wben <= 0;
                 csr_addr <= ~0;

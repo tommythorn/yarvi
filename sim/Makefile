@@ -268,7 +268,7 @@ test1: $(PUT).txt
 	./yarvi
 
 %.riscv:
-	cp $(TESTDIR)/$(patsubst %.riscv,%,$@) $@
+	cp $(patsubst %.riscv,%,$@) $@
 
 test:
 	@echo -n "  Total:   "
