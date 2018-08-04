@@ -212,12 +212,13 @@ module yarvi_ex( input  wire             clock
            endcase
         end
 
-        `BRANCH:
-          if (branch_taken) begin
-             ex_restart    <= 1;
-             valid         <= 0;
-             ex_restart_pc <= pc + sb_imm;
-          end
+        `BRANCH: begin
+           ex_restart_pc <= pc + sb_imm;
+           if (branch_taken) begin
+              ex_restart    <= 1;
+              valid         <= 0;
+           end
+        end
 
         `AUIPC: begin
            ex_wben   <= |insn`rd;
