@@ -33,6 +33,19 @@ module yarvi( input  wire        clock);
    wire [`VMSB:0]   ex_pc;
    wire [31:0]      ex_insn;
 
+   wire             ex_mem_valid;
+   wire             ex_mem_writeenable;
+   wire [`VMSB:0]   ex_mem_address;
+   wire [`XMSB:0]   ex_mem_writedata;
+   wire [1:0]       ex_mem_sizelg2;
+   wire [4:0]       ex_mem_readtag;
+   wire             ex_mem_readsignextend;
+
+   wire             me_ready;
+   wire             me_readdatavalid;
+   wire [4:0]       me_readdatatag;
+   wire [`XMSB:0]   me_readdata;
+
    yarvi_fe fe
      ( .clock           (clock)
      , .restart         (ex_restart)
@@ -63,13 +76,29 @@ module yarvi( input  wire        clock);
 
      , .ex_restart      (ex_restart)
      , .ex_restart_pc   (ex_restart_pc)
-     , .ex_wben (ex_wben)
+     , .ex_wben         (ex_wben)
      , .ex_wb_val       (ex_wb_val)
-     , .ex_wb_rd           (ex_wb_rd)
+     , .ex_wb_rd        (ex_wb_rd)
 
      , .ex_valid        (ex_valid)
      , .ex_pc           (ex_pc)
      , .ex_insn         (ex_insn));
+
+   yarvi_me me
+     ( .clock           (clock)
+
+     , .valid           (ex_mem_valid)
+     , .writeenable     (ex_mem_writeenable)
+     , .address         (ex_mem_address)
+     , .writedata       (ex_mem_writedata)
+     , .sizelg2         (ex_mem_sizelg2)
+     , .readtag         (ex_mem_readtag)
+     , .readsignextend  (ex_mem_readsignextend)
+
+     , .me_ready        (me_ready)
+     , .me_readdatavalid(me_readdatavalid)
+     , .me_readdatatag  (me_readdatatag)
+     , .me_readdata     (me_readdata));
 
    yarvi_disass disass
      ( .clock           (clock)

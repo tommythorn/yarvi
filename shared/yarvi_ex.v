@@ -30,95 +30,107 @@ module yarvi_ex( input  wire             clock
 
                , output reg              ex_valid
                , output reg [`VMSB:0]    ex_pc
-               , output reg [31:0]       ex_insn);
+               , output reg [31:0]       ex_insn
+
+               // Mem interface
+               , output reg              ex_mem_valid = 0
+               , output reg              ex_mem_writeenable
+               , output reg  [`VMSB:0]   ex_mem_address
+               , output reg  [`XMSB:0]   ex_mem_writedata
+               , output reg  [1:0]       ex_mem_sizelg2 // 1,2,4,8
+               , output reg  [4:0]       ex_mem_readtag // ignored when writedata
+               , output reg              ex_mem_readsignextend
+
+               , input  wire             me_ready
+
+               , input  wire             me_readdatavalid // Have read result
+               , input  wire [4:0]       me_readdatatag
+               , input  wire [`XMSB:0]   me_readdata); // Signextended
 
    reg  [ 1:0] prv              = `PRV_M; // Current priviledge level
    // CSRS
 
-   reg         valid = 0, valid_ = 0;
+   reg         valid            = 0;
+   reg         valid_           = 0;
    always @(posedge clock) valid_ <= valid;
 
    // URW
-   reg  [ 4:0] csr_fflags       = 0; // 001
-   reg  [ 2:0] csr_frm          = 0; // 002
+   reg  [ 4:0] csr_fflags       = 0;		// 001
+   reg  [ 2:0] csr_frm          = 0;		// 002
 
-   reg  [63:0] csr_stvec        =    // 105
-                                  'h 100;
+   reg  [63:0] csr_stvec        = 'h 100;	// 105
+
 `ifdef not_hard_wired_to_zero
    // MRO, Machine Information Registers
-   reg  [63:0] csr_mvendorid    = 0; // f11
-   reg  [63:0] csr_marchid      = 0; // f12
-   reg  [63:0] csr_mimpid       = 0; // f13
-   reg  [63:0] csr_mhartid      = 0; // f14
+   reg  [63:0] csr_mvendorid    = 0;		// f11
+   reg  [63:0] csr_marchid      = 0;		// f12
+   reg  [63:0] csr_mimpid       = 0;		// f13
+   reg  [63:0] csr_mhartid      = 0;		// f14
 `endif
-
-   reg  [63:0] csr_satp         = 0; // 180
+   reg  [63:0] csr_satp         = 0;		// 180
 
    // MRW, Machine Trap Setup
-   reg  [63:0] csr_mstatus      =    // 300
-                                  {2'd 3, 1'd 0};
-
-   reg  [63:0] csr_medeleg      = 0; // 302
-   reg  [63:0] csr_mideleg      = 0; // 303
-   reg  [ 7:0] csr_mie          = 0; // 304
-   reg  [63:0] csr_mtvec        =    // 305
-                                  'h 100;
+   reg  [63:0] csr_mstatus      = {2'd 3, 1'd 0};// 300
+   reg  [63:0] csr_medeleg      = 0;		// 302
+   reg  [63:0] csr_mideleg      = 0;		// 303
+   reg  [ 7:0] csr_mie          = 0;		// 304
+   reg  [63:0] csr_mtvec        = 'h 100;	// 305
 
    // MRW, Machine Time and Counters
    // MRW, Machine Trap Handling
-   reg  [63:0] csr_mscratch     = 0; // 340
-   reg  [63:0] csr_mepc         = 0; // 341
-   reg  [63:0] csr_mcause       = 0; // 342
-   reg  [63:0] csr_mtval        = 0; // 343
-   reg  [ 7:0] csr_mip          = 0; // 344
+   reg  [63:0] csr_mscratch     = 0;		// 340
+   reg  [63:0] csr_mepc         = 0;		// 341
+   reg  [63:0] csr_mcause       = 0;		// 342
+   reg  [63:0] csr_mtval        = 0;		// 343
+   reg  [ 7:0] csr_mip          = 0;		// 344
 
    // URO
-   reg  [63:0] csr_mcycle       = 0; // b00
-   reg  [63:0] csr_mtime        = 0; // b01? not used?
-   reg  [63:0] csr_minstret     = 0; // b02
+   reg  [63:0] csr_mcycle       = 0;		// b00
+   reg  [63:0] csr_mtime        = 0;		// b01? not used?
+   reg  [63:0] csr_minstret     = 0;		// b02
 
 
-   wire        sign         = insn[31];
-   wire [51:0] sign52       = {52{sign}};
-   wire [43:0] sign44       = {44{sign}};
+   wire        sign             = insn[31];
+   wire [51:0] sign52           = {52{sign}};
+   wire [43:0] sign44           = {44{sign}};
 
    // I-type
-   wire [63:0] i_imm        = {sign52, insn`funct7, insn`rs2};
+   wire [63:0] i_imm            = {sign52, insn`funct7, insn`rs2};
 
    // S-type
-   wire [63:0] s_imm        = {sign52, insn`funct7, insn`rd};
-   wire [63:0] sb_imm       = {sign52, insn[7], insn[30:25], insn[11:8], 1'd0};
+   wire [63:0] s_imm            = {sign52, insn`funct7, insn`rd};
+   wire [63:0] sb_imm           = {sign52, insn[7], insn[30:25], insn[11:8], 1'd0};
 
    // U-type
-   wire [63:0] uj_imm       = {sign44, insn[19:12], insn[20], insn[30:21], 1'd0};
+   wire [63:0] uj_imm           = {sign44, insn[19:12], insn[20], insn[30:21], 1'd0};
 
-   reg  [63:0] wb_wb_val = 0;
-   reg  [ 4:0] wb_wb_rd = 0;
-   reg  [ 4:0] wb_wben = 0;
+   reg  [63:0] wb_wb_val        = 0;
+   reg  [ 4:0] wb_wb_rd         = 0;
+   reg  [ 4:0] wb_wben          = 0;
    always @(posedge clock) wb_wb_val <= ex_wb_val;
    always @(posedge clock) wb_wb_rd  <= ex_wb_rd;
    always @(posedge clock) wb_wben   <= ex_wben;
 
-   wire        rs1_forward_ex = insn`rs1 == ex_wb_rd && ex_wben;
-   wire        rs2_forward_ex = insn`rs2 == ex_wb_rd && ex_wben;
-   wire        rs1_forward_wb = insn`rs1 == wb_wb_rd && wb_wben;
-   wire        rs2_forward_wb = insn`rs2 == wb_wb_rd && wb_wben;
+   wire        rs1_forward_ex   = insn`rs1 == ex_wb_rd && ex_wben;
+   wire        rs2_forward_ex   = insn`rs2 == ex_wb_rd && ex_wben;
+   wire        rs1_forward_wb   = insn`rs1 == wb_wb_rd && wb_wben;
+   wire        rs2_forward_wb   = insn`rs2 == wb_wb_rd && wb_wben;
 
-   wire [63:0] rs1          = rs1_forward_ex ? ex_wb_val :
-                              rs1_forward_wb ? wb_wb_val : rs1_val;
-   wire [63:0] rs2          = rs2_forward_ex ? ex_wb_val :
-                              rs2_forward_wb ? wb_wb_val : rs2_val;
+   wire [63:0] rs1              = rs1_forward_ex ? ex_wb_val :
+                                  rs1_forward_wb ? wb_wb_val : rs1_val;
+   wire [63:0] rs2              = rs2_forward_ex ? ex_wb_val :
+                                  rs2_forward_wb ? wb_wb_val : rs2_val;
 
-   wire [63:0] rs1_val_cmp  = (~insn`br_unsigned << 63) ^ rs1;
-   wire [63:0] rs2_val_cmp  = (~insn`br_unsigned << 63) ^ rs2;
-   wire        cmp_eq       = rs1 == rs2;
-   wire        cmp_lt       = rs1_val_cmp  < rs2_val_cmp;
-   wire        branch_taken = (insn`br_rela ? cmp_lt : cmp_eq) ^ insn`br_negate;
+   wire [63:0] rs1_val_cmp      = (~insn`br_unsigned << 63) ^ rs1;
+   wire [63:0] rs2_val_cmp      = (~insn`br_unsigned << 63) ^ rs2;
+   wire        cmp_eq           = rs1 == rs2;
+   wire        cmp_lt           = rs1_val_cmp  < rs2_val_cmp;
+   wire        branch_taken     = (insn`br_rela ? cmp_lt : cmp_eq) ^ insn`br_negate;
 
-   wire [63:0] rs2_val_imm  = insn`opcode == `OP_IMM ? i_imm : rs2;
+   wire [63:0] rs2_val_imm      = insn`opcode == `OP_IMM ? i_imm : rs2;
 
    reg [63:0]  csr_d;
-   reg [11:0]  csr_addr = ~0;
+   reg [11:0]  csr_addr         = ~0;
 
    always @(posedge clock)
      case (csr_addr)
