@@ -13,5 +13,5 @@
 `define DC_LINE_WORDS_LG2 1 // 2^1 64-bit words = 16 byte line size
 
 `define VMSB 38  // Virtual address MSB
-
+`define XMSB 63  // XLEN-1
 
