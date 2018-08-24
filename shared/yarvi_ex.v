@@ -312,6 +312,19 @@ module yarvi_ex( input  wire             clock
               end
           endcase
 
+        `STORE: begin
+           // Address is where?
+                case (insn`funct3)
+                  0: $display("%05d  %x %x sb     x%1d, %1d(x%1d)", $time, pc, insn, insn`rs2, $signed(s_imm), insn`rs1);
+                  1: $display("%05d  %x %x sh     x%1d, %1d(x%1d)", $time, pc, insn, insn`rs2, $signed(s_imm), insn`rs1);
+                  2: $display("%05d  %x %x sw     x%1d, %1d(x%1d)", $time, pc, insn, insn`rs2, $signed(s_imm), insn`rs1);
+                  3: $display("%05d  %x %x sd     x%1d, %1d(x%1d)", $time, pc, insn, insn`rs2, $signed(s_imm), insn`rs1);
+                  default: $display("%05d  %x %x s??%1d?? x%1d, %1d(x%1d)", $time, pc, insn, insn`funct3, insn`rs2, $signed(s_imm), insn`rs1);
+                endcase
+             $display("%05d  %x %x *** Unsupported opcode %d", $time, pc, insn, insn`opcode);
+             $finish;
+        end
+
         default:
           begin
              $display("%05d  %x %x *** Unsupported opcode %d", $time, pc, insn, insn`opcode);
