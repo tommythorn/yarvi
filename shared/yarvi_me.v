@@ -42,17 +42,23 @@ module yarvi_me( input  wire             clock
    reg [`XMSB:0] readdata;
 
    assign        me_readdatavalid = pendingread;
-   assign        me_readdatatag = pendingreadtag;
-   assign        me_readdata = pendingread;
+   assign        me_readdatatag   = pendingreadtag;
+   assign        me_readdata      = pendingread;
 
    always @(posedge clock) begin
       pendingread <= 0;
       if (valid & me_ready)
         if (writeenable) begin
+
+           if (address == 'h 80001000) begin
+              $display("RESULT = %d", writedata);
+              $finish;
+           end
+
            if (sizelg2 != 3)
              $display("Oops, can only handle 64-bit stores, not %d", sizelg2);
 
-           $display("[%x] <- %x", address[12:3], writedata);
+           $display("[%x] <- %x", address[12:0], writedata);
            datacache[address[12:3]] <= writedata;
         end else begin
            if (sizelg2 != 3)
@@ -60,7 +66,7 @@ module yarvi_me( input  wire             clock
 
            pendingread <= 1;
            pendingreadtag <= readtag;
-           readdata <= datacache[address[12:3]];
+           readdata <= datacache[address[12:0]];
         end
    end
 endmodule

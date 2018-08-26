@@ -37,7 +37,7 @@ module yarvi_ex( input  wire             clock
                , output reg              ex_mem_writeenable
                , output reg  [`VMSB:0]   ex_mem_address
                , output reg  [`XMSB:0]   ex_mem_writedata
-               , output reg  [1:0]       ex_mem_sizelg2 // 1,2,4,8
+               , output reg  [1:0]       ex_mem_sizelg2
                , output reg  [4:0]       ex_mem_readtag // ignored when writedata
                , output reg              ex_mem_readsignextend
 
@@ -298,17 +298,12 @@ module yarvi_ex( input  wire             clock
               end
           endcase
 
-        `STORE: if (ex_valid) begin
-           // Address is where?
-                case (ex_insn`funct3)
-                  0: $display("%05d  %x %x sb     x%1d, %1d(x%1d)", $time, ex_pc, ex_insn, ex_insn`rs2, $signed(ex_s_imm), ex_insn`rs1);
-                  1: $display("%05d  %x %x sh     x%1d, %1d(x%1d)", $time, ex_pc, ex_insn, ex_insn`rs2, $signed(ex_s_imm), ex_insn`rs1);
-                  2: $display("%05d  %x %x sw     x%1d, %1d(x%1d)", $time, ex_pc, ex_insn, ex_insn`rs2, $signed(ex_s_imm), ex_insn`rs1);
-                  3: $display("%05d  %x %x sd     x%1d, %1d(x%1d)", $time, ex_pc, ex_insn, ex_insn`rs2, $signed(ex_s_imm), ex_insn`rs1);
-                  default: $display("%05d  %x %x s??%1d?? x%1d, %1d(x%1d)", $time, ex_pc, ex_insn, ex_insn`funct3, ex_insn`rs2, $signed(ex_s_imm), ex_insn`rs1);
-                endcase
-             $display("%05d  %x %x *** Unsupported opcode %d", $time, ex_pc, ex_insn, ex_insn`opcode);
-             $finish;
+        `STORE: begin
+           ex_mem_valid       = 1;
+           ex_mem_writeenable = 1;
+           ex_mem_address     = ex_rs1 + ex_s_imm;
+           ex_mem_writedata   = ex_rs2_val;
+           ex_mem_sizelg2     = ex_insn`funct3;
         end
 
         default:

@@ -74,15 +74,28 @@ module yarvi( input  wire        clock);
      , .rs1_val         (rf_rs1_val)
      , .rs2_val         (rf_rs2_val)
 
+     , .ex_valid        (ex_valid)
+     , .ex_pc           (ex_pc)
+     , .ex_insn         (ex_insn)
+
      , .ex_restart      (ex_restart)
      , .ex_restart_pc   (ex_restart_pc)
      , .ex_wben         (ex_wben)
      , .ex_wb_val       (ex_wb_val)
      , .ex_wb_rd        (ex_wb_rd)
 
-     , .ex_valid        (ex_valid)
-     , .ex_pc           (ex_pc)
-     , .ex_insn         (ex_insn));
+     , .ex_mem_valid           (ex_mem_valid)
+     , .ex_mem_writeenable     (ex_mem_writeenable)
+     , .ex_mem_address         (ex_mem_address)
+     , .ex_mem_writedata       (ex_mem_writedata)
+     , .ex_mem_sizelg2         (ex_mem_sizelg2)
+     , .ex_mem_readtag         (ex_mem_readtag)
+     , .ex_mem_readsignextend  (ex_mem_readsignextend)
+
+     , .me_ready        (me_ready)
+     , .me_readdatavalid(me_readdatavalid)
+     , .me_readdatatag  (me_readdatatag)
+     , .me_readdata     (me_readdata));
 
    yarvi_me me
      ( .clock           (clock)
