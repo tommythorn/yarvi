@@ -9,7 +9,11 @@
 module yarvi_disass( input             clock
                    , input             valid
                    , input [`VMSB:0]   pc
-                   , input [31:0]      insn);
+                   , input [31:0]      insn
+
+                   , input             we
+                   , input [ 4:0]      addr
+                   , input [63:0]      d);
 
    wire        sign         = insn[31];
    wire [51:0] sign52       = {52{sign}};
@@ -141,5 +145,8 @@ module yarvi_disass( input             clock
            $finish;
         end
       endcase
+
+       if (we)
+         $display("%05d                                            x%1d <- 0x%x", $time, addr, d);
     end
 endmodule

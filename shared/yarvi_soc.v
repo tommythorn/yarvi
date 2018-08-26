@@ -27,7 +27,7 @@ module yarvi_soc
             , output wire        tx_valid
             , output wire  [7:0] tx_data
 
-	    // debug
+            // debug
             , output wire  [3:0] htif_state
             );
 

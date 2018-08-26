@@ -28,20 +28,21 @@ module yarvi_rf( input  wire             clock
    reg [63:0] regs[0:31];
    reg [ 4:0] rp1 = 0, rp2 = 0;
 
-   always @(posedge clock) rf_insn    <= insn;
    always @(posedge clock) rf_pc      <= pc;
+   always @(posedge clock) rf_insn    <= insn;
 
    always @(posedge clock) if (we) regs[addr] <= d;
 
-   always @(posedge clock) rp1 <= we & insn`rs1 == addr ? 'hx : insn`rs1;
-   always @(posedge clock) rp2 <= we & insn`rs2 == addr ? 'hx : insn`rs2;
+//   always @(posedge clock) rp1 <= we & insn`rs1 == addr ? 'hx : insn`rs1;
+   always @(posedge clock) rp1 <= insn`rs1;
+//   always @(posedge clock) rp2 <= we & insn`rs2 == addr ? 'hx : insn`rs2;
+   always @(posedge clock) rp2 <= insn`rs2;
 
-   assign rf_rs1_val = regs[rp1];
-   assign rf_rs2_val = regs[rp2];
+   // Bypass writes.  Bypassing will be unified in future
+   assign rf_rs1_val = we & rp1 == addr ? d : regs[rp1];
+   assign rf_rs2_val = we & rp2 == addr ? d : regs[rp2];
 
-   always @(posedge clock)
-     if (we)
-       $display("%05d                                            x%1d <- 0x%x", $time, addr, d);
-
-   initial regs[0] = 0;
+   reg [5:0] i;
+   initial
+      for (i = 0; i < 32; i = i + 1) regs[i] = i;
 endmodule

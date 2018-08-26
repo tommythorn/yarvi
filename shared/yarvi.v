@@ -104,5 +104,8 @@ module yarvi( input  wire        clock);
      ( .clock           (clock)
      , .valid           (ex_valid)
      , .pc              (ex_pc)
-     , .insn            (ex_insn));
+     , .insn            (ex_insn)
+     , .we              (ex_wben)
+     , .addr            (ex_wb_rd)
+     , .d               (ex_wb_val));
 endmodule
