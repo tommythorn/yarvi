@@ -24,5 +24,5 @@ module yarvi_fe( input  wire             clock
    always @(posedge clock) fe_pc   <= restart ? restart_pc : fe_pc + 4;
    assign                  fe_insn  = code[fe_pc[11:2]];
 
-   initial $readmemh("rv64ui-p-simple.hex", code);
+   initial $readmemh(`INIT_MEM, code);
 endmodule

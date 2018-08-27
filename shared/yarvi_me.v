@@ -51,7 +51,7 @@ module yarvi_me( input  wire             clock
         if (writeenable) begin
 
            if (address == 'h 80001000) begin
-              $display("RESULT = %d", writedata);
+              $display("TOHOST %x", writedata[31:0]);
               $finish;
            end
 

@@ -1,19 +1,23 @@
+# Adjust to match your RISC-V toolchain
+RVPATH=
+RVPREFIX=$(RVPATH)riscv64-unknown-elf-
+CC=$(RVPREFIX)gcc -std=gnu99 -O
+MEMSIZEK=128
+
 # Program Under Test, PUT
 TESTDIR=../riscv-tests/
-PUT=$(TESTDIR)rv64ui-p-addi
+PUT=rv64ui-p-simple
 OUTDIR=/tmp/
 
 COMMON=../shared/
 
 VERB=
-VERB=-DVERBOSE_SIMULATION #-DSIMULATION_VERBOSE_PIPELINE
+VERB=-DVERBOSE_SIMULATION
 
 SRC=toplevel.v $(COMMON)htif.v $(COMMON)yarvi_soc.v $(COMMON)yarvi_disass.v $(COMMON)yarvi.v $(COMMON)yarvi_fe.v $(COMMON)yarvi_rf.v $(COMMON)yarvi_ex.v \
 $(COMMON)yarvi_me.v
 
 all: test1
-
-include $(COMMON)Makefile.common
 
 TESTSET_UI= \
   rv64ui-p-add		\
@@ -264,18 +268,17 @@ TESTSET_UM= \
 
 TEST_ALL=$(TESTSET_UI) $(TESTSET_MI) $(TESTSET_SI) $(TESTSET_UA) $(TESTSET_UC) $(TESTSET_UD) $(TESTSET_UF) $(TESTSET_UM)
 
-test1: $(PUT).txt
+test1: $(TESTDIR)$(PUT).hex
 	iverilog -I$(COMMON) -DSIMULATION $(VERB) -DINIT_MEM=\"$^\" $(IOPTS) -o yarvi $(SRC)
 	./yarvi
 
-%.riscv:
-	cp $(patsubst %.riscv,%,$@) $@
+TESTS=$(TESTSET_UI)
 
 test:
 	@echo -n "  Total:   "
 	@echo $(TESTS) | wc -w
 	@echo -n "  Passing: "
-	@for x in $(TESTS);do $(MAKE) PUT=$(TESTDIR)$$x | tee $(OUTDIR)$$x.sim;done | tee testall.log | grep 'TOHOST 00000001'|wc -l
+	@for x in $(TESTS);do $(MAKE) test1 PUT=$$x | tee $(OUTDIR)$$x.sim;done | tee -a testall.log | grep 'TOHOST 00000001'|wc -l
 
 testall:
 	@echo "Basic UI tests:"
