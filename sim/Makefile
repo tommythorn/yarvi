@@ -6,7 +6,7 @@ MEMSIZEK=128
 
 # Program Under Test, PUT
 TESTDIR=../riscv-tests/
-PUT=rv64ui-p-simple
+PUT=rv64ui-p-addiw
 OUTDIR=/tmp/
 
 COMMON=../shared/

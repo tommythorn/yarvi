@@ -30,6 +30,7 @@ module yarvi( input  wire        clock);
    wire [63:0]      ex_wb_val;
 
    wire             ex_valid;
+   wire [ 1:0]      ex_prv;
    wire [`VMSB:0]   ex_pc;
    wire [31:0]      ex_insn;
 
@@ -77,6 +78,7 @@ module yarvi( input  wire        clock);
      , .ex_valid        (ex_valid)
      , .ex_pc           (ex_pc)
      , .ex_insn         (ex_insn)
+     , .ex_prv          (ex_prv)
 
      , .ex_restart      (ex_restart)
      , .ex_restart_pc   (ex_restart_pc)
@@ -116,6 +118,7 @@ module yarvi( input  wire        clock);
    yarvi_disass disass
      ( .clock           (clock)
      , .valid           (ex_valid)
+     , .prv             (ex_prv)
      , .pc              (ex_pc)
      , .insn            (ex_insn)
      , .we              (ex_wben)
