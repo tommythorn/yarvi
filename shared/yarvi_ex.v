@@ -146,7 +146,9 @@ module yarvi_ex( input  wire             clock
    wire [63:0] ex_rs2_val_imm   = ex_insn`opcode == `OP_IMM || ex_insn`opcode == `OP_IMM_32
                ? ex_i_imm : ex_rs2;
 
-   wire [31:0] ex_sum32         = ex_rs1 + ex_rs2_val_imm;
+   wire [31:0] ex_sum32         = ex_insn[30] && ex_insn`opcode == `OP_32
+                                  ? ex_rs1 - ex_rs2_val_imm
+                                  : ex_rs1 + ex_rs2_val_imm;
    wire [63:0] ex_sum_w         = {{32{ex_sum32[31]}},ex_sum32};
 
    // XXX for timing, we should calculate csr_val already in RF and deal with the hazards
