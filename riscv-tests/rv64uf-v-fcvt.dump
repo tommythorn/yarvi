@@ -736,7 +736,7 @@ Disassembly of section .text:
     80002958:	12113423          	sd	x1,296(x2)
     8000295c:	12813023          	sd	x8,288(x2)
     80002960:	0107e7b3          	or	x15,x15,x16
-    80002964:	18079073          	csrrw	x0,sptbr,x15
+    80002964:	18079073          	csrrw	x0,satp,x15
     80002968:	01f00793          	addi	x15,x0,31
     8000296c:	00000297          	auipc	x5,0x0
     80002970:	01428293          	addi	x5,x5,20 # 80002980 <vm_boot+0xac>
@@ -837,7 +837,7 @@ Disassembly of section .text:
     80002adc:	00200513          	addi	x10,x0,2
     80002ae0:	d0057053          	fcvt.s.w	f0,x10
     80002ae4:	00101073          	fsflags	x0
-    80002ae8:	e0000553          	fmv.x.s	x10,f0
+    80002ae8:	e0000553          	fmv.x.w	x10,f0
     80002aec:	10d51263          	bne	x10,x13,80002bf0 <fail>
 
 0000000080002af0 <test_3>:
@@ -848,7 +848,7 @@ Disassembly of section .text:
     80002b00:	ffe00513          	addi	x10,x0,-2
     80002b04:	d0057053          	fcvt.s.w	f0,x10
     80002b08:	00101073          	fsflags	x0
-    80002b0c:	e0000553          	fmv.x.s	x10,f0
+    80002b0c:	e0000553          	fmv.x.w	x10,f0
     80002b10:	0ed51063          	bne	x10,x13,80002bf0 <fail>
 
 0000000080002b14 <test_4>:
@@ -859,7 +859,7 @@ Disassembly of section .text:
     80002b24:	00200513          	addi	x10,x0,2
     80002b28:	d0157053          	fcvt.s.wu	f0,x10
     80002b2c:	00101073          	fsflags	x0
-    80002b30:	e0000553          	fmv.x.s	x10,f0
+    80002b30:	e0000553          	fmv.x.w	x10,f0
     80002b34:	0ad51e63          	bne	x10,x13,80002bf0 <fail>
 
 0000000080002b38 <test_5>:
@@ -870,7 +870,7 @@ Disassembly of section .text:
     80002b48:	ffe00513          	addi	x10,x0,-2
     80002b4c:	d0157053          	fcvt.s.wu	f0,x10
     80002b50:	00101073          	fsflags	x0
-    80002b54:	e0000553          	fmv.x.s	x10,f0
+    80002b54:	e0000553          	fmv.x.w	x10,f0
     80002b58:	08d51c63          	bne	x10,x13,80002bf0 <fail>
 
 0000000080002b5c <test_6>:
@@ -881,7 +881,7 @@ Disassembly of section .text:
     80002b6c:	00200513          	addi	x10,x0,2
     80002b70:	d0257053          	fcvt.s.l	f0,x10
     80002b74:	00101073          	fsflags	x0
-    80002b78:	e0000553          	fmv.x.s	x10,f0
+    80002b78:	e0000553          	fmv.x.w	x10,f0
     80002b7c:	06d51a63          	bne	x10,x13,80002bf0 <fail>
 
 0000000080002b80 <test_7>:
@@ -892,7 +892,7 @@ Disassembly of section .text:
     80002b90:	ffe00513          	addi	x10,x0,-2
     80002b94:	d0257053          	fcvt.s.l	f0,x10
     80002b98:	00101073          	fsflags	x0
-    80002b9c:	e0000553          	fmv.x.s	x10,f0
+    80002b9c:	e0000553          	fmv.x.w	x10,f0
     80002ba0:	04d51863          	bne	x10,x13,80002bf0 <fail>
 
 0000000080002ba4 <test_8>:
@@ -903,7 +903,7 @@ Disassembly of section .text:
     80002bb4:	00200513          	addi	x10,x0,2
     80002bb8:	d0357053          	fcvt.s.lu	f0,x10
     80002bbc:	00101073          	fsflags	x0
-    80002bc0:	e0000553          	fmv.x.s	x10,f0
+    80002bc0:	e0000553          	fmv.x.w	x10,f0
     80002bc4:	02d51663          	bne	x10,x13,80002bf0 <fail>
 
 0000000080002bc8 <test_9>:
@@ -914,7 +914,7 @@ Disassembly of section .text:
     80002bd8:	ffe00513          	addi	x10,x0,-2
     80002bdc:	d0357053          	fcvt.s.lu	f0,x10
     80002be0:	00101073          	fsflags	x0
-    80002be4:	e0000553          	fmv.x.s	x10,f0
+    80002be4:	e0000553          	fmv.x.w	x10,f0
     80002be8:	00d51463          	bne	x10,x13,80002bf0 <fail>
     80002bec:	00301a63          	bne	x0,x3,80002c00 <pass>
 

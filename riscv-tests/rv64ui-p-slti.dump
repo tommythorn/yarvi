@@ -37,7 +37,7 @@ Disassembly of section .text.init:
     80000054:	00000297          	auipc	x5,0x0
     80000058:	01028293          	addi	x5,x5,16 # 80000064 <reset_vector+0x18>
     8000005c:	30529073          	csrrw	x0,mtvec,x5
-    80000060:	18005073          	csrrwi	x0,sptbr,0
+    80000060:	18005073          	csrrwi	x0,satp,0
     80000064:	00000297          	auipc	x5,0x0
     80000068:	01c28293          	addi	x5,x5,28 # 80000080 <reset_vector+0x34>
     8000006c:	30529073          	csrrw	x0,mtvec,x5
@@ -79,56 +79,56 @@ Disassembly of section .text.init:
 
 00000000800000fc <test_2>:
     800000fc:	00000093          	addi	x1,x0,0
-    80000100:	0000af13          	slt	x30,x1,0
+    80000100:	0000af13          	slti	x30,x1,0
     80000104:	00000e93          	addi	x29,x0,0
     80000108:	00200193          	addi	x3,x0,2
     8000010c:	27df1263          	bne	x30,x29,80000370 <fail>
 
 0000000080000110 <test_3>:
     80000110:	00100093          	addi	x1,x0,1
-    80000114:	0010af13          	slt	x30,x1,1
+    80000114:	0010af13          	slti	x30,x1,1
     80000118:	00000e93          	addi	x29,x0,0
     8000011c:	00300193          	addi	x3,x0,3
     80000120:	25df1863          	bne	x30,x29,80000370 <fail>
 
 0000000080000124 <test_4>:
     80000124:	00300093          	addi	x1,x0,3
-    80000128:	0070af13          	slt	x30,x1,7
+    80000128:	0070af13          	slti	x30,x1,7
     8000012c:	00100e93          	addi	x29,x0,1
     80000130:	00400193          	addi	x3,x0,4
     80000134:	23df1e63          	bne	x30,x29,80000370 <fail>
 
 0000000080000138 <test_5>:
     80000138:	00700093          	addi	x1,x0,7
-    8000013c:	0030af13          	slt	x30,x1,3
+    8000013c:	0030af13          	slti	x30,x1,3
     80000140:	00000e93          	addi	x29,x0,0
     80000144:	00500193          	addi	x3,x0,5
     80000148:	23df1463          	bne	x30,x29,80000370 <fail>
 
 000000008000014c <test_6>:
     8000014c:	00000093          	addi	x1,x0,0
-    80000150:	8000af13          	slt	x30,x1,-2048
+    80000150:	8000af13          	slti	x30,x1,-2048
     80000154:	00000e93          	addi	x29,x0,0
     80000158:	00600193          	addi	x3,x0,6
     8000015c:	21df1a63          	bne	x30,x29,80000370 <fail>
 
 0000000080000160 <test_7>:
     80000160:	800000b7          	lui	x1,0x80000
-    80000164:	0000af13          	slt	x30,x1,0
+    80000164:	0000af13          	slti	x30,x1,0
     80000168:	00100e93          	addi	x29,x0,1
     8000016c:	00700193          	addi	x3,x0,7
     80000170:	21df1063          	bne	x30,x29,80000370 <fail>
 
 0000000080000174 <test_8>:
     80000174:	800000b7          	lui	x1,0x80000
-    80000178:	8000af13          	slt	x30,x1,-2048
+    80000178:	8000af13          	slti	x30,x1,-2048
     8000017c:	00100e93          	addi	x29,x0,1
     80000180:	00800193          	addi	x3,x0,8
     80000184:	1fdf1663          	bne	x30,x29,80000370 <fail>
 
 0000000080000188 <test_9>:
     80000188:	00000093          	addi	x1,x0,0
-    8000018c:	7ff0af13          	slt	x30,x1,2047
+    8000018c:	7ff0af13          	slti	x30,x1,2047
     80000190:	00100e93          	addi	x29,x0,1
     80000194:	00900193          	addi	x3,x0,9
     80000198:	1ddf1c63          	bne	x30,x29,80000370 <fail>
@@ -136,7 +136,7 @@ Disassembly of section .text.init:
 000000008000019c <test_10>:
     8000019c:	800000b7          	lui	x1,0x80000
     800001a0:	fff0809b          	addiw	x1,x1,-1
-    800001a4:	0000af13          	slt	x30,x1,0
+    800001a4:	0000af13          	slti	x30,x1,0
     800001a8:	00000e93          	addi	x29,x0,0
     800001ac:	00a00193          	addi	x3,x0,10
     800001b0:	1ddf1063          	bne	x30,x29,80000370 <fail>
@@ -144,14 +144,14 @@ Disassembly of section .text.init:
 00000000800001b4 <test_11>:
     800001b4:	800000b7          	lui	x1,0x80000
     800001b8:	fff0809b          	addiw	x1,x1,-1
-    800001bc:	7ff0af13          	slt	x30,x1,2047
+    800001bc:	7ff0af13          	slti	x30,x1,2047
     800001c0:	00000e93          	addi	x29,x0,0
     800001c4:	00b00193          	addi	x3,x0,11
     800001c8:	1bdf1463          	bne	x30,x29,80000370 <fail>
 
 00000000800001cc <test_12>:
     800001cc:	800000b7          	lui	x1,0x80000
-    800001d0:	7ff0af13          	slt	x30,x1,2047
+    800001d0:	7ff0af13          	slti	x30,x1,2047
     800001d4:	00100e93          	addi	x29,x0,1
     800001d8:	00c00193          	addi	x3,x0,12
     800001dc:	19df1a63          	bne	x30,x29,80000370 <fail>
@@ -159,35 +159,35 @@ Disassembly of section .text.init:
 00000000800001e0 <test_13>:
     800001e0:	800000b7          	lui	x1,0x80000
     800001e4:	fff0809b          	addiw	x1,x1,-1
-    800001e8:	8000af13          	slt	x30,x1,-2048
+    800001e8:	8000af13          	slti	x30,x1,-2048
     800001ec:	00000e93          	addi	x29,x0,0
     800001f0:	00d00193          	addi	x3,x0,13
     800001f4:	17df1e63          	bne	x30,x29,80000370 <fail>
 
 00000000800001f8 <test_14>:
     800001f8:	00000093          	addi	x1,x0,0
-    800001fc:	fff0af13          	slt	x30,x1,-1
+    800001fc:	fff0af13          	slti	x30,x1,-1
     80000200:	00000e93          	addi	x29,x0,0
     80000204:	00e00193          	addi	x3,x0,14
     80000208:	17df1463          	bne	x30,x29,80000370 <fail>
 
 000000008000020c <test_15>:
     8000020c:	fff00093          	addi	x1,x0,-1
-    80000210:	0010af13          	slt	x30,x1,1
+    80000210:	0010af13          	slti	x30,x1,1
     80000214:	00100e93          	addi	x29,x0,1
     80000218:	00f00193          	addi	x3,x0,15
     8000021c:	15df1a63          	bne	x30,x29,80000370 <fail>
 
 0000000080000220 <test_16>:
     80000220:	fff00093          	addi	x1,x0,-1
-    80000224:	fff0af13          	slt	x30,x1,-1
+    80000224:	fff0af13          	slti	x30,x1,-1
     80000228:	00000e93          	addi	x29,x0,0
     8000022c:	01000193          	addi	x3,x0,16
     80000230:	15df1063          	bne	x30,x29,80000370 <fail>
 
 0000000080000234 <test_17>:
     80000234:	00b00093          	addi	x1,x0,11
-    80000238:	00d0a093          	slt	x1,x1,13
+    80000238:	00d0a093          	slti	x1,x1,13
     8000023c:	00100e93          	addi	x29,x0,1
     80000240:	01100193          	addi	x3,x0,17
     80000244:	13d09663          	bne	x1,x29,80000370 <fail>
@@ -195,7 +195,7 @@ Disassembly of section .text.init:
 0000000080000248 <test_18>:
     80000248:	00000213          	addi	x4,x0,0
     8000024c:	00f00093          	addi	x1,x0,15
-    80000250:	00a0af13          	slt	x30,x1,10
+    80000250:	00a0af13          	slti	x30,x1,10
     80000254:	000f0313          	addi	x6,x30,0
     80000258:	00120213          	addi	x4,x4,1 # 1 <_start-0x7fffffff>
     8000025c:	00200293          	addi	x5,x0,2
@@ -207,7 +207,7 @@ Disassembly of section .text.init:
 0000000080000270 <test_19>:
     80000270:	00000213          	addi	x4,x0,0
     80000274:	00a00093          	addi	x1,x0,10
-    80000278:	0100af13          	slt	x30,x1,16
+    80000278:	0100af13          	slti	x30,x1,16
     8000027c:	00000013          	addi	x0,x0,0
     80000280:	000f0313          	addi	x6,x30,0
     80000284:	00120213          	addi	x4,x4,1 # 1 <_start-0x7fffffff>
@@ -220,7 +220,7 @@ Disassembly of section .text.init:
 000000008000029c <test_20>:
     8000029c:	00000213          	addi	x4,x0,0
     800002a0:	01000093          	addi	x1,x0,16
-    800002a4:	0090af13          	slt	x30,x1,9
+    800002a4:	0090af13          	slti	x30,x1,9
     800002a8:	00000013          	addi	x0,x0,0
     800002ac:	00000013          	addi	x0,x0,0
     800002b0:	000f0313          	addi	x6,x30,0
@@ -234,7 +234,7 @@ Disassembly of section .text.init:
 00000000800002cc <test_21>:
     800002cc:	00000213          	addi	x4,x0,0
     800002d0:	00b00093          	addi	x1,x0,11
-    800002d4:	00f0af13          	slt	x30,x1,15
+    800002d4:	00f0af13          	slti	x30,x1,15
     800002d8:	00120213          	addi	x4,x4,1 # 1 <_start-0x7fffffff>
     800002dc:	00200293          	addi	x5,x0,2
     800002e0:	fe5218e3          	bne	x4,x5,800002d0 <test_21+0x4>
@@ -246,7 +246,7 @@ Disassembly of section .text.init:
     800002f0:	00000213          	addi	x4,x0,0
     800002f4:	01100093          	addi	x1,x0,17
     800002f8:	00000013          	addi	x0,x0,0
-    800002fc:	0080af13          	slt	x30,x1,8
+    800002fc:	0080af13          	slti	x30,x1,8
     80000300:	00120213          	addi	x4,x4,1 # 1 <_start-0x7fffffff>
     80000304:	00200293          	addi	x5,x0,2
     80000308:	fe5216e3          	bne	x4,x5,800002f4 <test_22+0x4>
@@ -259,7 +259,7 @@ Disassembly of section .text.init:
     8000031c:	00c00093          	addi	x1,x0,12
     80000320:	00000013          	addi	x0,x0,0
     80000324:	00000013          	addi	x0,x0,0
-    80000328:	00e0af13          	slt	x30,x1,14
+    80000328:	00e0af13          	slti	x30,x1,14
     8000032c:	00120213          	addi	x4,x4,1 # 1 <_start-0x7fffffff>
     80000330:	00200293          	addi	x5,x0,2
     80000334:	fe5214e3          	bne	x4,x5,8000031c <test_23+0x4>
@@ -268,7 +268,7 @@ Disassembly of section .text.init:
     80000340:	03df1863          	bne	x30,x29,80000370 <fail>
 
 0000000080000344 <test_24>:
-    80000344:	fff02093          	slt	x1,x0,-1
+    80000344:	fff02093          	slti	x1,x0,-1
     80000348:	00000e93          	addi	x29,x0,0
     8000034c:	01800193          	addi	x3,x0,24
     80000350:	03d09063          	bne	x1,x29,80000370 <fail>
@@ -276,7 +276,7 @@ Disassembly of section .text.init:
 0000000080000354 <test_25>:
     80000354:	00ff00b7          	lui	x1,0xff0
     80000358:	0ff0809b          	addiw	x1,x1,255
-    8000035c:	fff0a013          	slt	x0,x1,-1
+    8000035c:	fff0a013          	slti	x0,x1,-1
     80000360:	00000e93          	addi	x29,x0,0
     80000364:	01900193          	addi	x3,x0,25
     80000368:	01d01463          	bne	x0,x29,80000370 <fail>

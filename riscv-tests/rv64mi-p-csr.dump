@@ -37,7 +37,7 @@ Disassembly of section .text.init:
     80000054:	00000297          	auipc	x5,0x0
     80000058:	01028293          	addi	x5,x5,16 # 80000064 <reset_vector+0x18>
     8000005c:	30529073          	csrrw	x0,mtvec,x5
-    80000060:	18005073          	csrrwi	x0,sptbr,0
+    80000060:	18005073          	csrrwi	x0,satp,0
     80000064:	00000297          	auipc	x5,0x0
     80000068:	01c28293          	addi	x5,x5,28 # 80000080 <reset_vector+0x34>
     8000006c:	30529073          	csrrw	x0,mtvec,x5
@@ -167,7 +167,7 @@ Disassembly of section .text.init:
     8000020c:	02050863          	beq	x10,x0,8000023c <test_10+0x14>
     80000210:	000065b7          	lui	x11,0x6
     80000214:	3005a073          	csrrs	x0,mstatus,x11
-    80000218:	f0000053          	fmv.s.x	f0,x0
+    80000218:	f0000053          	fmv.w.x	f0,x0
     8000021c:	3005b073          	csrrc	x0,mstatus,x11
     80000220:	00002597          	auipc	x11,0x2
     80000224:	de058593          	addi	x11,x11,-544 # 80002000 <begin_signature>

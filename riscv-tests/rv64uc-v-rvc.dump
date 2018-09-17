@@ -736,7 +736,7 @@ Disassembly of section .text:
     80002958:	12113423          	sd	x1,296(x2)
     8000295c:	12813023          	sd	x8,288(x2)
     80002960:	0107e7b3          	or	x15,x15,x16
-    80002964:	18079073          	csrrw	x0,sptbr,x15
+    80002964:	18079073          	csrrw	x0,satp,x15
     80002968:	01f00793          	addi	x15,x0,31
     8000296c:	00000297          	auipc	x5,0x0
     80002970:	01428293          	addi	x5,x5,20 # 80002980 <vm_boot+0xac>
@@ -1878,7 +1878,7 @@ Disassembly of section .text:
 
 0000000080005028 <test_4>:
     80005028:	617d                	c.addi16sp	x2,496
-    8000502a:	0001                	c.nop
+    8000502a:	0001                	c.addi	x0,0
     8000502c:	00001eb7          	lui	x29,0x1
     80005030:	424e8e9b          	addiw	x29,x29,1060
     80005034:	00400193          	addi	x3,x0,4
@@ -1886,7 +1886,7 @@ Disassembly of section .text:
 
 000000008000503c <test_5>:
     8000503c:	7101                	c.addi16sp	x2,-512
-    8000503e:	0001                	c.nop
+    8000503e:	0001                	c.addi	x0,0
     80005040:	00001eb7          	lui	x29,0x1
     80005044:	224e8e9b          	addiw	x29,x29,548
     80005048:	00500193          	addi	x3,x0,5
@@ -1923,7 +1923,7 @@ Disassembly of section .text:
 00000000800050a0 <test_8>:
     800050a0:	00106513          	ori	x10,x0,1
     800050a4:	1541                	c.addi	x10,-16
-    800050a6:	0001                	c.nop
+    800050a6:	0001                	c.addi	x0,0
     800050a8:	ff100e93          	addi	x29,x0,-15
     800050ac:	00800193          	addi	x3,x0,8
     800050b0:	21d51e63          	bne	x10,x29,800052cc <fail>
@@ -1931,7 +1931,7 @@ Disassembly of section .text:
 00000000800050b4 <test_9>:
     800050b4:	00106793          	ori	x15,x0,1
     800050b8:	57c1                	c.li	x15,-16
-    800050ba:	0001                	c.nop
+    800050ba:	0001                	c.addi	x0,0
     800050bc:	ff000e93          	addi	x29,x0,-16
     800050c0:	00900193          	addi	x3,x0,9
     800050c4:	21d79463          	bne	x15,x29,800052cc <fail>
@@ -1971,7 +1971,7 @@ Disassembly of section .text:
     80005114:	44d1                	c.li	x9,20
     80005116:	4519                	c.li	x10,6
     80005118:	8c89                	c.sub	x9,x10
-    8000511a:	0001                	c.nop
+    8000511a:	0001                	c.addi	x0,0
     8000511c:	00e00e93          	addi	x29,x0,14
     80005120:	00f00193          	addi	x3,x0,15
     80005124:	1bd49463          	bne	x9,x29,800052cc <fail>
@@ -1980,7 +1980,7 @@ Disassembly of section .text:
     80005128:	44d1                	c.li	x9,20
     8000512a:	4519                	c.li	x10,6
     8000512c:	8ca9                	c.xor	x9,x10
-    8000512e:	0001                	c.nop
+    8000512e:	0001                	c.addi	x0,0
     80005130:	01200e93          	addi	x29,x0,18
     80005134:	01000193          	addi	x3,x0,16
     80005138:	19d49a63          	bne	x9,x29,800052cc <fail>
@@ -1989,7 +1989,7 @@ Disassembly of section .text:
     8000513c:	44d1                	c.li	x9,20
     8000513e:	4519                	c.li	x10,6
     80005140:	8cc9                	c.or	x9,x10
-    80005142:	0001                	c.nop
+    80005142:	0001                	c.addi	x0,0
     80005144:	01600e93          	addi	x29,x0,22
     80005148:	01100193          	addi	x3,x0,17
     8000514c:	19d49063          	bne	x9,x29,800052cc <fail>
@@ -1998,7 +1998,7 @@ Disassembly of section .text:
     80005150:	44d1                	c.li	x9,20
     80005152:	4519                	c.li	x10,6
     80005154:	8ce9                	c.and	x9,x10
-    80005156:	0001                	c.nop
+    80005156:	0001                	c.addi	x0,0
     80005158:	00400e93          	addi	x29,x0,4
     8000515c:	01200193          	addi	x3,x0,18
     80005160:	17d49663          	bne	x9,x29,800052cc <fail>
@@ -2025,7 +2025,7 @@ Disassembly of section .text:
     80005194:	00001437          	lui	x8,0x1
     80005198:	2344041b          	addiw	x8,x8,564
     8000519c:	0412                	c.slli	x8,0x4
-    8000519e:	0001                	c.nop
+    8000519e:	0001                	c.addi	x0,0
     800051a0:	00012eb7          	lui	x29,0x12
     800051a4:	340e8e9b          	addiw	x29,x29,832
     800051a8:	01500193          	addi	x3,x0,21
@@ -2037,7 +2037,7 @@ Disassembly of section .text:
     800051b4:	a011                	c.j	800051b8 <test_30+0x8>
     800051b6:	a011                	c.j	800051ba <test_30+0xa>
     800051b8:	aa11                	c.j	800052cc <fail>
-    800051ba:	0001                	c.nop
+    800051ba:	0001                	c.addi	x0,0
     800051bc:	00000e93          	addi	x29,x0,0
     800051c0:	01e00193          	addi	x3,x0,30
     800051c4:	11d09463          	bne	x1,x29,800052cc <fail>
@@ -2048,7 +2048,7 @@ Disassembly of section .text:
     800051cc:	a011                	c.j	800051d0 <test_31+0x8>
     800051ce:	a011                	c.j	800051d2 <test_31+0xa>
     800051d0:	a8f5                	c.j	800052cc <fail>
-    800051d2:	0001                	c.nop
+    800051d2:	0001                	c.addi	x0,0
     800051d4:	00000e93          	addi	x29,x0,0
     800051d8:	01f00193          	addi	x3,x0,31
     800051dc:	0fd01863          	bne	x0,x29,800052cc <fail>
@@ -2059,7 +2059,7 @@ Disassembly of section .text:
     800051e4:	a011                	c.j	800051e8 <test_32+0x8>
     800051e6:	a011                	c.j	800051ea <test_32+0xa>
     800051e8:	a0d5                	c.j	800052cc <fail>
-    800051ea:	0001                	c.nop
+    800051ea:	0001                	c.addi	x0,0
     800051ec:	00000e93          	addi	x29,x0,0
     800051f0:	02000193          	addi	x3,x0,32
     800051f4:	0dd01c63          	bne	x0,x29,800052cc <fail>
@@ -2090,7 +2090,7 @@ Disassembly of section .text:
     8000522c:	a011                	c.j	80005230 <test_35+0x10>
     8000522e:	a011                	c.j	80005232 <test_35+0x12>
     80005230:	a871                	c.j	800052cc <fail>
-    80005232:	0001                	c.nop
+    80005232:	0001                	c.addi	x0,0
     80005234:	00000e93          	addi	x29,x0,0
     80005238:	02300193          	addi	x3,x0,35
     8000523c:	09d09863          	bne	x1,x29,800052cc <fail>
@@ -2104,7 +2104,7 @@ Disassembly of section .text:
     8000524e:	a011                	c.j	80005252 <test_36+0x12>
     80005250:	a8b5                	c.j	800052cc <fail>
     80005252:	405080b3          	sub	x1,x1,x5
-    80005256:	0001                	c.nop
+    80005256:	0001                	c.addi	x0,0
     80005258:	ffe00e93          	addi	x29,x0,-2
     8000525c:	02400193          	addi	x3,x0,36
     80005260:	07d09663          	bne	x1,x29,800052cc <fail>

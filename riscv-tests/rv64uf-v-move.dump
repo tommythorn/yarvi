@@ -736,7 +736,7 @@ Disassembly of section .text:
     80002958:	12113423          	sd	x1,296(x2)
     8000295c:	12813023          	sd	x8,288(x2)
     80002960:	0107e7b3          	or	x15,x15,x16
-    80002964:	18079073          	csrrw	x0,sptbr,x15
+    80002964:	18079073          	csrrw	x0,satp,x15
     80002968:	01f00793          	addi	x15,x0,31
     8000296c:	00000297          	auipc	x5,0x0
     80002970:	01428293          	addi	x5,x5,20 # 80002980 <vm_boot+0xac>
@@ -851,7 +851,7 @@ Disassembly of section .text:
     80002b04:	29d51463          	bne	x10,x29,80002d8c <fail>
 
 0000000080002b08 <test_5>:
-    80002b08:	00215573          	csrrwi	x10,frm,2
+    80002b08:	00215573          	fsrmi	x10,2
     80002b0c:	00100e93          	addi	x29,x0,1
     80002b10:	00500193          	addi	x3,x0,5
     80002b14:	27d51c63          	bne	x10,x29,80002d8c <fail>
@@ -878,10 +878,10 @@ Disassembly of section .text:
     80002b48:	123455b7          	lui	x11,0x12345
     80002b4c:	6785859b          	addiw	x11,x11,1656
     80002b50:	00000613          	addi	x12,x0,0
-    80002b54:	f00580d3          	fmv.s.x	f1,x11
-    80002b58:	f0060153          	fmv.s.x	f2,x12
+    80002b54:	f00580d3          	fmv.w.x	f1,x11
+    80002b58:	f0060153          	fmv.w.x	f2,x12
     80002b5c:	20208053          	fsgnj.s	f0,f1,f2
-    80002b60:	e0000553          	fmv.x.s	x10,f0
+    80002b60:	e0000553          	fmv.x.w	x10,f0
     80002b64:	12345eb7          	lui	x29,0x12345
     80002b68:	678e8e9b          	addiw	x29,x29,1656
     80002b6c:	00a00193          	addi	x3,x0,10
@@ -891,10 +891,10 @@ Disassembly of section .text:
     80002b74:	123455b7          	lui	x11,0x12345
     80002b78:	6785859b          	addiw	x11,x11,1656
     80002b7c:	fff00613          	addi	x12,x0,-1
-    80002b80:	f00580d3          	fmv.s.x	f1,x11
-    80002b84:	f0060153          	fmv.s.x	f2,x12
+    80002b80:	f00580d3          	fmv.w.x	f1,x11
+    80002b84:	f0060153          	fmv.w.x	f2,x12
     80002b88:	20208053          	fsgnj.s	f0,f1,f2
-    80002b8c:	e0000553          	fmv.x.s	x10,f0
+    80002b8c:	e0000553          	fmv.x.w	x10,f0
     80002b90:	92345eb7          	lui	x29,0x92345
     80002b94:	678e8e9b          	addiw	x29,x29,1656
     80002b98:	00b00193          	addi	x3,x0,11
@@ -906,10 +906,10 @@ Disassembly of section .text:
     80002ba8:	00c59593          	slli	x11,x11,0xc
     80002bac:	67858593          	addi	x11,x11,1656 # 92678 <_start-0x7ff6d988>
     80002bb0:	00000613          	addi	x12,x0,0
-    80002bb4:	f00580d3          	fmv.s.x	f1,x11
-    80002bb8:	f0060153          	fmv.s.x	f2,x12
+    80002bb4:	f00580d3          	fmv.w.x	f1,x11
+    80002bb8:	f0060153          	fmv.w.x	f2,x12
     80002bbc:	20208053          	fsgnj.s	f0,f1,f2
-    80002bc0:	e0000553          	fmv.x.s	x10,f0
+    80002bc0:	e0000553          	fmv.x.w	x10,f0
     80002bc4:	12345eb7          	lui	x29,0x12345
     80002bc8:	678e8e9b          	addiw	x29,x29,1656
     80002bcc:	00c00193          	addi	x3,x0,12
@@ -921,10 +921,10 @@ Disassembly of section .text:
     80002bdc:	00c59593          	slli	x11,x11,0xc
     80002be0:	67858593          	addi	x11,x11,1656 # 92678 <_start-0x7ff6d988>
     80002be4:	fff00613          	addi	x12,x0,-1
-    80002be8:	f00580d3          	fmv.s.x	f1,x11
-    80002bec:	f0060153          	fmv.s.x	f2,x12
+    80002be8:	f00580d3          	fmv.w.x	f1,x11
+    80002bec:	f0060153          	fmv.w.x	f2,x12
     80002bf0:	20208053          	fsgnj.s	f0,f1,f2
-    80002bf4:	e0000553          	fmv.x.s	x10,f0
+    80002bf4:	e0000553          	fmv.x.w	x10,f0
     80002bf8:	92345eb7          	lui	x29,0x92345
     80002bfc:	678e8e9b          	addiw	x29,x29,1656
     80002c00:	00d00193          	addi	x3,x0,13
@@ -934,10 +934,10 @@ Disassembly of section .text:
     80002c08:	123455b7          	lui	x11,0x12345
     80002c0c:	6785859b          	addiw	x11,x11,1656
     80002c10:	00000613          	addi	x12,x0,0
-    80002c14:	f00580d3          	fmv.s.x	f1,x11
-    80002c18:	f0060153          	fmv.s.x	f2,x12
+    80002c14:	f00580d3          	fmv.w.x	f1,x11
+    80002c18:	f0060153          	fmv.w.x	f2,x12
     80002c1c:	20209053          	fsgnjn.s	f0,f1,f2
-    80002c20:	e0000553          	fmv.x.s	x10,f0
+    80002c20:	e0000553          	fmv.x.w	x10,f0
     80002c24:	92345eb7          	lui	x29,0x92345
     80002c28:	678e8e9b          	addiw	x29,x29,1656
     80002c2c:	01400193          	addi	x3,x0,20
@@ -947,10 +947,10 @@ Disassembly of section .text:
     80002c34:	123455b7          	lui	x11,0x12345
     80002c38:	6785859b          	addiw	x11,x11,1656
     80002c3c:	fff00613          	addi	x12,x0,-1
-    80002c40:	f00580d3          	fmv.s.x	f1,x11
-    80002c44:	f0060153          	fmv.s.x	f2,x12
+    80002c40:	f00580d3          	fmv.w.x	f1,x11
+    80002c44:	f0060153          	fmv.w.x	f2,x12
     80002c48:	20209053          	fsgnjn.s	f0,f1,f2
-    80002c4c:	e0000553          	fmv.x.s	x10,f0
+    80002c4c:	e0000553          	fmv.x.w	x10,f0
     80002c50:	12345eb7          	lui	x29,0x12345
     80002c54:	678e8e9b          	addiw	x29,x29,1656
     80002c58:	01500193          	addi	x3,x0,21
@@ -962,10 +962,10 @@ Disassembly of section .text:
     80002c68:	00c59593          	slli	x11,x11,0xc
     80002c6c:	67858593          	addi	x11,x11,1656 # 92678 <_start-0x7ff6d988>
     80002c70:	00000613          	addi	x12,x0,0
-    80002c74:	f00580d3          	fmv.s.x	f1,x11
-    80002c78:	f0060153          	fmv.s.x	f2,x12
+    80002c74:	f00580d3          	fmv.w.x	f1,x11
+    80002c78:	f0060153          	fmv.w.x	f2,x12
     80002c7c:	20209053          	fsgnjn.s	f0,f1,f2
-    80002c80:	e0000553          	fmv.x.s	x10,f0
+    80002c80:	e0000553          	fmv.x.w	x10,f0
     80002c84:	92345eb7          	lui	x29,0x92345
     80002c88:	678e8e9b          	addiw	x29,x29,1656
     80002c8c:	01600193          	addi	x3,x0,22
@@ -977,10 +977,10 @@ Disassembly of section .text:
     80002c9c:	00c59593          	slli	x11,x11,0xc
     80002ca0:	67858593          	addi	x11,x11,1656 # 92678 <_start-0x7ff6d988>
     80002ca4:	fff00613          	addi	x12,x0,-1
-    80002ca8:	f00580d3          	fmv.s.x	f1,x11
-    80002cac:	f0060153          	fmv.s.x	f2,x12
+    80002ca8:	f00580d3          	fmv.w.x	f1,x11
+    80002cac:	f0060153          	fmv.w.x	f2,x12
     80002cb0:	20209053          	fsgnjn.s	f0,f1,f2
-    80002cb4:	e0000553          	fmv.x.s	x10,f0
+    80002cb4:	e0000553          	fmv.x.w	x10,f0
     80002cb8:	12345eb7          	lui	x29,0x12345
     80002cbc:	678e8e9b          	addiw	x29,x29,1656
     80002cc0:	01700193          	addi	x3,x0,23
@@ -990,10 +990,10 @@ Disassembly of section .text:
     80002cc8:	123455b7          	lui	x11,0x12345
     80002ccc:	6785859b          	addiw	x11,x11,1656
     80002cd0:	00000613          	addi	x12,x0,0
-    80002cd4:	f00580d3          	fmv.s.x	f1,x11
-    80002cd8:	f0060153          	fmv.s.x	f2,x12
+    80002cd4:	f00580d3          	fmv.w.x	f1,x11
+    80002cd8:	f0060153          	fmv.w.x	f2,x12
     80002cdc:	2020a053          	fsgnjx.s	f0,f1,f2
-    80002ce0:	e0000553          	fmv.x.s	x10,f0
+    80002ce0:	e0000553          	fmv.x.w	x10,f0
     80002ce4:	12345eb7          	lui	x29,0x12345
     80002ce8:	678e8e9b          	addiw	x29,x29,1656
     80002cec:	01e00193          	addi	x3,x0,30
@@ -1003,10 +1003,10 @@ Disassembly of section .text:
     80002cf4:	123455b7          	lui	x11,0x12345
     80002cf8:	6785859b          	addiw	x11,x11,1656
     80002cfc:	fff00613          	addi	x12,x0,-1
-    80002d00:	f00580d3          	fmv.s.x	f1,x11
-    80002d04:	f0060153          	fmv.s.x	f2,x12
+    80002d00:	f00580d3          	fmv.w.x	f1,x11
+    80002d04:	f0060153          	fmv.w.x	f2,x12
     80002d08:	2020a053          	fsgnjx.s	f0,f1,f2
-    80002d0c:	e0000553          	fmv.x.s	x10,f0
+    80002d0c:	e0000553          	fmv.x.w	x10,f0
     80002d10:	92345eb7          	lui	x29,0x92345
     80002d14:	678e8e9b          	addiw	x29,x29,1656
     80002d18:	01f00193          	addi	x3,x0,31
@@ -1018,10 +1018,10 @@ Disassembly of section .text:
     80002d28:	00c59593          	slli	x11,x11,0xc
     80002d2c:	67858593          	addi	x11,x11,1656 # 92678 <_start-0x7ff6d988>
     80002d30:	00000613          	addi	x12,x0,0
-    80002d34:	f00580d3          	fmv.s.x	f1,x11
-    80002d38:	f0060153          	fmv.s.x	f2,x12
+    80002d34:	f00580d3          	fmv.w.x	f1,x11
+    80002d38:	f0060153          	fmv.w.x	f2,x12
     80002d3c:	2020a053          	fsgnjx.s	f0,f1,f2
-    80002d40:	e0000553          	fmv.x.s	x10,f0
+    80002d40:	e0000553          	fmv.x.w	x10,f0
     80002d44:	92345eb7          	lui	x29,0x92345
     80002d48:	678e8e9b          	addiw	x29,x29,1656
     80002d4c:	02000193          	addi	x3,x0,32
@@ -1033,10 +1033,10 @@ Disassembly of section .text:
     80002d5c:	00c59593          	slli	x11,x11,0xc
     80002d60:	67858593          	addi	x11,x11,1656 # 92678 <_start-0x7ff6d988>
     80002d64:	fff00613          	addi	x12,x0,-1
-    80002d68:	f00580d3          	fmv.s.x	f1,x11
-    80002d6c:	f0060153          	fmv.s.x	f2,x12
+    80002d68:	f00580d3          	fmv.w.x	f1,x11
+    80002d6c:	f0060153          	fmv.w.x	f2,x12
     80002d70:	2020a053          	fsgnjx.s	f0,f1,f2
-    80002d74:	e0000553          	fmv.x.s	x10,f0
+    80002d74:	e0000553          	fmv.x.w	x10,f0
     80002d78:	12345eb7          	lui	x29,0x12345
     80002d7c:	678e8e9b          	addiw	x29,x29,1656
     80002d80:	02100193          	addi	x3,x0,33

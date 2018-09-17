@@ -37,7 +37,7 @@ Disassembly of section .text.init:
     80000054:	00000297          	auipc	x5,0x0
     80000058:	01028293          	addi	x5,x5,16 # 80000064 <reset_vector+0x18>
     8000005c:	30529073          	csrrw	x0,mtvec,x5
-    80000060:	18005073          	csrrwi	x0,sptbr,0
+    80000060:	18005073          	csrrwi	x0,satp,0
     80000064:	00000297          	auipc	x5,0x0
     80000068:	01c28293          	addi	x5,x5,28 # 80000080 <reset_vector+0x34>
     8000006c:	30529073          	csrrw	x0,mtvec,x5
@@ -89,7 +89,7 @@ Disassembly of section .text.init:
     8000011c:	00852107          	flw	f2,8(x10)
     80000120:	00c52683          	lw	x13,12(x10)
     80000124:	001071d3          	fadd.s	f3,f0,f1
-    80000128:	e0018553          	fmv.x.s	x10,f3
+    80000128:	e0018553          	fmv.x.w	x10,f3
     8000012c:	001015f3          	fsflags	x11,x0
     80000130:	00000613          	addi	x12,x0,0
     80000134:	1ed51063          	bne	x10,x13,80000314 <fail>
@@ -104,7 +104,7 @@ Disassembly of section .text.init:
     80000150:	00852107          	flw	f2,8(x10)
     80000154:	00c52683          	lw	x13,12(x10)
     80000158:	001071d3          	fadd.s	f3,f0,f1
-    8000015c:	e0018553          	fmv.x.s	x10,f3
+    8000015c:	e0018553          	fmv.x.w	x10,f3
     80000160:	001015f3          	fsflags	x11,x0
     80000164:	00100613          	addi	x12,x0,1
     80000168:	1ad51663          	bne	x10,x13,80000314 <fail>
@@ -119,7 +119,7 @@ Disassembly of section .text.init:
     80000184:	00852107          	flw	f2,8(x10)
     80000188:	00c52683          	lw	x13,12(x10)
     8000018c:	001071d3          	fadd.s	f3,f0,f1
-    80000190:	e0018553          	fmv.x.s	x10,f3
+    80000190:	e0018553          	fmv.x.w	x10,f3
     80000194:	001015f3          	fsflags	x11,x0
     80000198:	00100613          	addi	x12,x0,1
     8000019c:	16d51c63          	bne	x10,x13,80000314 <fail>
@@ -134,7 +134,7 @@ Disassembly of section .text.init:
     800001b8:	00852107          	flw	f2,8(x10)
     800001bc:	00c52683          	lw	x13,12(x10)
     800001c0:	081071d3          	fsub.s	f3,f0,f1
-    800001c4:	e0018553          	fmv.x.s	x10,f3
+    800001c4:	e0018553          	fmv.x.w	x10,f3
     800001c8:	001015f3          	fsflags	x11,x0
     800001cc:	00000613          	addi	x12,x0,0
     800001d0:	14d51263          	bne	x10,x13,80000314 <fail>
@@ -149,7 +149,7 @@ Disassembly of section .text.init:
     800001ec:	00852107          	flw	f2,8(x10)
     800001f0:	00c52683          	lw	x13,12(x10)
     800001f4:	081071d3          	fsub.s	f3,f0,f1
-    800001f8:	e0018553          	fmv.x.s	x10,f3
+    800001f8:	e0018553          	fmv.x.w	x10,f3
     800001fc:	001015f3          	fsflags	x11,x0
     80000200:	00100613          	addi	x12,x0,1
     80000204:	10d51863          	bne	x10,x13,80000314 <fail>
@@ -164,7 +164,7 @@ Disassembly of section .text.init:
     80000220:	00852107          	flw	f2,8(x10)
     80000224:	00c52683          	lw	x13,12(x10)
     80000228:	081071d3          	fsub.s	f3,f0,f1
-    8000022c:	e0018553          	fmv.x.s	x10,f3
+    8000022c:	e0018553          	fmv.x.w	x10,f3
     80000230:	001015f3          	fsflags	x11,x0
     80000234:	00100613          	addi	x12,x0,1
     80000238:	0cd51e63          	bne	x10,x13,80000314 <fail>
@@ -179,7 +179,7 @@ Disassembly of section .text.init:
     80000254:	00852107          	flw	f2,8(x10)
     80000258:	00c52683          	lw	x13,12(x10)
     8000025c:	101071d3          	fmul.s	f3,f0,f1
-    80000260:	e0018553          	fmv.x.s	x10,f3
+    80000260:	e0018553          	fmv.x.w	x10,f3
     80000264:	001015f3          	fsflags	x11,x0
     80000268:	00000613          	addi	x12,x0,0
     8000026c:	0ad51463          	bne	x10,x13,80000314 <fail>
@@ -194,7 +194,7 @@ Disassembly of section .text.init:
     80000288:	00852107          	flw	f2,8(x10)
     8000028c:	00c52683          	lw	x13,12(x10)
     80000290:	101071d3          	fmul.s	f3,f0,f1
-    80000294:	e0018553          	fmv.x.s	x10,f3
+    80000294:	e0018553          	fmv.x.w	x10,f3
     80000298:	001015f3          	fsflags	x11,x0
     8000029c:	00100613          	addi	x12,x0,1
     800002a0:	06d51a63          	bne	x10,x13,80000314 <fail>
@@ -209,7 +209,7 @@ Disassembly of section .text.init:
     800002bc:	00852107          	flw	f2,8(x10)
     800002c0:	00c52683          	lw	x13,12(x10)
     800002c4:	101071d3          	fmul.s	f3,f0,f1
-    800002c8:	e0018553          	fmv.x.s	x10,f3
+    800002c8:	e0018553          	fmv.x.w	x10,f3
     800002cc:	001015f3          	fsflags	x11,x0
     800002d0:	00100613          	addi	x12,x0,1
     800002d4:	04d51063          	bne	x10,x13,80000314 <fail>
@@ -224,7 +224,7 @@ Disassembly of section .text.init:
     800002f0:	00852107          	flw	f2,8(x10)
     800002f4:	00c52683          	lw	x13,12(x10)
     800002f8:	081071d3          	fsub.s	f3,f0,f1
-    800002fc:	e0018553          	fmv.x.s	x10,f3
+    800002fc:	e0018553          	fmv.x.w	x10,f3
     80000300:	001015f3          	fsflags	x11,x0
     80000304:	01000613          	addi	x12,x0,16
     80000308:	00d51663          	bne	x10,x13,80000314 <fail>

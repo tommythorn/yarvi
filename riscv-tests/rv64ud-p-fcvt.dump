@@ -37,7 +37,7 @@ Disassembly of section .text.init:
     80000054:	00000297          	auipc	x5,0x0
     80000058:	01028293          	addi	x5,x5,16 # 80000064 <reset_vector+0x18>
     8000005c:	30529073          	csrrw	x0,mtvec,x5
-    80000060:	18005073          	csrrwi	x0,sptbr,0
+    80000060:	18005073          	csrrwi	x0,satp,0
     80000064:	00000297          	auipc	x5,0x0
     80000068:	01c28293          	addi	x5,x5,28 # 80000080 <reset_vector+0x34>
     8000006c:	30529073          	csrrw	x0,mtvec,x5
@@ -194,7 +194,7 @@ Disassembly of section .text.init:
     80000278:	00c52683          	lw	x13,12(x10)
     8000027c:	420001d3          	fcvt.d.s	f3,f0
     80000280:	4011f1d3          	fcvt.s.d	f3,f3
-    80000284:	e0018553          	fmv.x.s	x10,f3
+    80000284:	e0018553          	fmv.x.w	x10,f3
     80000288:	001015f3          	fsflags	x11,x0
     8000028c:	00000613          	addi	x12,x0,0
     80000290:	02d51e63          	bne	x10,x13,800002cc <fail>

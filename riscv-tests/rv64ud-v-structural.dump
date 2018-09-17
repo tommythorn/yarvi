@@ -736,7 +736,7 @@ Disassembly of section .text:
     80002958:	12113423          	sd	x1,296(x2)
     8000295c:	12813023          	sd	x8,288(x2)
     80002960:	0107e7b3          	or	x15,x15,x16
-    80002964:	18079073          	csrrw	x0,sptbr,x15
+    80002964:	18079073          	csrrw	x0,satp,x15
     80002968:	01f00793          	addi	x15,x0,31
     8000296c:	00000297          	auipc	x5,0x0
     80002970:	01428293          	addi	x5,x5,20 # 80002980 <vm_boot+0xac>
@@ -834,9 +834,9 @@ Disassembly of section .text:
     80002aec:	03411113          	slli	x2,x2,0x34
     80002af0:	3f8000b7          	lui	x1,0x3f800
     80002af4:	f2000253          	fmv.d.x	f4,x0
-    80002af8:	f00001d3          	fmv.s.x	f3,x0
+    80002af8:	f00001d3          	fmv.w.x	f3,x0
     80002afc:	f2010153          	fmv.d.x	f2,x2
-    80002b00:	f00080d3          	fmv.s.x	f1,x1
+    80002b00:	f00080d3          	fmv.w.x	f1,x1
     80002b04:	01c0006f          	jal	x0,80002b20 <userstart+0x40>
     80002b08:	00000013          	addi	x0,x0,0
     80002b0c:	00000013          	addi	x0,x0,0
@@ -847,7 +847,7 @@ Disassembly of section .text:
     80002b20:	12217253          	fmul.d	f4,f2,f2
     80002b24:	201081d3          	fsgnj.s	f3,f1,f1
     80002b28:	e2020253          	fmv.x.d	x4,f4
-    80002b2c:	e00182d3          	fmv.x.s	x5,f3
+    80002b2c:	e00182d3          	fmv.x.w	x5,f3
     80002b30:	00508a63          	beq	x1,x5,80002b44 <userstart+0x64>
     80002b34:	00119513          	slli	x10,x3,0x1
     80002b38:	00050063          	beq	x10,x0,80002b38 <userstart+0x58>
@@ -859,11 +859,11 @@ Disassembly of section .text:
     80002b50:	00156513          	ori	x10,x10,1
     80002b54:	00000073          	ecall
     80002b58:	f2000153          	fmv.d.x	f2,x0
-    80002b5c:	f00000d3          	fmv.s.x	f1,x0
+    80002b5c:	f00000d3          	fmv.w.x	f1,x0
     80002b60:	f2000253          	fmv.d.x	f4,x0
-    80002b64:	f00001d3          	fmv.s.x	f3,x0
+    80002b64:	f00001d3          	fmv.w.x	f3,x0
     80002b68:	f2010153          	fmv.d.x	f2,x2
-    80002b6c:	f00080d3          	fmv.s.x	f1,x1
+    80002b6c:	f00080d3          	fmv.w.x	f1,x1
     80002b70:	0100006f          	jal	x0,80002b80 <userstart+0xa0>
     80002b74:	00000013          	addi	x0,x0,0
     80002b78:	00000013          	addi	x0,x0,0
@@ -872,7 +872,7 @@ Disassembly of section .text:
     80002b84:	00000013          	addi	x0,x0,0
     80002b88:	201081d3          	fsgnj.s	f3,f1,f1
     80002b8c:	e2020253          	fmv.x.d	x4,f4
-    80002b90:	e00182d3          	fmv.x.s	x5,f3
+    80002b90:	e00182d3          	fmv.x.w	x5,f3
     80002b94:	00508a63          	beq	x1,x5,80002ba8 <userstart+0xc8>
     80002b98:	00119513          	slli	x10,x3,0x1
     80002b9c:	00050063          	beq	x10,x0,80002b9c <userstart+0xbc>
@@ -884,11 +884,11 @@ Disassembly of section .text:
     80002bb4:	00156513          	ori	x10,x10,1
     80002bb8:	00000073          	ecall
     80002bbc:	f2000153          	fmv.d.x	f2,x0
-    80002bc0:	f00000d3          	fmv.s.x	f1,x0
+    80002bc0:	f00000d3          	fmv.w.x	f1,x0
     80002bc4:	f2000253          	fmv.d.x	f4,x0
-    80002bc8:	f00001d3          	fmv.s.x	f3,x0
+    80002bc8:	f00001d3          	fmv.w.x	f3,x0
     80002bcc:	f2010153          	fmv.d.x	f2,x2
-    80002bd0:	f00080d3          	fmv.s.x	f1,x1
+    80002bd0:	f00080d3          	fmv.w.x	f1,x1
     80002bd4:	00c0006f          	jal	x0,80002be0 <userstart+0x100>
     80002bd8:	00000013          	addi	x0,x0,0
     80002bdc:	00000013          	addi	x0,x0,0
@@ -897,7 +897,7 @@ Disassembly of section .text:
     80002be8:	00000013          	addi	x0,x0,0
     80002bec:	201081d3          	fsgnj.s	f3,f1,f1
     80002bf0:	e2020253          	fmv.x.d	x4,f4
-    80002bf4:	e00182d3          	fmv.x.s	x5,f3
+    80002bf4:	e00182d3          	fmv.x.w	x5,f3
     80002bf8:	00508a63          	beq	x1,x5,80002c0c <userstart+0x12c>
     80002bfc:	00119513          	slli	x10,x3,0x1
     80002c00:	00050063          	beq	x10,x0,80002c00 <userstart+0x120>
@@ -909,11 +909,11 @@ Disassembly of section .text:
     80002c18:	00156513          	ori	x10,x10,1
     80002c1c:	00000073          	ecall
     80002c20:	f2000153          	fmv.d.x	f2,x0
-    80002c24:	f00000d3          	fmv.s.x	f1,x0
+    80002c24:	f00000d3          	fmv.w.x	f1,x0
     80002c28:	f2000253          	fmv.d.x	f4,x0
-    80002c2c:	f00001d3          	fmv.s.x	f3,x0
+    80002c2c:	f00001d3          	fmv.w.x	f3,x0
     80002c30:	f2010153          	fmv.d.x	f2,x2
-    80002c34:	f00080d3          	fmv.s.x	f1,x1
+    80002c34:	f00080d3          	fmv.w.x	f1,x1
     80002c38:	0080006f          	jal	x0,80002c40 <userstart+0x160>
     80002c3c:	00000013          	addi	x0,x0,0
     80002c40:	12217253          	fmul.d	f4,f2,f2
@@ -922,7 +922,7 @@ Disassembly of section .text:
     80002c4c:	00000013          	addi	x0,x0,0
     80002c50:	201081d3          	fsgnj.s	f3,f1,f1
     80002c54:	e2020253          	fmv.x.d	x4,f4
-    80002c58:	e00182d3          	fmv.x.s	x5,f3
+    80002c58:	e00182d3          	fmv.x.w	x5,f3
     80002c5c:	00508a63          	beq	x1,x5,80002c70 <userstart+0x190>
     80002c60:	00119513          	slli	x10,x3,0x1
     80002c64:	00050063          	beq	x10,x0,80002c64 <userstart+0x184>
@@ -934,11 +934,11 @@ Disassembly of section .text:
     80002c7c:	00156513          	ori	x10,x10,1
     80002c80:	00000073          	ecall
     80002c84:	f2000153          	fmv.d.x	f2,x0
-    80002c88:	f00000d3          	fmv.s.x	f1,x0
+    80002c88:	f00000d3          	fmv.w.x	f1,x0
     80002c8c:	f2000253          	fmv.d.x	f4,x0
-    80002c90:	f00001d3          	fmv.s.x	f3,x0
+    80002c90:	f00001d3          	fmv.w.x	f3,x0
     80002c94:	f2010153          	fmv.d.x	f2,x2
-    80002c98:	f00080d3          	fmv.s.x	f1,x1
+    80002c98:	f00080d3          	fmv.w.x	f1,x1
     80002c9c:	0040006f          	jal	x0,80002ca0 <userstart+0x1c0>
     80002ca0:	12217253          	fmul.d	f4,f2,f2
     80002ca4:	00000013          	addi	x0,x0,0
@@ -947,7 +947,7 @@ Disassembly of section .text:
     80002cb0:	00000013          	addi	x0,x0,0
     80002cb4:	201081d3          	fsgnj.s	f3,f1,f1
     80002cb8:	e2020253          	fmv.x.d	x4,f4
-    80002cbc:	e00182d3          	fmv.x.s	x5,f3
+    80002cbc:	e00182d3          	fmv.x.w	x5,f3
     80002cc0:	00508a63          	beq	x1,x5,80002cd4 <userstart+0x1f4>
     80002cc4:	00119513          	slli	x10,x3,0x1
     80002cc8:	00050063          	beq	x10,x0,80002cc8 <userstart+0x1e8>
@@ -959,11 +959,11 @@ Disassembly of section .text:
     80002ce0:	00156513          	ori	x10,x10,1
     80002ce4:	00000073          	ecall
     80002ce8:	f2000153          	fmv.d.x	f2,x0
-    80002cec:	f00000d3          	fmv.s.x	f1,x0
+    80002cec:	f00000d3          	fmv.w.x	f1,x0
     80002cf0:	f2000253          	fmv.d.x	f4,x0
-    80002cf4:	f00001d3          	fmv.s.x	f3,x0
+    80002cf4:	f00001d3          	fmv.w.x	f3,x0
     80002cf8:	f2010153          	fmv.d.x	f2,x2
-    80002cfc:	f00080d3          	fmv.s.x	f1,x1
+    80002cfc:	f00080d3          	fmv.w.x	f1,x1
     80002d00:	0200006f          	jal	x0,80002d20 <userstart+0x240>
     80002d04:	00000013          	addi	x0,x0,0
     80002d08:	00000013          	addi	x0,x0,0
@@ -980,7 +980,7 @@ Disassembly of section .text:
     80002d34:	00000013          	addi	x0,x0,0
     80002d38:	201081d3          	fsgnj.s	f3,f1,f1
     80002d3c:	e2020253          	fmv.x.d	x4,f4
-    80002d40:	e00182d3          	fmv.x.s	x5,f3
+    80002d40:	e00182d3          	fmv.x.w	x5,f3
     80002d44:	00508a63          	beq	x1,x5,80002d58 <userstart+0x278>
     80002d48:	00119513          	slli	x10,x3,0x1
     80002d4c:	00050063          	beq	x10,x0,80002d4c <userstart+0x26c>
@@ -992,11 +992,11 @@ Disassembly of section .text:
     80002d64:	00156513          	ori	x10,x10,1
     80002d68:	00000073          	ecall
     80002d6c:	f2000153          	fmv.d.x	f2,x0
-    80002d70:	f00000d3          	fmv.s.x	f1,x0
+    80002d70:	f00000d3          	fmv.w.x	f1,x0
     80002d74:	f2000253          	fmv.d.x	f4,x0
-    80002d78:	f00001d3          	fmv.s.x	f3,x0
+    80002d78:	f00001d3          	fmv.w.x	f3,x0
     80002d7c:	f2010153          	fmv.d.x	f2,x2
-    80002d80:	f00080d3          	fmv.s.x	f1,x1
+    80002d80:	f00080d3          	fmv.w.x	f1,x1
     80002d84:	01c0006f          	jal	x0,80002da0 <userstart+0x2c0>
     80002d88:	00000013          	addi	x0,x0,0
     80002d8c:	00000013          	addi	x0,x0,0
@@ -1013,7 +1013,7 @@ Disassembly of section .text:
     80002db8:	00000013          	addi	x0,x0,0
     80002dbc:	201081d3          	fsgnj.s	f3,f1,f1
     80002dc0:	e2020253          	fmv.x.d	x4,f4
-    80002dc4:	e00182d3          	fmv.x.s	x5,f3
+    80002dc4:	e00182d3          	fmv.x.w	x5,f3
     80002dc8:	00508a63          	beq	x1,x5,80002ddc <userstart+0x2fc>
     80002dcc:	00119513          	slli	x10,x3,0x1
     80002dd0:	00050063          	beq	x10,x0,80002dd0 <userstart+0x2f0>
@@ -1025,7 +1025,7 @@ Disassembly of section .text:
     80002de8:	00156513          	ori	x10,x10,1
     80002dec:	00000073          	ecall
     80002df0:	f2000153          	fmv.d.x	f2,x0
-    80002df4:	f00000d3          	fmv.s.x	f1,x0
+    80002df4:	f00000d3          	fmv.w.x	f1,x0
     80002df8:	00100513          	addi	x10,x0,1
     80002dfc:	00000073          	ecall
     80002e00:	c0001073          	unimp

@@ -30,7 +30,7 @@ rv64uip: $(patsubst %,%.yarvi,$(RV64UIP))
 %.dump: %
 	riscv64-unknown-elf-objdump -d -M numeric,no-aliases $^ > $@
 
-%.yarvi: %
+%.yarvi: % %.hex
 	make -C ../sim PUT=$< > $@ 2>&1
 
 %.spike: %
