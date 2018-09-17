@@ -123,7 +123,7 @@ module yarvi_ex( input  wire             clock
 
    reg  [63:0] wb_wb_val        = 0; always @(posedge clock) wb_wb_val <= ex_wb_val;
    reg  [ 4:0] wb_wb_rd         = 0; always @(posedge clock) wb_wb_rd  <= ex_wb_rd;
-   reg  [ 4:0] wb_wben          = 0; always @(posedge clock) wb_wben   <= ex_wben;
+   reg         wb_wben          = 0; always @(posedge clock) wb_wben   <= ex_wben;
 
    /* The bypassed register values have a high fanout so it's
       important to drive them directly from a flop.  We unfortunately
@@ -137,10 +137,10 @@ module yarvi_ex( input  wire             clock
    wire [63:0] ex_rs1           = /* rs1_forward_ex ? wb_wb_val : */ ex_rs1_val;
    wire [63:0] ex_rs2           = /* rs2_forward_ex ? wb_wb_val : */ ex_rs2_val;
 
-   wire [63:0] ex_rs1_val_cmp   = (~ex_insn`br_unsigned << 63) ^ ex_rs1;
-   wire [63:0] ex_rs2_val_cmp   = (~ex_insn`br_unsigned << 63) ^ ex_rs2;
+   wire [63:0] ex_rs1_val_cmp   = (ex_insn`br_unsigned << 63) ^ ex_rs1;
+   wire [63:0] ex_rs2_val_cmp   = (ex_insn`br_unsigned << 63) ^ ex_rs2;
    wire        ex_cmp_eq        = ex_rs1 == ex_rs2;
-   wire        ex_cmp_lt        = ex_rs1_val_cmp  < ex_rs2_val_cmp;
+   wire        ex_cmp_lt        = $signed(ex_rs1_val_cmp) < $signed(ex_rs2_val_cmp);
    wire        ex_branch_taken  = (ex_insn`br_rela ? ex_cmp_lt : ex_cmp_eq) ^ ex_insn`br_negate;
 
    wire [63:0] ex_rs2_val_imm   = ex_insn`opcode == `OP_IMM || ex_insn`opcode == `OP_IMM_32
@@ -190,7 +190,7 @@ module yarvi_ex( input  wire             clock
 
        default:           begin
                           csr_val = 0;
-                          if (ex_valid && ex_insn`opcode == `SYSTEM)
+                          if (ex_valid && ex_insn`opcode == `SYSTEM && ex_insn`funct3 != 0)
                             $display("                                                 Warning: CSR %x default to zero", ex_insn`imm11_0);
                           end
      endcase
@@ -202,32 +202,42 @@ module yarvi_ex( input  wire             clock
      $display("%05d  %8x *** Forwarding ex_rs2 (%x) from EX", $time, ex_pc, ex_wb_val);
 */
 
+   /* This is the main ALU, as combinational logic.  This will
+      eventually be rewritten/refactored into a much denser circuit
+      with enables derived in the previous stage.  For now this is
+      easier to work with. */
+
+   reg [31:0] tmp32;
    always @(*) begin
-      csr_addr = ~0;
-      ex_restart = 0;
-      ex_wben = 0;
-      ex_mem_valid = 0;
-      ex_next_prv = ex_prv;
+      csr_addr              = ~0;
+      ex_restart            = 0;
+      ex_wben               = 0;
+      ex_next_prv           = ex_prv;
+      ex_mem_valid          = 0;
+      ex_mem_writeenable    = 0;
+      ex_mem_address        = 0;
+      ex_mem_writedata      = 0;
+      ex_mem_sizelg2        = 0;
+      ex_mem_readtag        = 0;
+      ex_mem_readsignextend = 0;
 
       case (ex_insn`opcode)
         `OP_IMM, `OP: begin
            ex_wben   = |ex_insn`rd;
            ex_wb_rd  = ex_insn`rd;
            case (ex_insn`funct3)
-             `ADDSUB: if (ex_insn[30] && ex_insn`opcode == `OP)
-               ex_wb_val = ex_rs1 - ex_rs2_val_imm;
-             else
-               ex_wb_val = ex_rs1 + ex_rs2_val_imm;
-             `SLL:  ex_wb_val = ex_rs1 << ex_rs2_val_imm[4:0];
-             `SLT:  ex_wb_val = $signed(ex_rs1) < $signed(ex_rs2_val_imm); // flip MSB of both operands
-             `SLTU: ex_wb_val = ex_rs1 < ex_rs2_val_imm;
-             `XOR:  ex_wb_val = ex_rs1 ^ ex_rs2_val_imm;
-             `SR_:  if (ex_insn[30])
-               ex_wb_val = $signed(ex_rs1) >>> ex_rs2_val_imm[4:0];
-             else
-               ex_wb_val = ex_rs1 >> ex_rs2_val_imm[4:0];
-             `OR:   ex_wb_val = ex_rs1 | ex_rs2_val_imm;
-             `AND:  ex_wb_val = ex_rs1 & ex_rs2_val_imm;
+             `ADDSUB: ex_wb_val = ex_insn[30] && ex_insn`opcode == `OP
+                                  ? ex_rs1 - ex_rs2_val_imm
+                                  : ex_wb_val = ex_rs1 + ex_rs2_val_imm;
+             `SLL:    ex_wb_val = ex_rs1 << ex_rs2_val_imm[5:0];
+             `SLT:    ex_wb_val = $signed(ex_rs1) < $signed(ex_rs2_val_imm); // or flip MSB of both operands
+             `SLTU:   ex_wb_val = ex_rs1 < ex_rs2_val_imm;
+             `XOR:    ex_wb_val = ex_rs1 ^ ex_rs2_val_imm;
+             `SR_:    ex_wb_val = ex_insn[30]
+                                  ? $signed(ex_rs1) >>> ex_rs2_val_imm[5:0]
+                                  : ex_wb_val = ex_rs1 >> ex_rs2_val_imm[5:0];
+             `OR:     ex_wb_val = ex_rs1 | ex_rs2_val_imm;
+             `AND:    ex_wb_val = ex_rs1 & ex_rs2_val_imm;
              default: ex_wben = 0;
            endcase
         end
@@ -237,11 +247,14 @@ module yarvi_ex( input  wire             clock
            ex_wb_rd  = ex_insn`rd;
            case (ex_insn`funct3)
              `ADDSUB: ex_wb_val = ex_sum_w;
-//             `SLL:  ex_wb_val = ex_rs1 << ex_rs2_val_imm[4:0];
-//             `SR_:  if (ex_insn[30])
-//               ex_wb_val = $signed(ex_rs1) >>> ex_rs2_val_imm[4:0];
-//             else
-//               ex_wb_val = ex_rs1 >> ex_rs2_val_imm[4:0];
+             `SLL:
+               begin
+                      tmp32 = ex_rs1[31:0] << ex_rs2_val_imm[4:0];
+                      ex_wb_val = {{32{tmp32[31]}},tmp32};
+               end
+             `SR_:    ex_wb_val = ex_insn[30]
+                                  ? $signed(ex_rs1) >>> ex_rs2_val_imm[4:0]
+                                  : ex_wb_val = ex_rs1 >> ex_rs2_val_imm[4:0];
              default: ex_wben = 0;
            endcase
         end
@@ -342,6 +355,46 @@ module yarvi_ex( input  wire             clock
                  $finish;
               end
           endcase
+
+        `LOAD: begin
+           /* Looks innocent enough, but this is a critical design
+              part.  Ways to handle loads, roughly in increased order
+              of complexity (and IPC):
+
+              - W0: Do the load in the next stage; if miss,
+                restart/stall until filled.  RF checks for outstanding
+                miss and restart/stall.
+
+              - W1: As above but do the load in the previous stage.
+                Restart/stall if based reg is not ready.
+
+              - W2: iCFP: As above but keep going on misses.  Anything
+                that the load result or a poisioned values is itself
+                poisioned and parked in a slice buffer (along with
+                non-poisioned inputs).  When load results come back,
+                replay all slice buffer instructions.  (Q:
+                load/store/branch handling?)
+
+              - W3: Fully OoO. */
+
+
+           ex_mem_valid       = 1;
+           ex_mem_address     = ex_rs1 + ex_i_imm;
+           ex_mem_sizelg2     = ex_insn`funct3;
+        end
+/*
+        case (insn`funct3)
+                 0: $display("%05d  %x %x lb     x%1d, %1d(x%1d)", $time, pc, insn, insn`rd, $signed(i_imm), insn`rs1);
+                 1: $display("%05d  %x %x lh     x%1d, %1d(x%1d)", $time, pc, insn, insn`rd, $signed(i_imm), insn`rs1);
+                 2: $display("%05d  %x %x lw     x%1d, %1d(x%1d)", $time, pc, insn, insn`rd, $signed(i_imm), insn`rs1);
+                 3: $display("%05d  %x %x ld     x%1d, %1d(x%1d)", $time, pc, insn, insn`rd, $signed(i_imm), insn`rs1);
+
+                 4: $display("%05d  %x %x lbu    x%1d, %1d(x%1d)", $time, pc, insn, insn`rd, $signed(i_imm), insn`rs1);
+                 5: $display("%05d  %x %x lhu    x%1d, %1d(x%1d)", $time, pc, insn, insn`rd, $signed(i_imm), insn`rs1);
+                 6: $display("%05d  %x %x lwu    x%1d, %1d(x%1d)", $time, pc, insn, insn`rd, $signed(i_imm), insn`rs1);
+                 default: $display("%05d  %x %x l??%1d?? x%1d, %1d(x%1d)", $time, pc, insn, insn`funct3, insn`rd, $signed(i_imm), insn`rs1);
+               endcase
+*/
 
         `STORE: begin
            ex_mem_valid       = 1;
