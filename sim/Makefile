@@ -268,16 +268,23 @@ TESTSET_UM= \
 
 TEST_ALL=$(TESTSET_UI) $(TESTSET_MI) $(TESTSET_SI) $(TESTSET_UA) $(TESTSET_UC) $(TESTSET_UD) $(TESTSET_UF) $(TESTSET_UM)
 
-test1: $(TESTDIR)$(PUT).hex
-	iverilog -I$(COMMON) -DSIMULATION $(VERB) -DINIT_MEM=\"$^\" $(IOPTS) -o yarvi $(SRC)
-	./yarvi
+#test1: $(TESTDIR)$(PUT).hex
+
+%.yarvi: %.hex
+	iverilog -I$(COMMON) -DSIMULATION $(VERB) -DINIT_MEM=\"$^\" $(IOPTS) -o $@ $(SRC)
+
+%.trace: %.yarvi
+	./$^ > $@
+	-grep -q 'TOHOST 00000001' $@ && touch $@.pass
 
 TESTS=$(TESTSET_UI)
 
+newtest: $(patsubst %,$(TESTDIR)%.trace,$(TESTS))
+
 test:
-	@echo -n "  Total:   "
+	@/bin/echo -n "  Total:   "
 	@echo $(TESTS) | wc -w
-	@echo -n "  Passing: "
+	@/bin/echo -n "  Passing: "
 	@for x in $(TESTS);do $(MAKE) test1 PUT=$$x | tee $(OUTDIR)$$x.sim;done | tee -a testall.log | grep 'TOHOST 00000001'|wc -l
 
 testall:
