@@ -55,14 +55,18 @@ module yarvi_me( input  wire             clock
               $finish;
            end
 
-           if (sizelg2 != 3)
-             $display("Oops, can only handle 64-bit stores, not %d", sizelg2);
+           if (sizelg2 != 3) begin
+              $display("Oops, can only handle 64-bit stores, not %d", sizelg2);
+              $finish;
+           end
 
            $display("[%x] <- %x", address[12:0], writedata);
            datacache[address[12:3]] <= writedata;
         end else begin
-           if (sizelg2 != 3)
-             $display("Oops, can only handle 64-bit loads, not %d", sizelg2);
+           if (sizelg2 != 3) begin
+              $display("Oops, can only handle 64-bit loads, not %d", sizelg2);
+              $finish;
+           end
 
            pendingread <= 1;
            pendingreadtag <= readtag;
