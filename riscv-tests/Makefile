@@ -287,4 +287,4 @@ newtest: $(patsubst %,$(TESTDIR)%.trace,$(TESTS))
 %.trace: %.yarvi
 	./$^ > $@
 	if grep -q 'TOHOST 00000001' $@;then \
-		touch $@.pass; else touch $@.fail; fi
+		touch $@.pass; else ln -s $@ $@.fail; fi
