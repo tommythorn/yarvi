@@ -1,4 +1,4 @@
-COMMON=../shared/
+COMMON=../core/
 
 VERB=
 VERB=-DVERBOSE_SIMULATION
@@ -282,7 +282,7 @@ newtest: $(patsubst %,$(TESTDIR)%.trace,$(TESTS))
 	spike $< > $@ 2>&1
 
 %.yarvi: %.hex
-	iverilog -I../shared/ -DSIMULATION $(VERB) -DINIT_MEM=\"$^\" -o $@ $(SRC)
+	iverilog -I../core/ -DSIMULATION $(VERB) -DINIT_MEM=\"$^\" -o $@ $(SRC)
 
 %.trace: %.yarvi
 	./$^ > $@

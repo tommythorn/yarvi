@@ -3,7 +3,7 @@ POST=|sed -e 's/[^m]+m//g' -e 's/  *$$//g'|grep -v '^ *Info'
 CC=riscv-gcc
 CFLAGS=-std=c99 -m32 -O
 IOPTS=-I$(COMMON)
-COMMON=../shared/
+COMMON=../core/
 VERB=
 VERB=-DVERBOSE_SIMULATION
 

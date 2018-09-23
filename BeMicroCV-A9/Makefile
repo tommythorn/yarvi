@@ -12,14 +12,14 @@
 
 TESTDIR=
 PROGRAM=demo
-COMMON=../shared/
+COMMON=../core/
 
 program: output_files/BeMicroCVA9.sof
 	time quartus_pgm BeMicroCVA9.cdf
 
 include $(COMMON)Makefile.common
 
-output_files/BeMicroCVA9.sof: demo.riscv.txt BeMicroCVA9.v ../shared/yarvi_soc.v ../shared/yarvi.v ../shared/htif.v ../shared/axi_jtaguart.v
+output_files/BeMicroCVA9.sof: demo.riscv.txt BeMicroCVA9.v ../core/yarvi_soc.v ../core/yarvi.v ../core/htif.v ../core/axi_jtaguart.v
 	time quartus_map BeMicroCVA9
 	time quartus_fit BeMicroCVA9
 	time quartus_asm BeMicroCVA9
