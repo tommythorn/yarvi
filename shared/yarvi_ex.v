@@ -227,17 +227,17 @@ module yarvi_ex( input  wire             clock
            ex_wb_rd  = ex_insn`rd;
            case (ex_insn`funct3)
              `ADDSUB: ex_wb_val = ex_insn[30] && ex_insn`opcode == `OP
-                                  ? ex_rs1 - ex_rs2_val_imm
-                                  : ex_wb_val = ex_rs1 + ex_rs2_val_imm;
-             `SLL:    ex_wb_val = ex_rs1 << ex_rs2_val_imm[5:0];
+                                  ?       ex_rs1  -         ex_rs2_val_imm
+                                  :       ex_rs1  +         ex_rs2_val_imm;
              `SLT:    ex_wb_val = $signed(ex_rs1) < $signed(ex_rs2_val_imm); // or flip MSB of both operands
-             `SLTU:   ex_wb_val = ex_rs1 < ex_rs2_val_imm;
-             `XOR:    ex_wb_val = ex_rs1 ^ ex_rs2_val_imm;
+             `SLTU:   ex_wb_val =         ex_rs1  <         ex_rs2_val_imm;
+             `XOR:    ex_wb_val =         ex_rs1  ^         ex_rs2_val_imm;
              `SR_:    ex_wb_val = ex_insn[30]
-                                  ? $signed(ex_rs1) >>> ex_rs2_val_imm[5:0]
-                                  : ex_wb_val = ex_rs1 >> ex_rs2_val_imm[5:0];
-             `OR:     ex_wb_val = ex_rs1 | ex_rs2_val_imm;
-             `AND:    ex_wb_val = ex_rs1 & ex_rs2_val_imm;
+                                ? $signed(ex_rs1) >>>       ex_rs2_val_imm[5:0]
+                                :         ex_rs1  >>        ex_rs2_val_imm[5:0];
+             `SLL:    ex_wb_val =         ex_rs1  <<        ex_rs2_val_imm[5:0];
+             `OR:     ex_wb_val =         ex_rs1  |         ex_rs2_val_imm;
+             `AND:    ex_wb_val =         ex_rs1  &         ex_rs2_val_imm;
              default: ex_wben = 0;
            endcase
         end
@@ -252,9 +252,10 @@ module yarvi_ex( input  wire             clock
                       tmp32 = ex_rs1[31:0] << ex_rs2_val_imm[4:0];
                       ex_wb_val = {{32{tmp32[31]}},tmp32};
                end
-             `SR_:    ex_wb_val = ex_insn[30]
+             `SR_:    // XXX this can't be right.  I must have to sign-extend 32-bit first
+                      ex_wb_val = ex_insn[30]
                                   ? $signed(ex_rs1) >>> ex_rs2_val_imm[4:0]
-                                  : ex_wb_val = ex_rs1 >> ex_rs2_val_imm[4:0];
+                                  :         ex_rs1  >>  ex_rs2_val_imm[4:0];
              default: ex_wben = 0;
            endcase
         end
