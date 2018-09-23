@@ -1,5 +1,5 @@
 status:
-	$(MAKE) -s -C sim testall
+	$(MAKE) -s -C riscv-tests
 
 fpgademo:
 	$(MAKE) -C BeMicroCV-A9
