@@ -1,10 +1,11 @@
-COMMON=../core/
+CORE=../core/
 
 VERB=
 VERB=-DVERBOSE_SIMULATION
 
-SRC=../sim/toplevel.v $(COMMON)htif.v $(COMMON)yarvi_soc.v $(COMMON)yarvi_disass.v $(COMMON)yarvi.v $(COMMON)yarvi_fe.v $(COMMON)yarvi_rf.v $(COMMON)yarvi_ex.v \
-$(COMMON)yarvi_me.v
+SRC=../sim/toplevel.v $(CORE)htif.v $(CORE)yarvi_soc.v $(CORE)yarvi_disass.v $(CORE)yarvi.v $(CORE)yarvi_fe.v $(CORE)yarvi_rf.v $(CORE)yarvi_ex.v \
+$(CORE)yarvi_me.v
+HDR=$(CORE)riscv.h
 
 # Adjust to match your RISC-V toolchain
 RVPATH=
@@ -281,10 +282,10 @@ newtest: $(patsubst %,$(TESTDIR)%.trace,$(TESTS))
 %.spike: %
 	spike $< > $@ 2>&1
 
-%.yarvi: %.hex
-	iverilog -I../core/ -DSIMULATION $(VERB) -DINIT_MEM=\"$^\" -o $@ $(SRC)
+%.yarvi: %.hex $(SRC) $(HDR)
+	iverilog -I../core/ -DSIMULATION $(VERB) -DINIT_MEM=\"$<\" -o $@ $(SRC)
 
 %.trace: %.yarvi
 	./$^ > $@
 	if grep -q 'TOHOST 00000001' $@;then \
-		touch $@.pass; else ln -s $@ $@.fail; fi
+		touch $@.pass; else ln -fs $@ $@.fail; fi
