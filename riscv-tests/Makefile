@@ -1,11 +1,12 @@
 CORE=../core/
-
 VERB=
 VERB=-DVERBOSE_SIMULATION
 
 SRC=../sim/toplevel.v $(CORE)htif.v $(CORE)yarvi_soc.v $(CORE)yarvi_disass.v $(CORE)yarvi.v $(CORE)yarvi_fe.v $(CORE)yarvi_rf.v $(CORE)yarvi_ex.v \
 $(CORE)yarvi_me.v
 HDR=$(CORE)riscv.h
+
+.PRECIOUS: .hex .yarvi
 
 # Adjust to match your RISC-V toolchain
 RVPATH=
@@ -36,7 +37,6 @@ TESTSET_UIP= \
   rv32ui-p-or		\
   rv32ui-p-ori		\
   rv32ui-p-sb		\
-  rv32ui-p-sd		\
   rv32ui-p-sh		\
   rv32ui-p-simple	\
   rv32ui-p-sll		\

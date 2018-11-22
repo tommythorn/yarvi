@@ -14,21 +14,21 @@ module yarvi_disass( input             clock
 
                    , input             we
                    , input [ 4:0]      addr
-                   , input [63:0]      d);
+                   , input [`VMSB:0]      d);
 
-   wire        sign         = insn[31];
-   wire [51:0] sign52       = {52{sign}};
-   wire [43:0] sign44       = {44{sign}};
+   wire        sign          = insn[31];
+   wire [19:0] sign20        = {20{sign}};
+   wire [11:0] sign12        = {12{sign}};
 
    // I-type
-   wire [63:0] i_imm        = {sign52, insn`funct7, insn`rs2};
+   wire [`VMSB:0] i_imm        = {sign20, insn`funct7, insn`rs2};
 
    // S-type
-   wire [63:0] s_imm        = {sign52, insn`funct7, insn`rd};
-   wire [63:0] sb_imm       = {sign52, insn[7], insn[30:25], insn[11:8], 1'd0};
+   wire [`VMSB:0] s_imm        = {sign20, insn`funct7, insn`rd};
+   wire [`VMSB:0] sb_imm       = {sign20, insn[7], insn[30:25], insn[11:8], 1'd0};
 
    // U-type
-   wire [63:0] uj_imm       = {sign44, insn[19:12], insn[20], insn[30:21], 1'd0};
+   wire [`VMSB:0] uj_imm       = {sign12, insn[19:12], insn[20], insn[30:21], 1'd0};
 
    wire        disass = 0;
 
@@ -64,15 +64,6 @@ module yarvi_disass( input             clock
                    default: $display("%05d  %x %x OP_IMM %1d", $time, pc, insn, insn`funct3);
                  endcase
 
-        `OP_IMM_32:
-          case (insn`funct3)
-            `ADDSUB: $display("%05d  %x %x addiw  x%1d, x%1d, %1d", $time, pc, insn, insn`rd, insn`rs1, $signed(i_imm));
-            `SLL:    $display("%05d  %x %x slliw  x%1d, x%1d, %1d", $time, pc, insn, insn`rd, insn`rs1, i_imm[5:0]);
-            `SR_:    $display("%05d  %x %x %s  x%1d, x%1d, %1d",    $time, pc, insn, insn[31:25] == 0 ? "srliw" : "sraiw",
-                              insn`rd, insn`rs1, i_imm[5:0]);
-            default: $display("%05d  %x %x OP_IMM_32 %1d", $time, pc, insn, insn`funct3);
-          endcase
-
         `OP: case (insn`funct3)
                `ADDSUB: if (insn[30])
                  $display("%05d  %x %x sub    x%1d, x%1d, x%1d", $time, pc, insn, insn`rd, insn`rs1, insn`rs2);
@@ -92,20 +83,6 @@ module yarvi_disass( input             clock
              endcase
 
         `LUI:  $display("%05d  %x %x lui    x%1d, 0x%1x000", $time, pc, insn, insn`rd, insn[31:12]);
-
-        `OP_32: case (insn`funct3)
-               0:       $display("%05d  %x %x addiw  x%1d, x%1d, %1d", $time, pc, insn, insn`rd, insn`rs1, $signed(i_imm));
-               1:       $display("%05d  %x %x slliw  x%1d, x%1d, %1d", $time, pc, insn, insn`rd, insn`rs1, i_imm[4:0]);
-               `ADDSUB: if (insn[30])
-                        $display("%05d  %x %x subw   x%1d, x%1d, x%1d", $time, pc, insn, insn`rd, insn`rs1, insn`rs2);
-               else
-                        $display("%05d  %x %x addw   x%1d, x%1d, x%1d", $time, pc, insn, insn`rd, insn`rs1, insn`rs2);
-               `SLL:    $display("%05d  %x %x sllw   x%1d, x%1d, x%1d", $time, pc, insn, insn`rd, insn`rs1, insn`rs2);
-               `SR_:  if (insn[30])
-                 $display("%05d  %x %x sraw   x%1d, x%1d, x%1d", $time, pc, insn, insn`rd, insn`rs1, insn`rs2);
-               else
-                 $display("%05d  %x %x srlw   x%1d, x%1d, x%1d", $time, pc, insn, insn`rd, insn`rs1, insn`rs2);
-                endcase
 
         `AUIPC:$display("%05d  %x %x auipc  x%1d, 0x%1x000", $time, pc, insn, insn`rd, insn[31:12]);
 
@@ -182,7 +159,7 @@ module yarvi_disass( input             clock
   always @(posedge clock)
     if (valid & !disass)
        if (we)
-         $display("%d 0x%016x (0x%x) x%2d 0x%x", prv, pc, insn, addr, d);
+         $display("%d 0x%08x (0x%x) x%2d 0x%x", prv, pc, insn, addr, d);
        else
-         $display("%d 0x%016x (0x%x)", prv, pc, insn);
+         $display("%d 0x%08x (0x%x)", prv, pc, insn);
 endmodule

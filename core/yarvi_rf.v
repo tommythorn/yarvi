@@ -18,14 +18,14 @@ module yarvi_rf( input  wire             clock
                , input  wire [31:0]      insn
                , input  wire             we
                , input  wire [ 4:0]      addr
-               , input  wire [63:0]      d
+               , input  wire [`XMSB:0]   d
 
                , output reg  [`VMSB:0]   rf_pc
                , output reg  [31:0]      rf_insn
-               , output wire [63:0]      rf_rs1_val
-               , output wire [63:0]      rf_rs2_val);
+               , output wire [`VMSB:0]   rf_rs1_val
+               , output wire [`VMSB:0]   rf_rs2_val);
 
-   reg [63:0] regs[0:31];
+   reg [`VMSB:0] regs[0:31];
    reg [ 4:0] rp1 = 0, rp2 = 0;
 
    always @(posedge clock) rf_pc      <= pc;

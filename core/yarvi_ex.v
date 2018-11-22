@@ -6,7 +6,7 @@
 
 /*************************************************************************
 
-This is a simple RISC-V RV64I implementation.
+This is a simple RISC-V RV32I implementation.
 
 XXX Need to include CSR access permission check
 
@@ -18,8 +18,8 @@ module yarvi_ex( input  wire             clock
 
                , input  wire [`VMSB:0]   pc
                , input  wire [31:0]      insn
-               , input  wire [63:0]      rs1_val
-               , input  wire [63:0]      rs2_val
+               , input  wire [`VMSB:0]      rs1_val
+               , input  wire [`VMSB:0]      rs2_val
 
                , output reg              ex_valid = 0
                , output     [ 1:0]       ex_prv
@@ -30,7 +30,7 @@ module yarvi_ex( input  wire             clock
                , output reg [`VMSB:0]    ex_restart_pc
 
                , output reg              ex_wben
-               , output reg  [63:0]      ex_wb_val
+               , output reg  [`VMSB:0]      ex_wb_val
                , output reg  [ 4:0]      ex_wb_rd
 
                // Mem interface
@@ -60,8 +60,8 @@ module yarvi_ex( input  wire             clock
    always @(posedge clock) rf_valid   <= !ex_restart;
    always @(posedge clock) ex_valid   <= rf_valid & !ex_restart;
 
-   reg  [63:0] ex_rs1_val       = 0; always @(posedge clock) ex_rs1_val <= rs1_val;
-   reg  [63:0] ex_rs2_val       = 0; always @(posedge clock) ex_rs2_val <= rs2_val;
+   reg  [`VMSB:0] ex_rs1_val       = 0; always @(posedge clock) ex_rs1_val <= rs1_val;
+   reg  [`VMSB:0] ex_rs2_val       = 0; always @(posedge clock) ex_rs2_val <= rs2_val;
 
    /* Processor state, mostly CSRs */
 
@@ -75,53 +75,53 @@ module yarvi_ex( input  wire             clock
    reg  [ 4:0] csr_fflags       = 0;            // 001
    reg  [ 2:0] csr_frm          = 0;            // 002
 
-   reg  [63:0] csr_stvec        = 'h 100;       // 105
+   reg  [`VMSB:0] csr_stvec        = 'h 100;       // 105
 
 `ifdef not_hard_wired_to_zero
    // MRO, Machine Information Registers
-   reg  [63:0] csr_mvendorid    = 0;            // f11
-   reg  [63:0] csr_marchid      = 0;            // f12
-   reg  [63:0] csr_mimpid       = 0;            // f13
-   reg  [63:0] csr_mhartid      = 0;            // f14
+   reg  [`VMSB:0] csr_mvendorid    = 0;            // f11
+   reg  [`VMSB:0] csr_marchid      = 0;            // f12
+   reg  [`VMSB:0] csr_mimpid       = 0;            // f13
+   reg  [`VMSB:0] csr_mhartid      = 0;            // f14
 `endif
-   reg  [63:0] csr_satp         = 0;            // 180
+   reg  [`VMSB:0] csr_satp         = 0;            // 180
 
    // MRW, Machine Trap Setup
-   reg  [63:0] csr_mstatus      = {2'd 3, 1'd 0};// 300
-   reg  [63:0] csr_medeleg      = 0;            // 302
-   reg  [63:0] csr_mideleg      = 0;            // 303
+   reg  [`VMSB:0] csr_mstatus      = {2'd 3, 1'd 0};// 300
+   reg  [`VMSB:0] csr_medeleg      = 0;            // 302
+   reg  [`VMSB:0] csr_mideleg      = 0;            // 303
    reg  [ 7:0] csr_mie          = 0;            // 304
-   reg  [63:0] csr_mtvec        = 'h 100;       // 305
+   reg  [`VMSB:0] csr_mtvec        = 'h 100;       // 305
 
    // MRW, Machine Time and Counters
    // MRW, Machine Trap Handling
-   reg  [63:0] csr_mscratch     = 0;            // 340
-   reg  [63:0] csr_mepc         = 0;            // 341
-   reg  [63:0] csr_mcause       = 0;            // 342
-   reg  [63:0] csr_mtval        = 0;            // 343
+   reg  [`VMSB:0] csr_mscratch     = 0;            // 340
+   reg  [`VMSB:0] csr_mepc         = 0;            // 341
+   reg  [`VMSB:0] csr_mcause       = 0;            // 342
+   reg  [`VMSB:0] csr_mtval        = 0;            // 343
    reg  [ 7:0] csr_mip          = 0;            // 344
 
    // URO
-   reg  [63:0] csr_mcycle       = 0;            // b00
-   reg  [63:0] csr_mtime        = 0;            // b01? not used?
-   reg  [63:0] csr_minstret     = 0;            // b02
+   reg  [`VMSB:0] csr_mcycle       = 0;            // b00
+   reg  [`VMSB:0] csr_mtime        = 0;            // b01? not used?
+   reg  [`VMSB:0] csr_minstret     = 0;            // b02
 
 
    wire        ex_sign          = ex_insn[31];
-   wire [51:0] ex_sign52        = {52{ex_sign}};
-   wire [43:0] ex_sign44        = {44{ex_sign}};
+   wire [19:0] ex_sign20        = {20{ex_sign}};
+   wire [11:0] ex_sign12        = {12{ex_sign}};
 
    // I-type
-   wire [63:0] ex_i_imm         = {ex_sign52, ex_insn`funct7, ex_insn`rs2};
+   wire [`VMSB:0] ex_i_imm      = {ex_sign20, ex_insn`funct7, ex_insn`rs2};
 
    // S-type
-   wire [63:0] ex_s_imm         = {ex_sign52, ex_insn`funct7, ex_insn`rd};
-   wire [63:0] ex_sb_imm        = {ex_sign52, ex_insn[7], ex_insn[30:25], ex_insn[11:8], 1'd0};
+   wire [`VMSB:0] ex_s_imm      = {ex_sign20, ex_insn`funct7, ex_insn`rd};
+   wire [`VMSB:0] ex_sb_imm     = {ex_sign20, ex_insn[7], ex_insn[30:25], ex_insn[11:8], 1'd0};
 
    // U-type
-   wire [63:0] ex_uj_imm        = {ex_sign44, ex_insn[19:12], ex_insn[20], ex_insn[30:21], 1'd0};
+   wire [`VMSB:0] ex_uj_imm     = {ex_sign12, ex_insn[19:12], ex_insn[20], ex_insn[30:21], 1'd0};
 
-   reg  [63:0] wb_wb_val        = 0; always @(posedge clock) wb_wb_val <= ex_wb_val;
+   reg  [`VMSB:0] wb_wb_val     = 0; always @(posedge clock) wb_wb_val <= ex_wb_val;
    reg  [ 4:0] wb_wb_rd         = 0; always @(posedge clock) wb_wb_rd  <= ex_wb_rd;
    reg         wb_wben          = 0; always @(posedge clock) wb_wben   <= ex_wben;
 
@@ -134,27 +134,27 @@ module yarvi_ex( input  wire             clock
    wire        rs2_forward_ex   = ex_insn`rs2 == wb_wb_rd && ex_wben;
   */
 
-   wire [63:0] ex_rs1           = /* rs1_forward_ex ? wb_wb_val : */ ex_rs1_val;
-   wire [63:0] ex_rs2           = /* rs2_forward_ex ? wb_wb_val : */ ex_rs2_val;
+   wire [`VMSB:0] ex_rs1           = /* rs1_forward_ex ? wb_wb_val : */ ex_rs1_val;
+   wire [`VMSB:0] ex_rs2           = /* rs2_forward_ex ? wb_wb_val : */ ex_rs2_val;
 
-   wire [63:0] ex_rs1_val_cmp   = (ex_insn`br_unsigned << 63) ^ ex_rs1;
-   wire [63:0] ex_rs2_val_cmp   = (ex_insn`br_unsigned << 63) ^ ex_rs2;
+   wire [`VMSB:0] ex_rs1_val_cmp   = (ex_insn`br_unsigned << `VMSB) ^ ex_rs1;
+   wire [`VMSB:0] ex_rs2_val_cmp   = (ex_insn`br_unsigned << `VMSB) ^ ex_rs2;
    wire        ex_cmp_eq        = ex_rs1 == ex_rs2;
    wire        ex_cmp_lt        = $signed(ex_rs1_val_cmp) < $signed(ex_rs2_val_cmp);
    wire        ex_branch_taken  = (ex_insn`br_rela ? ex_cmp_lt : ex_cmp_eq) ^ ex_insn`br_negate;
 
-   wire [63:0] ex_rs2_val_imm   = ex_insn`opcode == `OP_IMM || ex_insn`opcode == `OP_IMM_32
+   wire [`VMSB:0] ex_rs2_val_imm   = ex_insn`opcode == `OP_IMM || ex_insn`opcode == `OP_IMM_32
                ? ex_i_imm : ex_rs2;
 
    wire [31:0] ex_sum32         = ex_insn[30] && ex_insn`opcode == `OP_32
                                   ? ex_rs1 - ex_rs2_val_imm
                                   : ex_rs1 + ex_rs2_val_imm;
-   wire [63:0] ex_sum_w         = {{32{ex_sum32[31]}},ex_sum32};
+   wire [`VMSB:0] ex_sum_w         = {{32{ex_sum32[31]}},ex_sum32};
 
    // XXX for timing, we should calculate csr_val already in RF and deal with the hazards
    reg [11:0]  csr_addr;
-   reg [63:0]  csr_d;
-   reg [63:0]  csr_val;
+   reg [`VMSB:0]  csr_d;
+   reg [`VMSB:0]  csr_val;
    always @(*)
      case (ex_insn`imm11_0)
        // Standard User R/W
@@ -233,33 +233,12 @@ module yarvi_ex( input  wire             clock
              `SLTU:   ex_wb_val =         ex_rs1  <         ex_rs2_val_imm;
              `XOR:    ex_wb_val =         ex_rs1  ^         ex_rs2_val_imm;
              `SR_:    if (ex_insn[30])
-                        ex_wb_val = $signed(ex_rs1) >>>       ex_rs2_val_imm[5:0];
+                        ex_wb_val = $signed(ex_rs1) >>>       ex_rs2_val_imm[4:0];
                       else
-                        ex_wb_val =         ex_rs1  >>        ex_rs2_val_imm[5:0];
-             `SLL:    ex_wb_val =         ex_rs1  <<        ex_rs2_val_imm[5:0];
+                        ex_wb_val =         ex_rs1  >>        ex_rs2_val_imm[4:0];
+             `SLL:    ex_wb_val =         ex_rs1  <<        ex_rs2_val_imm[4:0];
              `OR:     ex_wb_val =         ex_rs1  |         ex_rs2_val_imm;
              `AND:    ex_wb_val =         ex_rs1  &         ex_rs2_val_imm;
-             default: ex_wben = 0;
-           endcase
-        end
-
-        `OP_IMM_32, `OP_32: begin
-           ex_wben   = |ex_insn`rd;
-           ex_wb_rd  = ex_insn`rd;
-           case (ex_insn`funct3)
-             `ADDSUB: ex_wb_val = ex_sum_w;
-             `SLL: begin
-                ex_wb_val = ex_rs1[31:0] << ex_rs2_val_imm[4:0];
-                ex_wb_val = {{32{ex_wb_val[31]}},ex_wb_val[31:0]};
-             end
-             `SR_: begin
-                if (ex_insn[30])
-                  ex_wb_val = {{32{ex_rs1[31]}},ex_rs1[31:0]};
-                else
-                  ex_wb_val = {32'h0,           ex_rs1[31:0]};
-                ex_wb_val = $signed(ex_wb_val) >>> ex_rs2_val_imm[4:0];
-                ex_wb_val = {{32{ex_wb_val[31]}},ex_wb_val[31:0]}; // Stictly only needed for 0 shifts
-             end
              default: ex_wben = 0;
            endcase
         end
@@ -273,13 +252,13 @@ module yarvi_ex( input  wire             clock
         `AUIPC: begin
            ex_wben   = |ex_insn`rd;
            ex_wb_rd  = ex_insn`rd;
-           ex_wb_val = ex_pc + {{32{ex_insn[31]}},ex_insn[31:12], 12'd0};
+           ex_wb_val = ex_pc + {ex_insn[31:12], 12'd0};
         end
 
         `LUI: begin
            ex_wben   = |ex_insn`rd;
            ex_wb_rd  = ex_insn`rd;
-           ex_wb_val = {{32{ex_insn[31]}},ex_insn[31:12], 12'd0};
+           ex_wb_val = {ex_insn[31:12], 12'd0};
         end
 
         `JALR: begin
@@ -287,7 +266,7 @@ module yarvi_ex( input  wire             clock
            ex_wb_rd      = ex_insn`rd;
            ex_wb_val     = ex_pc + 4;
            ex_restart    = 1;
-           ex_restart_pc = (ex_rs1_val + ex_i_imm) & ~64'd1;
+           ex_restart_pc = (ex_rs1_val + ex_i_imm) & ~32'd1;
         end
 
         `JAL: begin

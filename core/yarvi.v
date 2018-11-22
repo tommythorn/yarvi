@@ -22,12 +22,12 @@ module yarvi( input  wire        clock);
 
    wire [`VMSB:0]   rf_pc;
    wire [31:0]      rf_insn;
-   wire [63:0]      rf_rs1_val;
-   wire [63:0]      rf_rs2_val;
+   wire [`VMSB:0]   rf_rs1_val;
+   wire [`VMSB:0]   rf_rs2_val;
 
    wire             ex_wben;
    wire [ 4:0]      ex_wb_rd;
-   wire [63:0]      ex_wb_val;
+   wire [`VMSB:0]   ex_wb_val;
 
    wire             ex_valid;
    wire [ 1:0]      ex_prv;

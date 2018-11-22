@@ -57,8 +57,10 @@
 `define PRIV            0
 `define   ECALL             0
 `define   EBREAK            1
-`define   SRET          'h102 // 0001000 00010
-`define   MRET          'h302 // 0011000 00010
+`define   SRET          'h002
+`define   SRET          'h102
+`define   WFI           'h105
+`define   MRET          'h302
 `define CSRRW           1
 `define CSRRS           2
 `define CSRRC           3
