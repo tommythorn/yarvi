@@ -2,11 +2,10 @@ CORE=../core/
 VERB=
 VERB=-DVERBOSE_SIMULATION
 
-SRC=../sim/toplevel.v $(CORE)htif.v $(CORE)yarvi_soc.v $(CORE)yarvi_disass.v $(CORE)yarvi.v $(CORE)yarvi_fe.v $(CORE)yarvi_rf.v $(CORE)yarvi_ex.v \
-$(CORE)yarvi_me.v
+SRC=../sim/toplevel.v $(CORE)htif.v $(CORE)yarvi_soc.v $(CORE)yarvi_disass.v $(CORE)yarvi.v $(CORE)yarvi_fe.v $(CORE)yarvi_rf.v $(CORE)yarvi_ex.v $(CORE)yarvi_me.v
 HDR=$(CORE)riscv.h
 
-.PRECIOUS: .hex .yarvi
+.PRECIOUS: %.hex %.yarvi
 
 # Adjust to match your RISC-V toolchain
 RVPATH=
@@ -145,6 +144,11 @@ newtest: $(patsubst %,$(TESTDIR)%.trace,$(TESTS))
 	@printf "  Passing: %3d\n" $$(ls $(patsubst %,$(TESTDIR)%.trace.pass,$(TESTS)) 2> /dev/null| wc -l)
 	@printf "  Failing: %3d\n" $$(ls $(patsubst %,$(TESTDIR)%.trace.fail,$(TESTS)) 2> /dev/null| wc -l)
 
+multisim: $(patsubst %,$(TESTDIR)%.multisim,$(TESTS))
+
+%.multisim: %
+	multisim -c $<
+
 %.bin: %
 	$(RVPREFIX)objcopy -O binary $^ $@
 
@@ -160,7 +164,10 @@ newtest: $(patsubst %,$(TESTDIR)%.trace,$(TESTS))
 %.yarvi: %.hex $(SRC) $(HDR)
 	iverilog -I../core/ -DSIMULATION $(VERB) -DINIT_MEM=\"$<\" -o $@ $(SRC)
 
-%.trace: %.yarvi
+%.trace: %.yarvi %.hex
 	./$^ > $@
 	if grep -q 'TOHOST 00000001' $@;then \
 		touch $@.pass; else ln -fs $@ $@.fail; fi
+
+%.run: %.yarvi %.hex
+	./$^

@@ -90,7 +90,6 @@
 `define CSR_FFLAGS              'h 001
 `define CSR_FRM                 'h 002
 `define CSR_FCSR                'h 003                  /* alias for the frm + fflags */
-
 `define CSR_UIE                 'h 004
 `define CSR_UTVEC               'h 005
 
@@ -110,12 +109,6 @@
 `define CSR_CYCLEH              'h C80
 `define CSR_TIMEH               'h C81
 `define CSR_INSTRETH            'h C82
-
-// Machine-level
-`define CSR_MVENDORID           'h F11
-`define CSR_MARCHID             'h F12
-`define CSR_MIMPID              'h F13
-`define CSR_MHARTID             'h F14
 
 `define CSR_MSTATUS             'h 300
   `define UIE   [0]     // User       Interrupt Enable
@@ -157,11 +150,21 @@
 `define CSR_MTVAL               'h 343
 `define CSR_MIP                 'h 344
 
+`define CSR_PMPCFG0             'h 3A0
+`define CSR_PMPADDR0            'h 3B0
+
 `define CSR_MCYCLE              'h B00
 `define CSR_MINSTRET            'h B02
 
 `define CSR_MCYCLEH             'h B80
 `define CSR_MINSTRETH           'h B82
+
+// Machine-level
+`define CSR_MVENDORID           'h F11
+`define CSR_MARCHID             'h F12
+`define CSR_MIMPID              'h F13
+`define CSR_MHARTID             'h F14
+
 
 // Trap causes
 

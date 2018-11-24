@@ -29,7 +29,7 @@ module toplevel();
 
    yarvi_soc yarvi_soc
      ( .clock           (clock)
-
+     , .reset           (reset)
      , .rx_ready        (rx_ready)
      , .rx_valid        (rx_valid)
      , .rx_data         (rx_data)
@@ -46,6 +46,7 @@ module toplevel();
 
       #10
       reset = 0;
+      $display("out of reset");
 
       #16000
 	$display("TIMED OUT");

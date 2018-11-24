@@ -72,8 +72,9 @@ module yarvi_soc
 
    yarvi yarvi
      ( .clock           (clock)
-/*   , .reset           (reset | htif_reset)
+     , .reset           (reset)
 
+     /*
      , .bus_req_ready   (bus_req_ready)
      , .bus_req_read    (bus_req_read)
      , .bus_req_write   (bus_req_write)

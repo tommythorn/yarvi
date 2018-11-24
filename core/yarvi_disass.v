@@ -7,14 +7,15 @@
 `include "yarvi.h"
 
 module yarvi_disass( input             clock
-                   , input             valid
-                   , input [ 1:0]      prv
-                   , input [`VMSB:0]   pc
-                   , input [31:0]      insn
+                     , input             valid
+                     , input [ 1:0]      prv
+                     , input [`VMSB:0]   pc
+                     , input [31:0]      insn
 
-                   , input             we
-                   , input [ 4:0]      addr
-                   , input [`VMSB:0]      d);
+                     , input [ 4:0]      wb_rd
+                     , input [`VMSB:0]   wb_val);
+
+   wire        we            = |wb_rd;
 
    wire        sign          = insn[31];
    wire [19:0] sign20        = {20{sign}};
@@ -30,136 +31,135 @@ module yarvi_disass( input             clock
    // U-type
    wire [`VMSB:0] uj_imm       = {sign12, insn[19:12], insn[20], insn[30:21], 1'd0};
 
-   wire        disass = 0;
+   wire           disass = 1;
 
-  always @(posedge clock)
-    if (valid & disass) begin
-      case (insn`opcode)
-        `BRANCH:
-          case (insn`funct3)
-            0: $display("%05d  %x %x beq    x%1d, x%1d, 0x%x", $time, pc, insn, insn`rs1, insn`rs2, pc + sb_imm);
-            1: $display("%05d  %x %x bne    x%1d, x%1d, 0x%x", $time, pc, insn, insn`rs1, insn`rs2, pc + sb_imm);
-            4: $display("%05d  %x %x blt    x%1d, x%1d, 0x%x", $time, pc, insn, insn`rs1, insn`rs2, pc + sb_imm);
-            5: $display("%05d  %x %x bge    x%1d, x%1d, 0x%x", $time, pc, insn, insn`rs1, insn`rs2, pc + sb_imm);
-            6: $display("%05d  %x %x bltu   x%1d, x%1d, 0x%x", $time, pc, insn, insn`rs1, insn`rs2, pc + sb_imm);
-            7: $display("%05d  %x %x bgeu   x%1d, x%1d, 0x%x", $time, pc, insn, insn`rs1, insn`rs2, pc + sb_imm);
-          endcase
+   always @(posedge clock) begin
+      if (!valid)
+        $display("%5d", $time/10);
 
-        `OP_IMM: case (insn`funct3)
-                   `ADDSUB:
-                     if (insn == 32 'h 00000013)
-                       $display("%05d  %x %x nop", $time, pc, insn);
-                     else
-                       $display("%05d  %x %x addi   x%1d, x%1d, %1d", $time, pc, insn, insn`rd, insn`rs1, $signed(i_imm));
-                   `SLL:    $display("%05d  %x %x slli   x%1d, x%1d, %1d", $time, pc, insn, insn`rd, insn`rs1, i_imm[5:0]);
-                   `SLT:    $display("%05d  %x %x slti   x%1d, x%1d, %1d", $time, pc, insn, insn`rd, insn`rs1, $signed(i_imm));
-                   `SLTU:   $display("%05d  %x %x sltui  x%1d, x%1d, %1d", $time, pc, insn, insn`rd, insn`rs1, $signed(i_imm));
-                   `XOR:    $display("%05d  %x %x xori   x%1d, x%1d, %1d", $time, pc, insn, insn`rd, insn`rs1, $signed(i_imm));
-                   `SR_:  if (insn[30])
-                     $display("%05d  %x %x srai   x%1d, x%1d, %1d", $time, pc, insn, insn`rd, insn`rs1, i_imm[5:0]);
-                   else
-                     $display("%05d  %x %x srli   x%1d, x%1d, %1d", $time, pc, insn, insn`rd, insn`rs1, i_imm[5:0]);
-                   `OR:     $display("%05d  %x %x ori    x%1d, x%1d, %1d", $time, pc, insn, insn`rd, insn`rs1, $signed(i_imm));
-                   `AND:    $display("%05d  %x %x andi   x%1d, x%1d, %1d", $time, pc, insn, insn`rd, insn`rs1, $signed(i_imm));
-                   default: $display("%05d  %x %x OP_IMM %1d", $time, pc, insn, insn`funct3);
-                 endcase
+      if (valid && we)
+        $write("%5d  %d %x %x %x", $time/10, prv, pc, insn, wb_val);
+      else if (valid && disass)
+        $write("%5d  %d %x %x         ", $time/10, prv, pc, insn);
 
-        `OP: case (insn`funct3)
-               `ADDSUB: if (insn[30])
-                 $display("%05d  %x %x sub    x%1d, x%1d, x%1d", $time, pc, insn, insn`rd, insn`rs1, insn`rs2);
-               else
-                 $display("%05d  %x %x add    x%1d, x%1d, x%1d", $time, pc, insn, insn`rd, insn`rs1, insn`rs2);
-               `SLL:    $display("%05d  %x %x sll    x%1d, x%1d, x%1d", $time, pc, insn, insn`rd, insn`rs1, insn`rs2);
-               `SLT:    $display("%05d  %x %x slt    x%1d, x%1d, x%1d", $time, pc, insn, insn`rd, insn`rs1, insn`rs2);
-               `SLTU:   $display("%05d  %x %x sltu   x%1d, x%1d, x%1d", $time, pc, insn, insn`rd, insn`rs1, insn`rs2);
-               `XOR:    $display("%05d  %x %x xor    x%1d, x%1d, x%1d", $time, pc, insn, insn`rd, insn`rs1, insn`rs2);
-               `SR_:  if (insn[30])
-                 $display("%05d  %x %x sra    x%1d, x%1d, x%1d", $time, pc, insn, insn`rd, insn`rs1, insn`rs2);
-               else
-                 $display("%05d  %x %x srl    x%1d, x%1d, x%1d", $time, pc, insn, insn`rd, insn`rs1, insn`rs2);
-               `OR:     $display("%05d  %x %x ori    x%1d, x%1d, x%1d", $time, pc, insn, insn`rd, insn`rs1, insn`rs2);
-               `AND:    $display("%05d  %x %x and    x%1d, x%1d, x%1d", $time, pc, insn, insn`rd, insn`rs1, insn`rs2);
-               default: $display("%05d  %x %x OP %1d", $time, pc, insn, insn`funct3);
+      if (valid && disass) begin
+         case (insn`opcode)
+           `BRANCH:
+             case (insn`funct3)
+               0: $write(" beq    r%1d, r%1d, 0x%x", insn`rs1, insn`rs2, pc + sb_imm);
+               1: $write(" bne    r%1d, r%1d, 0x%x", insn`rs1, insn`rs2, pc + sb_imm);
+               4: $write(" blt    r%1d, r%1d, 0x%x", insn`rs1, insn`rs2, pc + sb_imm);
+               5: $write(" bge    r%1d, r%1d, 0x%x", insn`rs1, insn`rs2, pc + sb_imm);
+               6: $write(" bltu   r%1d, r%1d, 0x%x", insn`rs1, insn`rs2, pc + sb_imm);
+               7: $write(" bgeu   r%1d, r%1d, 0x%x", insn`rs1, insn`rs2, pc + sb_imm);
              endcase
 
-        `LUI:  $display("%05d  %x %x lui    x%1d, 0x%1x000", $time, pc, insn, insn`rd, insn[31:12]);
+           `OP_IMM:
+             case (insn`funct3)
+               `ADDSUB:
+                 if (insn == 32 'h 00000013)
+                   $write(" nop");
+                 else
+                   $write(" addi   r%1d, r%1d, %1d", insn`rd, insn`rs1, $signed(i_imm));
+               `SLL:  $write(" slli   r%1d, r%1d, %1d", insn`rd, insn`rs1, i_imm[5:0]);
+               `SLT:  $write(" slti   r%1d, r%1d, %1d", insn`rd, insn`rs1, $signed(i_imm));
+               `SLTU: $write(" sltui  r%1d, r%1d, %1d", insn`rd, insn`rs1, $signed(i_imm));
+               `XOR:  $write(" xori   r%1d, r%1d, %1d", insn`rd, insn`rs1, $signed(i_imm));
+               `SR_:  $write(" sr%si   r%1d, r%1d, %1d", insn[30] ? "a" : "l", insn`rd, insn`rs1, i_imm[5:0]);
+               `OR:   $write(" ori    r%1d, r%1d, %1d", insn`rd, insn`rs1, $signed(i_imm));
+               `AND:  $write(" andi   r%1d, r%1d, %1d", insn`rd, insn`rs1, $signed(i_imm));
+               default:$write(" OP_IMM %1d", insn`funct3);
+             endcase
 
-        `AUIPC:$display("%05d  %x %x auipc  x%1d, 0x%1x000", $time, pc, insn, insn`rd, insn[31:12]);
+           `OP:
+             case (insn`funct3)
+               `ADDSUB: if (insn[30])
+                 $write(" sub    r%1d, r%1d, r%1d", insn`rd, insn`rs1, insn`rs2);
+               else
+                 $write(" add    r%1d, r%1d, r%1d", insn`rd, insn`rs1, insn`rs2);
+               `SLL: $write(" sll    r%1d, r%1d, r%1d", insn`rd, insn`rs1, insn`rs2);
+               `SLT: $write(" slt    r%1d, r%1d, r%1d", insn`rd, insn`rs1, insn`rs2);
+               `SLTU: $write(" sltu   r%1d, r%1d, r%1d", insn`rd, insn`rs1, insn`rs2);
+               `XOR: $write(" xor    r%1d, r%1d, r%1d", insn`rd, insn`rs1, insn`rs2);
+               `SR_: if (insn[30])
+                 $write(" sra    r%1d, r%1d, r%1d", insn`rd, insn`rs1, insn`rs2);
+               else
+                 $write(" srl    r%1d, r%1d, r%1d", insn`rd, insn`rs1, insn`rs2);
+               `OR: $write(" ori    r%1d, r%1d, r%1d", insn`rd, insn`rs1, insn`rs2);
+               `AND: $write(" and    r%1d, r%1d, r%1d", insn`rd, insn`rs1, insn`rs2);
+               default: $write(" OP %1d", insn`funct3);
+             endcase
 
-        `LOAD: case (insn`funct3)
-                 0: $display("%05d  %x %x lb     x%1d, %1d(x%1d)", $time, pc, insn, insn`rd, $signed(i_imm), insn`rs1);
-                 1: $display("%05d  %x %x lh     x%1d, %1d(x%1d)", $time, pc, insn, insn`rd, $signed(i_imm), insn`rs1);
-                 2: $display("%05d  %x %x lw     x%1d, %1d(x%1d)", $time, pc, insn, insn`rd, $signed(i_imm), insn`rs1);
-                 3: $display("%05d  %x %x ld     x%1d, %1d(x%1d)", $time, pc, insn, insn`rd, $signed(i_imm), insn`rs1);
-                 4: $display("%05d  %x %x lbu    x%1d, %1d(x%1d)", $time, pc, insn, insn`rd, $signed(i_imm), insn`rs1);
-                 5: $display("%05d  %x %x lhu    x%1d, %1d(x%1d)", $time, pc, insn, insn`rd, $signed(i_imm), insn`rs1);
-                 6: $display("%05d  %x %x lwu    x%1d, %1d(x%1d)", $time, pc, insn, insn`rd, $signed(i_imm), insn`rs1);
-                 default: $display("%05d  %x %x l??%1d?? x%1d, %1d(x%1d)", $time, pc, insn, insn`funct3, insn`rd, $signed(i_imm), insn`rs1);
-               endcase
+           `LUI:  $write(" lui    r%1d, 0x%1x000", insn`rd, insn[31:12]);
 
-        `STORE: case (insn`funct3)
-                  0: $display("%05d  %x %x sb     x%1d, %1d(x%1d)", $time, pc, insn, insn`rs2, $signed(s_imm), insn`rs1);
-                  1: $display("%05d  %x %x sh     x%1d, %1d(x%1d)", $time, pc, insn, insn`rs2, $signed(s_imm), insn`rs1);
-                  2: $display("%05d  %x %x sw     x%1d, %1d(x%1d)", $time, pc, insn, insn`rs2, $signed(s_imm), insn`rs1);
-                  3: $display("%05d  %x %x sd     x%1d, %1d(x%1d)", $time, pc, insn, insn`rs2, $signed(s_imm), insn`rs1);
-                  default: $display("%05d  %x %x s??%1d?? x%1d, %1d(x%1d)", $time, pc, insn, insn`funct3, insn`rs2, $signed(s_imm), insn`rs1);
-                endcase
+           `AUIPC:$write(" auipc  r%1d, 0x%1x000", insn`rd, insn[31:12]);
 
-        `JAL: $display("%05d  %x %x jal    x%1d, 0x%x", $time, pc, insn, insn`rd, pc + uj_imm);
-        `JALR:
-          if (insn`rd == 0 && i_imm == 0 && insn`rs1 == 32)  // XXX what is the condition for ret?
-            $display("%05d  %x %x ret", $time, pc, insn);
-          else
-            $display("%05d  %x %x jalr   x%1d, x%1d, 0x%x", $time, pc, insn, insn`rd, insn`rs1, $signed(i_imm));
+           `LOAD:
+             case (insn`funct3)
+               0: $write(" lb     r%1d, %1d(r%1d)", insn`rd, $signed(i_imm), insn`rs1);
+               1: $write(" lh     r%1d, %1d(r%1d)", insn`rd, $signed(i_imm), insn`rs1);
+               2: $write(" lw     r%1d, %1d(r%1d)", insn`rd, $signed(i_imm), insn`rs1);
+               3: $write(" ld     r%1d, %1d(r%1d)", insn`rd, $signed(i_imm), insn`rs1);
+               4: $write(" lbu    r%1d, %1d(r%1d)", insn`rd, $signed(i_imm), insn`rs1);
+               5: $write(" lhu    r%1d, %1d(r%1d)", insn`rd, $signed(i_imm), insn`rs1);
+               6: $write(" lwu    r%1d, %1d(r%1d)", insn`rd, $signed(i_imm), insn`rs1);
+               default: $write(" l??%1d?? r%1d, %1d(r%1d)", insn`funct3, insn`rd, $signed(i_imm), insn`rs1);
+             endcase
 
-        `SYSTEM:
-          case (insn`funct3)
-            // XXX `PRIV: these affect control-flow
-            `CSRRS:  $display("%05d  %x %x csrrs  x%1d, csr%03X, x%1d", $time, pc, insn, insn`rd, insn`imm11_0, insn`rs1);
-            `CSRRC:  $display("%05d  %x %x csrrc  x%1d, csr%03X, x%1d", $time, pc, insn, insn`rd, insn`imm11_0, insn`rs1);
-            `CSRRW:  $display("%05d  %x %x csrrw  x%1d, csr%03X, x%1d", $time, pc, insn, insn`rd, insn`imm11_0, insn`rs1);
-            `CSRRSI: $display("%05d  %x %x csrrsi x%1d, csr%03X, %1d", $time, pc, insn, insn`rd, insn`imm11_0, insn`rs1);
-            `CSRRCI: $display("%05d  %x %x csrrci x%1d, csr%03X, %1d", $time, pc, insn, insn`rd, insn`imm11_0, insn`rs1);
-            `CSRRWI: $display("%05d  %x %x csrrwi x%1d, csr%03X, %1d", $time, pc, insn, insn`rd, insn`imm11_0, insn`rs1);
-            `PRIV: begin
-               case (insn`imm11_0)
-                 `ECALL:  $display("%05d  %x %x ecall", $time, pc, insn);
-                 `EBREAK: $display("%05d  %x %x ebreak", $time, pc, insn);
-                 `MRET:   $display("%05d  %x %x mret", $time, pc, insn);
-                 default: begin
-                    $display("%05d  %x %x PRIV opcode %1d?", $time, pc, insn, insn`imm11_0);
-                    $finish;
-                 end
-               endcase
-            end
-          endcase
+           `STORE:
+             case (insn`funct3)
+               0: $write(" sb     r%1d, %1d(r%1d)", insn`rs2, $signed(s_imm), insn`rs1);
+               1: $write(" sh     r%1d, %1d(r%1d)", insn`rs2, $signed(s_imm), insn`rs1);
+               2: $write(" sw     r%1d, %1d(r%1d)", insn`rs2, $signed(s_imm), insn`rs1);
+               3: $write(" sd     r%1d, %1d(r%1d)", insn`rs2, $signed(s_imm), insn`rs1);
+               default: $write(" s??%1d?? r%1d, %1d(r%1d)", insn`funct3, insn`rs2, $signed(s_imm), insn`rs1);
+             endcase
 
-        `MISC_MEM:
-          case (insn`funct3)
-            `FENCE:   $display("%05d  %x %x fence", $time, pc, insn);
-            `FENCE_I: $display("%05d  %x %x fence.i", $time, pc, insn);
-            default: begin
-               $display("%05d  %x %x unknown MISC_MEM sub %x", $time, pc, insn, insn`funct3);
-               $finish;
-            end
-          endcase
+           `JAL: $write(" jal    r%1d, 0x%x", insn`rd, pc + uj_imm);
+           `JALR:
+             if (insn`rd == 0 && i_imm == 0 && insn`rs1 == 32)  // XXX what is the condition for ret?
+               $write(" ret");
+             else
+               $write(" jalr   r%1d, r%1d, 0x%x", insn`rd, insn`rs1, $signed(i_imm));
 
-        default: begin
-           $display("%05d  %x %x ? opcode %1d", $time, pc, insn, insn`opcode);
-           $finish;
-        end
-      endcase
+           `SYSTEM:
+             case (insn`funct3)
+               // XXX `PRIV: these affect control-flow
+               `CSRRS:  $write(" csrrs  r%1d, csr%03X, r%1d", insn`rd, insn`imm11_0, insn`rs1);
+               `CSRRC:  $write(" csrrc  r%1d, csr%03X, r%1d", insn`rd, insn`imm11_0, insn`rs1);
+               `CSRRW:  $write(" csrrw  r%1d, csr%03X, r%1d", insn`rd, insn`imm11_0, insn`rs1);
+               `CSRRSI: $write(" csrrsi r%1d, csr%03X, %1d", insn`rd, insn`imm11_0, insn`rs1);
+               `CSRRCI: $write(" csrrci r%1d, csr%03X, %1d", insn`rd, insn`imm11_0, insn`rs1);
+               `CSRRWI: $write(" csrrwi r%1d, csr%03X, %1d", insn`rd, insn`imm11_0, insn`rs1);
+               `PRIV: begin
+                  case (insn`imm11_0)
+                    `ECALL:  $write(" ecall");
+                    `EBREAK: $write(" ebreak");
+                    `MRET:   $write(" mret");
+                    default: begin
+                       $write(" PRIV opcode %1d?", insn`imm11_0);
+                       $finish;
+                    end
+                  endcase
+               end
+             endcase
 
-       if (we)
-         $display("%05d                                            x%2d <- 0x%x", $time, addr, d);
-    end
+           `MISC_MEM:
+             case (insn`funct3)
+               `FENCE:   $write(" fence");
+               `FENCE_I: $write(" fence.i");
+               default: begin
+                  $write(" unknown MISC_MEM sub %x", insn`funct3);
+                  $finish;
+               end
+             endcase
 
-
-
-  always @(posedge clock)
-    if (valid & !disass)
-       if (we)
-         $display("%d 0x%08x (0x%x) x%2d 0x%x", prv, pc, insn, addr, d);
-       else
-         $display("%d 0x%08x (0x%x)", prv, pc, insn);
+           default: begin
+              $write(" ? opcode %1d", insn`opcode);
+              $finish;
+           end
+         endcase
+         $write("\n");
+      end
+   end
 endmodule
