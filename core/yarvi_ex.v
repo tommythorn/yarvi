@@ -198,8 +198,8 @@ module yarvi_ex( input  wire             clock
           $finish;
        end
 
-   wire [`VMSB:0] ex_rs1                = /* rs1_forward_ex ? wb_wb_val : */ ex_rs1_val;
-   wire [`VMSB:0] ex_rs2                = /* rs2_forward_ex ? wb_wb_val : */ ex_rs2_val;
+   wire [`VMSB:0] ex_rs1                = ex_rs1_val;
+   wire [`VMSB:0] ex_rs2                = ex_rs2_val;
 
    wire [`VMSB:0] ex_rs1_val_cmp        = (ex_insn`br_unsigned << `VMSB) ^ ex_rs1;
    wire [`VMSB:0] ex_rs2_val_cmp        = (ex_insn`br_unsigned << `VMSB) ^ ex_rs2;
@@ -208,11 +208,6 @@ module yarvi_ex( input  wire             clock
    wire           ex_branch_taken       = (ex_insn`br_rela ? ex_cmp_lt : ex_cmp_eq) ^ ex_insn`br_negate;
 
    wire [`VMSB:0] ex_rs2_val_imm        = ex_insn`opcode == `OP_IMM || ex_insn`opcode == `OP_IMM_32 ? ex_i_imm : ex_rs2;
-
-   wire [31:0]    ex_sum32              = (ex_insn[30] && ex_insn`opcode == `OP_32
-                                           ? ex_rs1 - ex_rs2_val_imm
-                                           : ex_rs1 + ex_rs2_val_imm);
-   wire [`VMSB:0] ex_sum_w              = {{32{ex_sum32[31]}},ex_sum32};
 
    // XXX for timing, we should calculate csr_val already in RF and deal with the hazards
    reg [`VMSB:0]  csr_d;
@@ -226,8 +221,6 @@ module yarvi_ex( input  wire             clock
 
        `CSR_MSTATUS:      csr_val = csr_mstatus;                // 300
        `CSR_MISA:         csr_val = (2 << 30) | (1 << ("I"-"A"));//301
-       `CSR_MEDELEG:      csr_val = csr_medeleg;                // 302
-       `CSR_MIDELEG:      csr_val = csr_mideleg;                // 303
        `CSR_MIE:          csr_val = csr_mie;                    // 304
        `CSR_MTVEC:        csr_val = csr_mtvec;                  // 305
        `CSR_MCOUNTEREN:   csr_val = 0;                          // 306
@@ -241,14 +234,11 @@ module yarvi_ex( input  wire             clock
        `CSR_MCYCLE:       csr_val = csr_mcycle;
        `CSR_MINSTRET:     csr_val = csr_minstret;
 
-       `CSR_STVEC:        csr_val = csr_stvec;
-       `CSR_SATP:         csr_val = csr_satp;
-
        `CSR_PMPCFG0:      csr_val = 0;                          // 3A0
        `CSR_PMPADDR0:     csr_val = 0;                          // 3B0
 
        // Standard Machine RO
-       `CSR_MVENDORID:    csr_val = 0;                          // F11
+       `CSR_MVENDORID:    csr_val = 9;                          // F11
        `CSR_MARCHID:      csr_val = 0;                          // F12
        `CSR_MIMPID:       csr_val = 0;                          // F13
        `CSR_MHARTID:      csr_val = 0;                          // F14
