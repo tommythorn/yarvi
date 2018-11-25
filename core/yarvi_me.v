@@ -58,7 +58,7 @@ module yarvi_me( input  wire             clock
    reg  [     31:0]     me_address;
    reg  [      2:0]     me_funct3;
    always @(posedge clock) me_re         <= valid & readenable;
-   always @(posedge clock) {me_wi,me_bi} <= address;
+   always @(posedge clock) {me_wi,me_bi} <= address[`PMSB:0];
    always @(posedge clock) me_address    <= address;
    always @(posedge clock) me_funct3     <= funct3;
 
@@ -78,9 +78,9 @@ module yarvi_me( input  wire             clock
       if (me_re)
         case (me_funct3)
           0: me_wb_val = {{24{me_rd_aligned[ 7]}}, me_rd_aligned[ 7:0]};
-          4: me_wb_val =                           me_rd_aligned[ 7:0];
+          4: me_wb_val = { 24'h0,                  me_rd_aligned[ 7:0]};
           1: me_wb_val = {{16{me_rd_aligned[15]}}, me_rd_aligned[15:0]};
-          5: me_wb_val =                           me_rd_aligned[15:0];
+          5: me_wb_val = { 16'h0,                  me_rd_aligned[15:0]};
           2: me_wb_val =                           me_rd;
          default:
              me_wb_val = 32'h DEADBEEF /* X */;
@@ -182,10 +182,10 @@ module yarvi_me( input  wire             clock
    initial begin
       $readmemh(`INIT_MEM, data);
       for (i = 0; i < (1<<(`PMSB - 1)); i = i + 1) begin
-         mem0[i] = data[i] >>  0;
-         mem1[i] = data[i] >>  8;
-         mem2[i] = data[i] >> 16;
-         mem3[i] = data[i] >> 24;
+         mem0[i] = data[i][7:0];
+         mem1[i] = data[i][15:8];
+         mem2[i] = data[i][23:16];
+         mem3[i] = data[i][31:24];
       end
    end
 endmodule
