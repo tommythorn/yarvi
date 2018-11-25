@@ -18,7 +18,6 @@ more cycles.  There might be multiple memory pending at any one time
 module yarvi_me( input  wire             clock
 
                , input  wire             valid
-               , input  wire             wb_en
                , input  wire [ 4:0]      wb_rd
                , input  wire [31:0]      wb_val
                , input  wire             writeenable
@@ -27,7 +26,6 @@ module yarvi_me( input  wire             clock
                , input  wire [31:0]      writedata
 
                , output reg              me_valid
-               , output reg              me_wb_en
                , output reg  [ 4:0]      me_wb_rd
                , output reg  [31:0]      me_wb_val
 
@@ -89,7 +87,6 @@ module yarvi_me( input  wire             clock
              me_wb_val = me_address; // Bypass load
 
    always @(posedge clock) me_valid <= valid;
-   always @(posedge clock) me_wb_en <= wb_en;
    always @(posedge clock) me_wb_rd <= wb_rd;
 
    //assert(!(valid && readenable && address[0] && funct3 > 0));

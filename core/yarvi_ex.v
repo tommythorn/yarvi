@@ -23,7 +23,7 @@ module yarvi_ex( input  wire             clock
                , input  wire [`VMSB:0]   rs2_val
 
                , input  wire             me_valid
-               , input  wire [ 4:0]      me_wb_rd
+               , input  wire [ 4:0]      me_wb_rd  // != 0 => WE. !valid => 0
                , input  wire [31:0]      me_wb_val
 
                , output reg              ex_valid
@@ -34,7 +34,7 @@ module yarvi_ex( input  wire             clock
                , output reg              ex_restart
                , output reg [`VMSB:0]    ex_restart_pc
 
-               , output reg  [ 4:0]      ex_wb_rd
+               , output reg  [ 4:0]      ex_wb_rd  // != 0 => WE. !valid => 0
                , output reg  [`VMSB:0]   ex_wb_val
 
                , output reg              ex_readenable
@@ -47,10 +47,8 @@ module yarvi_ex( input  wire             clock
       (this isn't the most natual way to write it but matches how we
       typically draw the pipelines).  */
    reg rf_valid;
-   reg [31:0] me_insn;
    always @(posedge clock) ex_pc      <= pc;
    always @(posedge clock) ex_insn    <= insn;
-   always @(posedge clock) me_insn    <= ex_insn;
    always @(posedge clock) rf_valid   <= !ex_restart;
    wire valid = rf_valid & !ex_restart;
    always @(posedge clock) ex_valid   <= valid;
@@ -69,7 +67,6 @@ module yarvi_ex( input  wire             clock
    reg  [`VMSB:0] csr_minstret;
    reg  [    7:0] csr_mip;
    reg  [`VMSB:0] csr_mscratch;
-   reg  [`VMSB:0] csr_mtime;
    reg  [`VMSB:0] csr_mstatus;
    reg  [`VMSB:0] csr_mtval;
    reg  [`VMSB:0] csr_mtvec;
@@ -96,9 +93,6 @@ module yarvi_ex( input  wire             clock
    // U-type
    wire [`VMSB:0] ex_uj_imm             = {ex_sign12, ex_insn[19:12], ex_insn[20], ex_insn[30:21], 1'd0};
 
-   reg  [`VMSB:0] wb_wb_val; always @(posedge clock) wb_wb_val <= ex_wb_val;
-   reg  [    4:0] wb_wb_rd ; always @(posedge clock) wb_wb_rd  <= ex_wb_rd;
-
    /* XXX style violation: operates directly on inputs; should be moved to decode */
    reg use_rs1, use_rs2;
    always @(*)
@@ -124,9 +118,6 @@ module yarvi_ex( input  wire             clock
         if (insn`rs1 == 0) use_rs1 = 0;
         if (insn`rs2 == 0) use_rs2 = 0;
      end
-   reg ex_use_rs1, ex_use_rs2;
-   always @(posedge clock) ex_use_rs1 <= use_rs1;
-   always @(posedge clock) ex_use_rs2 <= use_rs2;
 
    wire debug_bypass = 0 && valid;
 
