@@ -67,7 +67,7 @@ module yarvi_ex( input  wire             clock
    reg  [    1:0] priv;
    reg  [    4:0] csr_fflags;
    reg  [    2:0] csr_frm;
-   reg  [`VMSB:0] csr_mcause;
+   reg  [    3:0] csr_mcause;
    reg  [`VMSB:0] csr_mcycle;
    reg  [`VMSB:0] csr_mepc;
    reg  [    7:0] csr_mie;
@@ -81,7 +81,7 @@ module yarvi_ex( input  wire             clock
 
 
    /* Updates to machine state */
-   reg  [`VMSB:0] ex_csr_mcause;
+   reg  [    3:0] ex_csr_mcause;
    reg  [`VMSB:0] ex_csr_mepc;
    reg  [`VMSB:0] ex_csr_mstatus;
    reg  [`VMSB:0] ex_csr_mtval;
@@ -195,7 +195,7 @@ module yarvi_ex( input  wire             clock
 
        `CSR_MSCRATCH:     csr_val = csr_mscratch;
        `CSR_MEPC:         csr_val = csr_mepc;
-       `CSR_MCAUSE:       csr_val = csr_mcause;
+       `CSR_MCAUSE:       csr_val = {28'd0, csr_mcause};
        `CSR_MTVAL:        csr_val = csr_mtval;
        `CSR_MIP:          csr_val = {24'd0, csr_mip};
 
@@ -225,10 +225,11 @@ module yarvi_ex( input  wire             clock
       easier to work with. */
 
    reg        ex_csr_we;
+   reg        ex_trap;
    always @(*) begin
       ex_csr_we                         = 0;
       ex_restart                        = 0;
-      ex_restart_pc                     = 'hX;
+      ex_restart_pc                     = 0;
 
       ex_readenable                     = 0;
       ex_writeenable                    = 0;
@@ -242,6 +243,8 @@ module yarvi_ex( input  wire             clock
       ex_csr_mepc                       = csr_mepc;
       ex_csr_mstatus                    = csr_mstatus;
       ex_csr_mtval                      = csr_mtval;
+
+      ex_trap                           = 0;
 
       case (ex_insn`opcode)
         `OP_IMM, `OP: begin
@@ -265,8 +268,14 @@ module yarvi_ex( input  wire             clock
 
         `BRANCH: begin
            ex_restart_pc                = ex_pc + ex_sb_imm;
-           if (ex_branch_taken)
-             ex_restart                 = 1;
+           if (ex_branch_taken) begin
+              ex_restart                = 1;
+              if (ex_restart_pc[1:0]) begin
+                 ex_trap                = 1;
+                 ex_csr_mcause          = `CAUSE_MISALIGNED_FETCH;
+                 ex_csr_mtval           = ex_restart_pc;
+              end
+           end
         end
 
         `AUIPC: begin
@@ -284,6 +293,12 @@ module yarvi_ex( input  wire             clock
            ex_wb_val                    = ex_pc + 4;
            ex_restart                   = 1;
            ex_restart_pc                = (ex_rs1_val + ex_i_imm) & ~32'd1;
+           if (ex_restart_pc[1:0]) begin
+              ex_wb_rd                  = 0;
+              ex_trap                   = 1;
+              ex_csr_mcause             = `CAUSE_MISALIGNED_FETCH;
+              ex_csr_mtval              = ex_restart_pc;
+           end
         end
 
         `JAL: begin
@@ -291,6 +306,12 @@ module yarvi_ex( input  wire             clock
            ex_wb_val                    = ex_pc + 4;
            ex_restart                   = 1;
            ex_restart_pc                = ex_pc + ex_uj_imm;
+           if (ex_restart_pc[1:0]) begin
+              ex_wb_rd                  = 0;
+              ex_trap                   = 1;
+              ex_csr_mcause             = `CAUSE_MISALIGNED_FETCH;
+              ex_csr_mtval              = ex_restart_pc;
+           end
         end
 
         `SYSTEM: begin
@@ -309,16 +330,11 @@ module yarvi_ex( input  wire             clock
                 ex_restart              = 1;
                 case (ex_insn`imm11_0)
                   `ECALL, `EBREAK: begin
-                     ex_restart_pc      = csr_mtvec;
+                     ex_trap            = 1;
                      ex_csr_mcause      = ex_insn`imm11_0 == `ECALL
-                                          ? `CAUSE_USER_ECALL | {30'd0, priv}
-                                          : `CAUSE_BREAKPOINT | {30'd0, priv};
-                     ex_csr_mepc        = ex_pc;
+                                          ? `CAUSE_USER_ECALL | priv
+                                          : `CAUSE_BREAKPOINT;
                      ex_csr_mtval       = 0;
-                     ex_csr_mstatus`MPIE= csr_mstatus`MIE;
-                     ex_csr_mstatus`MIE = 0;
-                     ex_csr_mstatus`MPP = priv;
-                     ex_priv            = `PRV_M;
                   end
 
                   `MRET: begin
@@ -371,6 +387,15 @@ module yarvi_ex( input  wire             clock
           end
       endcase
 
+      if (ex_trap) begin
+         ex_restart_pc                  = csr_mtvec;
+         ex_csr_mepc                    = ex_pc;
+         ex_csr_mstatus`MPIE            = csr_mstatus`MIE;
+         ex_csr_mstatus`MIE             = 0;
+         ex_csr_mstatus`MPP             = priv;
+         ex_priv                        = `PRV_M;
+      end
+
       /* The order here is important, lowest priority first.  */
       if (use_rs1 && insn`rs1 == ex_wb_rd && ex_valid && ex_insn`opcode == `LOAD) begin
          $display("%5d    %x: load hazard on r%1d", $time/10, pc, insn`rs1);
@@ -401,7 +426,7 @@ module yarvi_ex( input  wire             clock
       priv                              <= `PRV_M;
       csr_fflags                        <= 0;
       csr_frm                           <= 0;
-      csr_mcause                        <= 0;
+      csr_mcause                        <= 4'd0;
       csr_mcycle                        <= 0;
       csr_mepc                          <= 0;
       csr_mie                           <= 0;
@@ -433,7 +458,7 @@ module yarvi_ex( input  wire             clock
            `CSR_FRM:       csr_frm      <= csr_d[2:0];
 //         `CSR_MCAUSE:    csr_mcause   <= csr_d;
 //         `CSR_MCYCLE:    csr_mcycle   <= csr_d;
-           `CSR_MEPC:      csr_mepc     <= csr_d;
+           `CSR_MEPC:      csr_mepc     <= csr_d & ~3;
            `CSR_MIE:       csr_mie      <= csr_d[7:0];
 //         `CSR_MINSTRET:  csr_instret  <= csr_d;
            `CSR_MIP:       csr_mip[3]   <= csr_d[3];
