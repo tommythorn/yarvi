@@ -69,12 +69,15 @@ TESTS= \
   I-XOR-01.elf \
   I-XORI-01.elf
 
+
+compliance: $(patsubst %.elf,%.comply,$(TESTS))
+
 newtest: $(patsubst %,$(TESTDIR)%.trace,$(TESTS))
 	@printf "  Total:   %3d\n" $$(echo $(TESTS) | wc -w)
 	@printf "  Passing: %3d\n" $$(ls $(patsubst %,$(TESTDIR)%.trace.pass,$(TESTS)) 2> /dev/null| wc -l)
 	@printf "  Failing: %3d\n" $$(ls $(patsubst %,$(TESTDIR)%.trace.fail,$(TESTS)) 2> /dev/null| wc -l)
 
-%.bin: %
+%.bin: %.elf
 	$(RVPREFIX)objcopy -O binary $^ $@
 
 %.hex: %.bin
@@ -87,9 +90,22 @@ newtest: $(patsubst %,$(TESTDIR)%.trace,$(TESTS))
 	spike $< > $@ 2>&1
 
 %.yarvi: %.hex $(SRC) $(HDR)
-	iverilog -I../core/ -DSIMULATION $(VERB) -DINIT_MEM=\"$<\" -o $@ $(SRC)
+	iverilog \
+		-DBEGIN_SIGNATURE=`nm $(basename $<).elf|egrep ' begin_signature$$'|cut -d' ' -f1` \
+		-DEND_SIGNATURE=`nm $(basename $<).elf|egrep ' end_signature$$'|cut -d' ' -f1` \
+		-DTOHOST=`nm $(basename $<).elf|egrep ' tohost$$'|cut -d' ' -f1` \
+		 -I../core/ -DSIMULATION $(VERB) -DINIT_MEM=\"$<\" \
+		-o $@ $(SRC)
 
 %.trace: %.yarvi
 	./$^ > $@
 	if grep -q 'TOHOST 00000001' $@;then \
 		touch $@.pass; else ln -fs $@ $@.fail; fi
+
+%.run: %.yarvi
+	./$^
+
+%.comply: %.yarvi
+	./$^ | grep ^Signature -A999999|tail -n +2 | \
+		if diff - ../../riscv-compliance/riscv-test-suite/rv32i/references/$(basename $<).reference_output; then \
+			touch $@.pass; else touch $@.fail; fi

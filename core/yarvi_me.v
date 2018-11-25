@@ -136,15 +136,27 @@ module yarvi_me( input  wire             clock
       code_writemask <= we ? wd_mask : 0;
    end
 
+`ifdef TOHOST
+   reg [`VMSB:0] dump_addr;
+   reg [`PMSB:0] dwi;
+`endif
    always @(posedge clock)
      if (we) begin
         if (0)
         $display("store %x -> [%x]/%x", wd_aligned, address, wd_mask);
-        if (wd_mask == 15 & address == 'h80001000) begin
+`ifdef TOHOST
+        if (wd_mask == 15 & address == 'h `TOHOST) begin
            /* XXX Hack for riscv-tests */
            $display("TOHOST = %d", wd_aligned);
+
+           $display("Signature Begin");
+           for (dump_addr = 'h`BEGIN_SIGNATURE; dump_addr < 'h`END_SIGNATURE; dump_addr=dump_addr+4) begin
+              dwi = dump_addr / 4;
+              $display("%x", {mem3[dwi], mem2[dwi], mem1[dwi], mem0[dwi]});
+           end
            $finish;
         end
+`endif
      end
 
    always @(posedge clock)
