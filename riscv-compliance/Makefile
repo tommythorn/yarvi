@@ -3,8 +3,8 @@ CORE=../core/
 VERB=
 VERB=-DVERBOSE_SIMULATION
 
-SRC=../sim/toplevel.v $(CORE)htif.v $(CORE)yarvi_soc.v $(CORE)yarvi_disass.v $(CORE)yarvi.v $(CORE)yarvi_fe.v $(CORE)yarvi_rf.v $(CORE)yarvi_ex.v \
-$(CORE)yarvi_me.v
+ICARUS_SRC=../sim/toplevel.v $(CORE)htif.v $(CORE)yarvi_soc.v
+SRC=$(CORE)yarvi.v $(CORE)yarvi_fe.v $(CORE)yarvi_rf.v $(CORE)yarvi_ex.v $(CORE)yarvi_me.v $(CORE)yarvi_disass.v
 HDR=$(CORE)riscv.h
 
 # Adjust to match your RISC-V toolchain
@@ -89,8 +89,16 @@ newtest: $(patsubst %,$(TESTDIR)%.trace,$(TESTS))
 %.spike: %
 	spike $< > $@ 2>&1
 
-%.yarvi: %.hex $(SRC) $(HDR)
+%.yarvi: %.hex $(ICARUS_SRC) $(SRC) $(HDR)
 	iverilog \
+		-DBEGIN_SIGNATURE=`nm $(basename $<).elf|egrep ' begin_signature$$'|cut -d' ' -f1` \
+		-DEND_SIGNATURE=`nm $(basename $<).elf|egrep ' end_signature$$'|cut -d' ' -f1` \
+		-DTOHOST=`nm $(basename $<).elf|egrep ' tohost$$'|cut -d' ' -f1` \
+		 -I../core/ -DSIMULATION $(VERB) -DINIT_MEM=\"$<\" \
+		-o $@ $(ICARUS_SRC) $(SRC)
+
+%.vyarvi: %.hex $(SRC) $(HDR)
+	verilator -Wall --cc \
 		-DBEGIN_SIGNATURE=`nm $(basename $<).elf|egrep ' begin_signature$$'|cut -d' ' -f1` \
 		-DEND_SIGNATURE=`nm $(basename $<).elf|egrep ' end_signature$$'|cut -d' ' -f1` \
 		-DTOHOST=`nm $(basename $<).elf|egrep ' tohost$$'|cut -d' ' -f1` \

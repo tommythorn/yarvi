@@ -284,7 +284,7 @@ module yarvi_ex( input  wire             clock
            ex_restart_pc                = ex_pc + ex_sb_imm;
            if (ex_branch_taken) begin
               ex_restart                = 1;
-              if (ex_restart_pc[1:0]) begin
+              if (ex_restart_pc[1:0] != 0) begin // == ex_sb_imm[1], decode time
                  ex_trap                = 1;
                  ex_csr_mcause          = `CAUSE_MISALIGNED_FETCH;
                  ex_csr_mtval           = ex_restart_pc;
@@ -307,7 +307,7 @@ module yarvi_ex( input  wire             clock
            ex_wb_val                    = ex_pc + 4;
            ex_restart                   = 1;
            ex_restart_pc                = (ex_rs1_val + ex_i_imm) & ~32'd1;
-           if (ex_restart_pc[1:0]) begin
+           if (ex_restart_pc[1:0] != 0) begin // == ex_rs1_val[1] ^ ex_i_imm[1]
               ex_wb_rd                  = 0;
               ex_trap                   = 1;
               ex_csr_mcause             = `CAUSE_MISALIGNED_FETCH;
@@ -320,7 +320,7 @@ module yarvi_ex( input  wire             clock
            ex_wb_val                    = ex_pc + 4;
            ex_restart                   = 1;
            ex_restart_pc                = ex_pc + ex_uj_imm;
-           if (ex_restart_pc[1:0]) begin
+           if (ex_restart_pc[1:0] != 0) begin // == ex_uj_imm[1], decode-time
               ex_wb_rd                  = 0;
               ex_trap                   = 1;
               ex_csr_mcause             = `CAUSE_MISALIGNED_FETCH;
@@ -346,7 +346,7 @@ module yarvi_ex( input  wire             clock
                   `ECALL, `EBREAK: begin
                      ex_trap            = 1;
                      ex_csr_mcause      = ex_insn`imm11_0 == `ECALL
-                                          ? `CAUSE_USER_ECALL | priv
+                                          ? `CAUSE_USER_ECALL | {2'd0, priv}
                                           : `CAUSE_BREAKPOINT;
                      ex_csr_mtval       = 0;
                   end

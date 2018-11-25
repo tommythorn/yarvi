@@ -88,9 +88,6 @@ module yarvi_me( input  wire             clock
       else
              me_wb_val = me_address; // Bypass load
 
-   always @(posedge clock) me_valid <= valid;
-   always @(posedge clock) me_wb_rd <= wb_rd;
-
    //assert(!(valid && readenable && address[0] && funct3 > 0));
    //assert(!(valid && readenable && address[1] && funct3 > 1));
 
@@ -164,12 +161,16 @@ module yarvi_me( input  wire             clock
 
    reg me_we;
    always @(posedge clock) me_we <= we;
-   always @(*) begin
+   always @(posedge clock) begin
       me_load_hit_store <= 0;
       me_misaligned_exc <= 0;
-      /* XXX I know this isn't always true, but I need to handle this */
-      if (me_we && valid && readenable && address[31:2] == me_address[31:2]) begin
+      me_valid <= valid;
+      me_wb_rd <= wb_rd;
+
+      if (valid && readenable && me_we && address[31:2] == me_address[31:2]) begin
          me_load_hit_store <= 1;
+         me_valid <= 0;
+         me_wb_rd <= 0;
          $display("Load-hit-store: load from %x hit the store to %x",
                   address, me_address);
       end
