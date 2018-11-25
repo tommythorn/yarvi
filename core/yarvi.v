@@ -44,6 +44,8 @@ module yarvi
    wire             me_valid;
    wire [4:0]       me_wb_rd;
    wire [`XMSB:0]   me_wb_val;
+   wire             me_misaligned_exc;
+   wire             me_load_hit_store;
 
    wire [`VMSB:0]   code_address;
    wire [   31:0]   code_writedata;
@@ -85,6 +87,8 @@ module yarvi
 
      , .me_wb_rd                (me_wb_rd)
      , .me_wb_val               (me_wb_val)
+     , .me_misaligned_exc       (me_misaligned_exc)
+     , .me_load_hit_store       (me_load_hit_store)
 
      , .ex_valid                (ex_valid)
      , .ex_pc                   (ex_pc)
@@ -122,6 +126,8 @@ module yarvi
      , .me_valid                (me_valid)
      , .me_wb_rd                (me_wb_rd)
      , .me_wb_val               (me_wb_val)
+     , .me_misaligned_exc       (me_misaligned_exc)
+     , .me_load_hit_store       (me_load_hit_store)
      );
 
    /* XXX Writeback/Commit */

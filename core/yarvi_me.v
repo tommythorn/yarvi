@@ -28,6 +28,8 @@ module yarvi_me( input  wire             clock
                , output reg              me_valid
                , output reg  [ 4:0]      me_wb_rd
                , output reg  [31:0]      me_wb_val
+               , output reg              me_misaligned_exc
+               , output reg              me_load_hit_store
 
                , output reg [`VMSB:0]    code_address
                , output reg [   31:0]    code_writedata
@@ -162,13 +164,16 @@ module yarvi_me( input  wire             clock
 
    reg me_we;
    always @(posedge clock) me_we <= we;
-   always @(posedge clock)
-     /* XXX I know this isn't always true, but I need to handle this */
-     if (me_we && valid && readenable && address[31:2] == me_address[31:2]) begin
-        $display("Load-hit-store: load from %x hit the store to %x",
-                 address, me_address);
-        $finish;
-     end
+   always @(*) begin
+      me_load_hit_store <= 0;
+      me_misaligned_exc <= 0;
+      /* XXX I know this isn't always true, but I need to handle this */
+      if (me_we && valid && readenable && address[31:2] == me_address[31:2]) begin
+         me_load_hit_store <= 1;
+         $display("Load-hit-store: load from %x hit the store to %x",
+                  address, me_address);
+      end
+   end
 
    /* Simulation-only */
    reg [31:0] data[(1<<(`PMSB - 1))-1:0];

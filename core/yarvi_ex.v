@@ -24,6 +24,8 @@ module yarvi_ex( input  wire             clock
 
                , input  wire [ 4:0]      me_wb_rd  // != 0 => WE. !valid => 0
                , input  wire [31:0]      me_wb_val
+               , input  wire             me_misaligned_exc
+               , input  wire             me_load_hit_store
 
                , output reg              ex_valid
                , output reg [`VMSB:0]    ex_pc
@@ -53,16 +55,21 @@ module yarvi_ex( input  wire             clock
       (this isn't the most natual way to write it but matches how we
       typically draw the pipelines).  */
    reg rf_valid;
-   always @(posedge clock) ex_pc      <= pc;
-   always @(posedge clock) ex_insn    <= insn;
-   always @(posedge clock) rf_valid   <= !ex_restart;
+   always @(posedge clock) ex_pc        <= pc;
+   always @(posedge clock) ex_insn      <= insn;
+   always @(posedge clock) rf_valid     <= !ex_restart;
    wire valid = rf_valid & !ex_restart;
-   always @(posedge clock) ex_valid   <= valid;
+   always @(posedge clock) ex_valid     <= valid;
+
+   reg  [`VMSB:0] me_pc;
+   reg  [`VMSB:0] me_insn;
+   always @(posedge clock) me_pc        <= ex_pc;
+   always @(posedge clock) me_insn      <= ex_insn;
 
    reg  [`VMSB:0] ex_rs1_val;
    reg  [`VMSB:0] ex_rs2_val;
 
-   /* Processor state, mostly CSRs */
+   /* Processor architectual state is exactly this + register file and pc */
    reg  [    1:0] priv;
    reg  [    4:0] csr_fflags;
    reg  [    2:0] csr_frm;
@@ -103,26 +110,26 @@ module yarvi_ex( input  wire             clock
    reg use_rs1, use_rs2;
    always @(*)
      if (!rf_valid)
-       {use_rs2,use_rs1} = 0;
+       {use_rs2,use_rs1}                = 0;
      else begin
-        {use_rs2,use_rs1} = 0;
+        {use_rs2,use_rs1}               = 0;
         case (insn`opcode)
-          `BRANCH: {use_rs2,use_rs1} = 3;
-          `OP:     {use_rs2,use_rs1} = 3;
-          `STORE:  {use_rs2,use_rs1} = 3;
+          `BRANCH: {use_rs2,use_rs1}    = 3;
+          `OP:     {use_rs2,use_rs1}    = 3;
+          `STORE:  {use_rs2,use_rs1}    = 3;
 
-          `OP_IMM: {use_rs2,use_rs1} = 1;
-          `LOAD:   {use_rs2,use_rs1} = 1;
-          `JALR:   {use_rs2,use_rs1} = 1;
+          `OP_IMM: {use_rs2,use_rs1}    = 1;
+          `LOAD:   {use_rs2,use_rs1}    = 1;
+          `JALR:   {use_rs2,use_rs1}    = 1;
           `SYSTEM:
             case (insn`funct3)
-              `CSRRS:  {use_rs2,use_rs1} = 1;
-              `CSRRC:  {use_rs2,use_rs1} = 1;
-              `CSRRW:  {use_rs2,use_rs1} = 1;
+              `CSRRS:  {use_rs2,use_rs1}= 1;
+              `CSRRC:  {use_rs2,use_rs1}= 1;
+              `CSRRW:  {use_rs2,use_rs1}= 1;
             endcase
         endcase
-        if (insn`rs1 == 0) use_rs1 = 0;
-        if (insn`rs2 == 0) use_rs2 = 0;
+        if (insn`rs1 == 0) use_rs1      = 0;
+        if (insn`rs2 == 0) use_rs2      = 0;
      end
 
    wire debug_bypass = 0 && valid;
@@ -433,6 +440,14 @@ module yarvi_ex( input  wire             clock
         end
       endcase
 
+      if (me_misaligned_exc) begin
+         ex_trap                        = 1;
+         ex_csr_mcause                  = `CAUSE_ILLEGAL_INSTRUCTION;
+         ex_csr_mtval                   = ex_wb_val;
+         if (ex_valid)
+           $display("Misaligned %x:%x", me_pc, me_insn);
+      end
+
       if (ex_trap) begin
          ex_restart_pc                  = csr_mtvec;
          ex_csr_mepc                    = ex_pc;
@@ -459,6 +474,11 @@ module yarvi_ex( input  wire             clock
          ex_csr_we                      = 0;
          ex_wb_rd                       = 0;
          ex_restart                     = 0;
+      end
+
+      if (me_load_hit_store) begin
+         ex_restart                     = 1;
+         ex_restart_pc                  = me_pc;
       end
 
       if (reset) begin
