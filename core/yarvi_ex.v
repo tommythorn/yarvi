@@ -263,6 +263,14 @@ module yarvi_ex( input  wire             clock
              `SLL:    ex_wb_val         =         ex_rs1  <<        ex_rs2_val_imm[4:0];
              `OR:     ex_wb_val         =         ex_rs1  |         ex_rs2_val_imm;
              `AND:    ex_wb_val         =         ex_rs1  &         ex_rs2_val_imm;
+             default: begin
+                ex_trap                 = 1;
+                ex_csr_mcause           = `CAUSE_ILLEGAL_INSTRUCTION;
+                ex_csr_mtval            = 0;
+
+                if (ex_valid)
+                  $display("Illegal instruction %x:%x", ex_pc, ex_insn);
+             end
            endcase
         end
 
@@ -346,13 +354,27 @@ module yarvi_ex( input  wire             clock
                   end
 
                   default: begin
-                     $display("NOT IMPLEMENTED SYSTEM.PRIV 0x%x (inst %x)",
-                              ex_insn`imm11_0, ex_insn);
-                     $finish;
+                     ex_trap            = 1;
+                     ex_csr_mcause      = `CAUSE_ILLEGAL_INSTRUCTION;
+                     ex_csr_mtval       = 0;
+                     if (ex_valid)
+                       $display("Illegal instruction %x:%x", ex_pc, ex_insn);
                   end
                 endcase
              end
-          endcase
+           endcase
+
+           // Trap illegal CSRs accesses (ie. CSRs without permissions)
+           case (ex_funct3)
+             `CSRRS, `CSRRC, `CSRRW, `CSRRSI, `CSRRCI, `CSRRWI:
+               if (((ex_insn`imm11_0 & 12'hC00) == 12'hC00) && ex_csr_we || priv < ex_insn[31:30]) begin
+                  ex_trap               = 1;
+                  ex_csr_mcause         = `CAUSE_ILLEGAL_INSTRUCTION;
+                  ex_csr_mtval          = 0;
+                  if (ex_valid)
+                    $display("Illegal instruction %x:%x", ex_pc, ex_insn);
+               end
+           endcase
         end
 
         `MISC_MEM:
@@ -363,9 +385,12 @@ module yarvi_ex( input  wire             clock
                  ex_restart_pc          = ex_pc + 4;
               end
 
-              default: if (ex_valid) begin
-                 $display("%05d  %x %x *** Unsupported", $time, ex_pc, ex_insn, ex_insn`opcode);
-                 $finish;
+              default: begin
+                 ex_trap                = 1;
+                 ex_csr_mcause          = `CAUSE_ILLEGAL_INSTRUCTION;
+                 ex_csr_mtval           = 0;
+                 if (ex_valid)
+                   $display("Illegal instruction %x:%x", ex_pc, ex_insn);
               end
           endcase
 
@@ -373,18 +398,40 @@ module yarvi_ex( input  wire             clock
            ex_readenable                = 1;
            ex_wb_rd                     = ex_insn`rd;
            ex_wb_val                    = ex_rs1 + ex_i_imm;
+           case (ex_insn`funct3)
+             3, 6, 7: begin
+                ex_trap                 = 1;
+                ex_csr_mcause           = `CAUSE_ILLEGAL_INSTRUCTION;
+                ex_csr_mtval            = 0;
+
+                if (ex_valid)
+                  $display("Illegal instruction %x:%x", ex_pc, ex_insn);
+             end
+           endcase
         end
 
         `STORE: begin
            ex_writeenable               = 1;
            ex_wb_val                    = ex_rs1 + ex_s_imm;
+           case (ex_insn`funct3)
+             3, 4, 5, 6, 7: begin
+                ex_trap                 = 1;
+                ex_csr_mcause           = `CAUSE_ILLEGAL_INSTRUCTION;
+                ex_csr_mtval            = 0;
+
+                if (ex_valid)
+                  $display("Illegal instruction %x:%x", ex_pc, ex_insn);
+             end
+           endcase
         end
 
-        default:
-          if (ex_valid) begin
-             $display("%05d  %x %x *** Unsupported opcode %d", $time, ex_pc, ex_insn, ex_insn`opcode);
-             $finish;
-          end
+        default: begin
+           ex_trap                      = 1;
+           ex_csr_mcause                = `CAUSE_ILLEGAL_INSTRUCTION;
+           ex_csr_mtval                 = 0;
+           if (ex_valid)
+             $display("Illegal instruction %x:%x", ex_pc, ex_insn);
+        end
       endcase
 
       if (ex_trap) begin
