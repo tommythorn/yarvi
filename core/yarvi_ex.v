@@ -172,8 +172,8 @@ module yarvi_ex( input  wire             clock
    wire [`VMSB:0] ex_rs1                = ex_rs1_val;
    wire [`VMSB:0] ex_rs2                = ex_rs2_val;
 
-   wire [`VMSB:0] ex_rs1_val_cmp        = (ex_insn`br_unsigned << `VMSB) ^ ex_rs1;
-   wire [`VMSB:0] ex_rs2_val_cmp        = (ex_insn`br_unsigned << `VMSB) ^ ex_rs2;
+   wire [`VMSB:0] ex_rs1_val_cmp        = {ex_insn`br_unsigned,`VMSB'd0} ^ ex_rs1;
+   wire [`VMSB:0] ex_rs2_val_cmp        = {ex_insn`br_unsigned,`VMSB'd0} ^ ex_rs2;
    wire           ex_cmp_eq             = ex_rs1 == ex_rs2;
    wire           ex_cmp_lt             = $signed(ex_rs1_val_cmp) < $signed(ex_rs2_val_cmp);
    wire           ex_branch_taken       = (ex_insn`br_rela ? ex_cmp_lt : ex_cmp_eq) ^ ex_insn`br_negate;
@@ -186,26 +186,26 @@ module yarvi_ex( input  wire             clock
    always @(*)
      case (ex_insn`imm11_0)
        // Standard User R/W
-       `CSR_FFLAGS:       csr_val = csr_fflags;                 // 001
-       `CSR_FRM:          csr_val = csr_frm;                    // 002
-       `CSR_FCSR:         csr_val = {csr_frm, csr_fflags};      // 003
+       `CSR_FFLAGS:       csr_val = {27'd0, csr_fflags};
+       `CSR_FRM:          csr_val = {29'd0, csr_frm};
+       `CSR_FCSR:         csr_val = {24'd0, csr_frm, csr_fflags};
 
-       `CSR_MSTATUS:      csr_val = csr_mstatus;                // 300
-       `CSR_MISA:         csr_val = (2 << 30) | (1 << ("I"-"A"));//301
-       `CSR_MIE:          csr_val = csr_mie;                    // 304
-       `CSR_MTVEC:        csr_val = csr_mtvec;                  // 305
+       `CSR_MSTATUS:      csr_val = csr_mstatus;
+       `CSR_MISA:         csr_val = (2 << 30) | (1 << ("I"-"A"));
+       `CSR_MIE:          csr_val = {24'd0, csr_mie};
+       `CSR_MTVEC:        csr_val = csr_mtvec;
 
-       `CSR_MSCRATCH:     csr_val = csr_mscratch;               // 340
-       `CSR_MEPC:         csr_val = csr_mepc;                   // 341
-       `CSR_MCAUSE:       csr_val = csr_mcause;                 // 342
-       `CSR_MTVAL:        csr_val = csr_mtval;                  // 343
-       `CSR_MIP:          csr_val = csr_mip;                    // 344
+       `CSR_MSCRATCH:     csr_val = csr_mscratch;
+       `CSR_MEPC:         csr_val = csr_mepc;
+       `CSR_MCAUSE:       csr_val = csr_mcause;
+       `CSR_MTVAL:        csr_val = csr_mtval;
+       `CSR_MIP:          csr_val = {24'd0, csr_mip};
 
        `CSR_MCYCLE:       csr_val = csr_mcycle;
        `CSR_MINSTRET:     csr_val = csr_minstret;
 
-       `CSR_PMPCFG0:      csr_val = 0;                          // 3A0
-       `CSR_PMPADDR0:     csr_val = 0;                          // 3B0
+       `CSR_PMPCFG0:      csr_val = 0;
+       `CSR_PMPADDR0:     csr_val = 0;
 
        // Standard Machine RO
        `CSR_MVENDORID:    csr_val = 9;                          // F11
@@ -252,8 +252,8 @@ module yarvi_ex( input  wire             clock
              `ADDSUB: ex_wb_val         = ex_insn[30] && ex_insn`opcode == `OP
                                           ?       ex_rs1  -         ex_rs2_val_imm
                                           :       ex_rs1  +         ex_rs2_val_imm;
-             `SLT:    ex_wb_val         = $signed(ex_rs1) < $signed(ex_rs2_val_imm); // or flip MSB of both operands
-             `SLTU:   ex_wb_val         =         ex_rs1  <         ex_rs2_val_imm;
+             `SLT:    ex_wb_val         = {31'd0,$signed(ex_rs1) < $signed(ex_rs2_val_imm)}; // or flip MSB of both operands
+             `SLTU:   ex_wb_val         = {31'd0, ex_rs1  <         ex_rs2_val_imm};
              `XOR:    ex_wb_val         =         ex_rs1  ^         ex_rs2_val_imm;
              `SR_:    if (ex_insn[30])
                         ex_wb_val       = $signed(ex_rs1) >>>       ex_rs2_val_imm[4:0];
@@ -303,16 +303,16 @@ module yarvi_ex( input  wire             clock
              `CSRRS:  begin csr_d       = csr_val |  ex_rs1; if (ex_insn`rs1 == 0) ex_csr_we = 0; end
              `CSRRC:  begin csr_d       = csr_val &~ ex_rs1; if (ex_insn`rs1 == 0) ex_csr_we = 0; end
              `CSRRW:  begin csr_d       =            ex_rs1; end
-             `CSRRSI: begin csr_d       = csr_val |  ex_insn`rs1; end
-             `CSRRCI: begin csr_d       = csr_val &~ ex_insn`rs1; end
-             `CSRRWI: begin csr_d       =            ex_insn`rs1; end
+             `CSRRSI: begin csr_d       = csr_val |  {27'd0, ex_insn`rs1}; end
+             `CSRRCI: begin csr_d       = csr_val &~ {27'd0, ex_insn`rs1}; end
+             `CSRRWI: begin csr_d       =            {27'd0, ex_insn`rs1}; end
              `PRIV: begin
                 ex_csr_we               = 0;
                 ex_restart              = 1;
                 case (ex_insn`imm11_0)
                   `ECALL: begin
                      ex_restart_pc      = csr_mtvec;
-                     ex_csr_mcause      = `CAUSE_USER_ECALL | priv;
+                     ex_csr_mcause      = `CAUSE_USER_ECALL | {30'd0, priv};
                      ex_csr_mepc        = ex_pc;
                      ex_csr_mtval       = 0;
                      ex_csr_mstatus`MPIE= csr_mstatus`MIE;
@@ -408,7 +408,7 @@ module yarvi_ex( input  wire             clock
       csr_minstret                      <= 0;
       csr_mip                           <= 0;
       csr_mscratch                      <= 0;
-      csr_mstatus                       <= {2'd 3, 1'd 0};
+      csr_mstatus                       <= {31'd 3, 1'd 0};
       csr_mtval                         <= 0;
       csr_mtvec                         <= 0;
    end else begin
@@ -428,13 +428,13 @@ module yarvi_ex( input  wire             clock
 
       if (ex_csr_we)
          case (ex_insn`imm11_0)
-           `CSR_FCSR:      {csr_frm,csr_fflags} <= csr_d;
-           `CSR_FFLAGS:    csr_fflags   <= csr_d;
-           `CSR_FRM:       csr_frm      <= csr_d;
+           `CSR_FCSR:      {csr_frm,csr_fflags} <= csr_d[7:0];
+           `CSR_FFLAGS:    csr_fflags   <= csr_d[4:0];
+           `CSR_FRM:       csr_frm      <= csr_d[2:0];
 //         `CSR_MCAUSE:    csr_mcause   <= csr_d;
 //         `CSR_MCYCLE:    csr_mcycle   <= csr_d;
            `CSR_MEPC:      csr_mepc     <= csr_d;
-           `CSR_MIE:       csr_mie      <= csr_d;
+           `CSR_MIE:       csr_mie      <= csr_d[7:0];
 //         `CSR_MINSTRET:  csr_instret  <= csr_d;
            `CSR_MIP:       csr_mip[3]   <= csr_d[3];
            `CSR_MSCRATCH:  csr_mscratch <= csr_d;

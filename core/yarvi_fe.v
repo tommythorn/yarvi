@@ -16,7 +16,9 @@ module yarvi_fe( input  wire             clock
                , input  wire             restart
                , input  wire [`VMSB:0]   restart_pc
 
+                 /* verilator lint_off UNUSED */
                , input  wire [`VMSB:0]   address
+                 /* verilator lint_on UNUSED */
                , input  wire [   31:0]   writedata
                , input  wire [    3:0]   writemask
 
