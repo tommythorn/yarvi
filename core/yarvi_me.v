@@ -137,23 +137,20 @@ module yarvi_me( input  wire             clock
    end
 
 `ifdef TOHOST
-   reg [`VMSB:0] dump_addr;
-   reg [`PMSB:0] dwi;
+   reg  [`VMSB  :0] dump_addr;
 `endif
    always @(posedge clock)
      if (we) begin
         if (0)
         $display("store %x -> [%x]/%x", wd_aligned, address, wd_mask);
 `ifdef TOHOST
-        if (wd_mask == 15 & address == 'h `TOHOST) begin
+        if (wd_mask == 15 & address == 'h`TOHOST) begin
            /* XXX Hack for riscv-tests */
            $display("TOHOST = %d", wd_aligned);
 
            $display("Signature Begin");
-           for (dump_addr = 'h`BEGIN_SIGNATURE; dump_addr < 'h`END_SIGNATURE; dump_addr=dump_addr+4) begin
-              dwi = dump_addr / 4;
-              $display("%x", {mem3[dwi], mem2[dwi], mem1[dwi], mem0[dwi]});
-           end
+           for (dump_addr = 'h`BEGIN_SIGNATURE; dump_addr < 'h`END_SIGNATURE; dump_addr=dump_addr+4)
+              $display("%x", {mem3[dump_addr[`PMSB:2]], mem2[dump_addr[`PMSB:2]], mem1[dump_addr[`PMSB:2]], mem0[dump_addr[`PMSB:2]]});
            $finish;
         end
 `endif

@@ -40,5 +40,5 @@ module yarvi_rf( input  wire             clock
    assign rf_rs2_val = regs[rp2];
 
    reg [5:0] i;
-   initial for (i = 0; i < 32; i = i + 1) regs[i] = i;
+   initial for (i = 0; i < 32; i = i + 1) regs[i[4:0]] = {26'd0,i};
 endmodule
