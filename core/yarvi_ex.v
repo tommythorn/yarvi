@@ -22,7 +22,6 @@ module yarvi_ex( input  wire             clock
                , input  wire [`VMSB:0]   rs1_val
                , input  wire [`VMSB:0]   rs2_val
 
-               , input  wire             me_valid
                , input  wire [ 4:0]      me_wb_rd  // != 0 => WE. !valid => 0
                , input  wire [31:0]      me_wb_val
 
@@ -134,18 +133,18 @@ module yarvi_ex( input  wire             clock
      else if (insn`rs1 == ex_wb_rd && ex_valid && ex_insn`opcode != `LOAD) begin
        ex_rs1_val <= ex_wb_val;
        if (debug_bypass)
-       $display("         %x: bypass r%1d from EX %x", pc, insn`rs1, ex_wb_val);
+       $display("%x: bypass r%1d from EX %x", pc, insn`rs1, ex_wb_val);
      end
-     else if (insn`rs1 == me_wb_rd && me_valid) begin
+     else if (insn`rs1 == me_wb_rd) begin
        ex_rs1_val <= me_wb_val;
        if (debug_bypass)
-       $display("         %x: bypass r%1d from ME %x", pc, insn`rs1, me_wb_val);
+       $display("%x: bypass r%1d from ME %x", pc, insn`rs1, me_wb_val);
      end
      else begin
        ex_rs1_val <= rs1_val;
        if (debug_bypass)
-       $display("         %x: get    r%1d from RF %x (ME r%d, me_valid %d)",
-                pc, insn`rs1, rs1_val, me_wb_rd, me_valid);
+       $display("%x: get    r%1d from RF %x",
+                pc, insn`rs1, rs1_val);
      end
 
    always @(posedge clock)
@@ -154,17 +153,17 @@ module yarvi_ex( input  wire             clock
      else if (insn`rs2 == ex_wb_rd && ex_valid && ex_insn`opcode != `LOAD) begin
        ex_rs2_val <= ex_wb_val;
        if (debug_bypass)
-       $display("         %x: bypass r%1d from EX %x", pc, insn`rs2, ex_wb_val);
+       $display("%x: bypass r%1d from EX %x", pc, insn`rs2, ex_wb_val);
      end
-     else if (insn`rs2 == me_wb_rd && me_valid) begin
+     else if (insn`rs2 == me_wb_rd) begin
        ex_rs2_val <= me_wb_val;
        if (debug_bypass)
-       $display("         %x: bypass r%1d from ME %x", pc, insn`rs2, me_wb_val);
+       $display("%x: bypass r%1d from ME %x", pc, insn`rs2, me_wb_val);
      end
      else begin
        ex_rs2_val <= rs2_val;
        if (debug_bypass)
-       $display("         %x: get    r%1d from RF %x", pc, insn`rs2, rs2_val);
+       $display("%x: get    r%1d from RF %x", pc, insn`rs2, rs2_val);
      end
 
    wire [`VMSB:0] ex_rs1                = ex_rs1_val;
