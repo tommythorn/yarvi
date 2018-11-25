@@ -308,9 +308,11 @@ module yarvi_ex( input  wire             clock
                 ex_csr_we               = 0;
                 ex_restart              = 1;
                 case (ex_insn`imm11_0)
-                  `ECALL: begin
+                  `ECALL, `EBREAK: begin
                      ex_restart_pc      = csr_mtvec;
-                     ex_csr_mcause      = `CAUSE_USER_ECALL | {30'd0, priv};
+                     ex_csr_mcause      = ex_insn`imm11_0 == `ECALL
+                                          ? `CAUSE_USER_ECALL | {30'd0, priv}
+                                          : `CAUSE_BREAKPOINT | {30'd0, priv};
                      ex_csr_mepc        = ex_pc;
                      ex_csr_mtval       = 0;
                      ex_csr_mstatus`MPIE= csr_mstatus`MIE;
