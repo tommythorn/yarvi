@@ -43,6 +43,13 @@ module yarvi_ex( input  wire             clock
                , output reg  [`XMSB:0]   ex_writedata
                );
 
+   // Asserts would be nice here
+   always @(posedge clock)
+     if (!ex_valid && ex_wb_rd != 0) begin
+        $display("assert(ex_valid || ex_wb_rd == 0) failed");
+        $finish;
+     end
+
    /* We register all inputs, so ex_??? are inputs to EX after flops
       (this isn't the most natual way to write it but matches how we
       typically draw the pipelines).  */
