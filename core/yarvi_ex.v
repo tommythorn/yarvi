@@ -320,6 +320,7 @@ module yarvi_ex( input  wire             clock
                      ex_csr_mstatus`MPP = priv;
                      ex_priv            = `PRV_M;
                   end
+
                   `MRET: begin
                      ex_restart_pc      = csr_mepc;
                      ex_csr_mstatus`MIE = csr_mstatus`MPIE;
@@ -327,7 +328,7 @@ module yarvi_ex( input  wire             clock
                      ex_priv            = csr_mstatus`MPP;
                      ex_csr_mstatus`MPP = `PRV_U;
                   end
-                  //`EBREAK: $finish; // XXX
+
                   default: begin
                      $display("NOT IMPLEMENTED SYSTEM.PRIV 0x%x (inst %x)",
                               ex_insn`imm11_0, ex_insn);
@@ -437,7 +438,7 @@ module yarvi_ex( input  wire             clock
 //         `CSR_MINSTRET:  csr_instret  <= csr_d;
            `CSR_MIP:       csr_mip[3]   <= csr_d[3];
            `CSR_MSCRATCH:  csr_mscratch <= csr_d;
-           `CSR_MSTATUS:   csr_mstatus  <= csr_d & ~(15 << 12); // No FP or XS;
+           `CSR_MSTATUS:   csr_mstatus  <= csr_d & ~(15 << 13); // No FP or XS;
            `CSR_MTVEC:     csr_mtvec    <= csr_d;
 //         `CSR_MTVAL:     csr_mtvec    <= csr_d;
 
