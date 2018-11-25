@@ -31,7 +31,7 @@ module yarvi_disass( input             clock
    // U-type
    wire [`VMSB:0] uj_imm       = {sign12, insn[19:12], insn[20], insn[30:21], 1'd0};
 
-   wire           disass = 1;
+   wire           disass_en = 1;
 
    always @(posedge clock) begin
       if (!valid)
@@ -39,10 +39,10 @@ module yarvi_disass( input             clock
 
       if (valid && we)
         $write("%5d  %d %x %x %x", $time/10, prv, pc, insn, wb_val);
-      else if (valid && disass)
+      else if (valid && disass_en)
         $write("%5d  %d %x %x         ", $time/10, prv, pc, insn);
 
-      if (valid && disass) begin
+      if (valid && disass_en) begin
          case (insn`opcode)
            `BRANCH:
              case (insn`funct3)
@@ -117,7 +117,7 @@ module yarvi_disass( input             clock
 
            `JAL: $write(" jal    r%1d, 0x%x", insn`rd, pc + uj_imm);
            `JALR:
-             if (insn`rd == 0 && i_imm == 0 && insn`rs1 == 32)  // XXX what is the condition for ret?
+             if (insn`rd == 0 && i_imm == 0 && insn`rs1 == 1)
                $write(" ret");
              else
                $write(" jalr   r%1d, r%1d, 0x%x", insn`rd, insn`rs1, $signed(i_imm));
