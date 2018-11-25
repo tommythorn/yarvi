@@ -156,7 +156,6 @@ module yarvi_disass( input             clock
 
            default: begin
               $write(" ? opcode %1d", insn`opcode);
-              $finish;
            end
          endcase
          $write("\n");

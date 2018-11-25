@@ -138,6 +138,7 @@ module yarvi_me( input  wire             clock
 
    always @(posedge clock)
      if (we) begin
+        if (0)
         $display("store %x -> [%x]/%x", wd_aligned, address, wd_mask);
         if (wd_mask == 15 & address == 'h80001000) begin
            /* XXX Hack for riscv-tests */
@@ -147,7 +148,7 @@ module yarvi_me( input  wire             clock
      end
 
    always @(posedge clock)
-     if (me_re)
+     if (0 && me_re)
         $display("load [%x] -> [%d] %x -> %x -> %x -> r%d",
                  me_address, me_wi, me_rd, me_rd_aligned, me_wb_val, me_wb_rd);
 

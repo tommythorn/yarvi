@@ -46,9 +46,11 @@ module yarvi_ex( input  wire             clock
    /* We register all inputs, so ex_??? are inputs to EX after flops
       (this isn't the most natual way to write it but matches how we
       typically draw the pipelines).  */
-   reg rf_valid = 0;
+   reg rf_valid;
+   reg [31:0] me_insn;
    always @(posedge clock) ex_pc      <= pc;
    always @(posedge clock) ex_insn    <= insn;
+   always @(posedge clock) me_insn    <= ex_insn;
    always @(posedge clock) rf_valid   <= !ex_restart;
    wire valid = rf_valid & !ex_restart;
    always @(posedge clock) ex_valid   <= valid;
@@ -57,43 +59,22 @@ module yarvi_ex( input  wire             clock
    reg  [`VMSB:0] ex_rs2_val;
 
    /* Processor state, mostly CSRs */
-   reg  [ 1:0] priv                     = `PRV_M;       // Current priviledge level
-   // CSRS
+   reg  [    1:0] priv;
+   reg  [    4:0] csr_fflags;
+   reg  [    2:0] csr_frm;
+   reg  [`VMSB:0] csr_mcause;
+   reg  [`VMSB:0] csr_mcycle;
+   reg  [`VMSB:0] csr_mepc;
+   reg  [    7:0] csr_mie;
+   reg  [`VMSB:0] csr_minstret;
+   reg  [    7:0] csr_mip;
+   reg  [`VMSB:0] csr_mscratch;
+   reg  [`VMSB:0] csr_mtime;
+   reg  [`VMSB:0] csr_mstatus;
+   reg  [`VMSB:0] csr_mtval;
+   reg  [`VMSB:0] csr_mtvec;
 
-   // URW
-   reg  [ 4:0] csr_fflags               = 0;            // 001
-   reg  [ 2:0] csr_frm                  = 0;            // 002
 
-   reg  [`VMSB:0] csr_stvec             = 'h 100;       // 105
-
-`ifdef not_hard_wired_to_zero
-   // MRO, Machine Information Registers
-   reg  [`VMSB:0] csr_mvendorid         = 0;            // f11
-   reg  [`VMSB:0] csr_marchid           = 0;            // f12
-   reg  [`VMSB:0] csr_mimpid            = 0;            // f13
-   reg  [`VMSB:0] csr_mhartid           = 0;            // f14
-`endif
-   reg  [`VMSB:0] csr_satp              = 0;            // 180
-
-   // MRW, Machine Trap Setup
-   reg  [`VMSB:0] csr_mstatus           = {2'd 3, 1'd 0};// 300
-   reg  [`VMSB:0] csr_medeleg           = 0;            // 302
-   reg  [`VMSB:0] csr_mideleg           = 0;            // 303
-   reg  [    7:0] csr_mie               = 0;            // 304
-   reg  [`VMSB:0] csr_mtvec             = 0;            // 305
-
-   // MRW, Machine Time and Counters
-   // MRW, Machine Trap Handling
-   reg  [`VMSB:0] csr_mscratch          = 0;            // 340
-   reg  [`VMSB:0] csr_mepc              = 0;            // 341
-   reg  [`VMSB:0] csr_mcause            = 0;            // 342
-   reg  [`VMSB:0] csr_mtval             = 0;            // 343
-   reg  [    7:0] csr_mip               = 0;            // 344
-
-   // URO
-   reg  [`VMSB:0] csr_mcycle            = 0;            // b00
-   reg  [`VMSB:0] csr_mtime             = 0;            // b01? not used?
-   reg  [`VMSB:0] csr_minstret          = 0;            // b02
 
    /* Updates to machine state */
    reg  [`VMSB:0] ex_csr_mcause;
@@ -118,9 +99,10 @@ module yarvi_ex( input  wire             clock
    reg  [`VMSB:0] wb_wb_val; always @(posedge clock) wb_wb_val <= ex_wb_val;
    reg  [    4:0] wb_wb_rd ; always @(posedge clock) wb_wb_rd  <= ex_wb_rd;
 
+   /* XXX style violation: operates directly on inputs; should be moved to decode */
    reg use_rs1, use_rs2;
    always @(*)
-     if (!valid)
+     if (!rf_valid)
        {use_rs2,use_rs1} = 0;
      else begin
         {use_rs2,use_rs1} = 0;
@@ -139,12 +121,17 @@ module yarvi_ex( input  wire             clock
               `CSRRW:  {use_rs2,use_rs1} = 1;
             endcase
         endcase
+        if (insn`rs1 == 0) use_rs1 = 0;
+        if (insn`rs2 == 0) use_rs2 = 0;
      end
+   reg ex_use_rs1, ex_use_rs2;
+   always @(posedge clock) ex_use_rs1 <= use_rs1;
+   always @(posedge clock) ex_use_rs2 <= use_rs2;
 
    wire debug_bypass = 0 && valid;
 
    always @(posedge clock)
-     if      (!use_rs1 || insn`rs1 == 0)
+     if      (!use_rs1)
        ex_rs1_val <= 0;
      else if (insn`rs1 == ex_wb_rd && ex_valid && ex_insn`opcode != `LOAD) begin
        ex_rs1_val <= ex_wb_val;
@@ -164,7 +151,7 @@ module yarvi_ex( input  wire             clock
      end
 
    always @(posedge clock)
-     if      (!use_rs2 || insn`rs2 == 0)
+     if      (!use_rs2)
        ex_rs2_val <= 0;
      else if (insn`rs2 == ex_wb_rd && ex_valid && ex_insn`opcode != `LOAD) begin
        ex_rs2_val <= ex_wb_val;
@@ -181,22 +168,6 @@ module yarvi_ex( input  wire             clock
        if (debug_bypass)
        $display("         %x: get    r%1d from RF %x", pc, insn`rs2, rs2_val);
      end
-
-   always @(posedge clock)
-     if (use_rs1 && insn`rs1 != 0 && insn`rs1 == ex_wb_rd && ex_valid &&
-         ex_insn`opcode == `LOAD)
-       begin
-          $display("         %x: load hazard on r%1d", pc, insn`rs1);
-          $finish;
-       end
-
-   always @(posedge clock)
-     if (use_rs2 && insn`rs2 != 0 && insn`rs2 == ex_wb_rd && ex_valid &&
-         ex_insn`opcode == `LOAD)
-       begin
-          $display("         %x: load hazard on r%1d", pc, insn`rs2);
-          $finish;
-       end
 
    wire [`VMSB:0] ex_rs1                = ex_rs1_val;
    wire [`VMSB:0] ex_rs2                = ex_rs2_val;
@@ -223,7 +194,6 @@ module yarvi_ex( input  wire             clock
        `CSR_MISA:         csr_val = (2 << 30) | (1 << ("I"-"A"));//301
        `CSR_MIE:          csr_val = csr_mie;                    // 304
        `CSR_MTVEC:        csr_val = csr_mtvec;                  // 305
-       `CSR_MCOUNTEREN:   csr_val = 0;                          // 306
 
        `CSR_MSCRATCH:     csr_val = csr_mscratch;               // 340
        `CSR_MEPC:         csr_val = csr_mepc;                   // 341
@@ -256,9 +226,9 @@ module yarvi_ex( input  wire             clock
       with enables derived in the previous stage.  For now this is
       easier to work with. */
 
-   reg [11:0] ex_csr_waddr;
+   reg        ex_csr_we;
    always @(*) begin
-      ex_csr_waddr                      = ~0;
+      ex_csr_we                         = 0;
       ex_restart                        = 0;
       ex_restart_pc                     = 'hX;
 
@@ -328,16 +298,16 @@ module yarvi_ex( input  wire             clock
         `SYSTEM: begin
            ex_wb_rd                     = ex_insn`rd;
            ex_wb_val                    = csr_val;
-           ex_csr_waddr                 = ex_insn`imm11_0;
+           ex_csr_we                    = 1;
            case (ex_funct3)
-             `CSRRS:  begin csr_d       = csr_val |  ex_rs1; if (ex_insn`rs1 == 0) ex_csr_waddr = ~0; end
-             `CSRRC:  begin csr_d       = csr_val &~ ex_rs1; if (ex_insn`rs1 == 0) ex_csr_waddr = ~0; end
+             `CSRRS:  begin csr_d       = csr_val |  ex_rs1; if (ex_insn`rs1 == 0) ex_csr_we = 0; end
+             `CSRRC:  begin csr_d       = csr_val &~ ex_rs1; if (ex_insn`rs1 == 0) ex_csr_we = 0; end
              `CSRRW:  begin csr_d       =            ex_rs1; end
              `CSRRSI: begin csr_d       = csr_val |  ex_insn`rs1; end
              `CSRRCI: begin csr_d       = csr_val &~ ex_insn`rs1; end
              `CSRRWI: begin csr_d       =            ex_insn`rs1; end
              `PRIV: begin
-                ex_csr_waddr            = ~0;
+                ex_csr_we               = 0;
                 ex_restart              = 1;
                 case (ex_insn`imm11_0)
                   `ECALL: begin
@@ -367,6 +337,7 @@ module yarvi_ex( input  wire             clock
              end
           endcase
         end
+
         `MISC_MEM:
             case (ex_funct3)
               `FENCE:  ;
@@ -386,6 +357,7 @@ module yarvi_ex( input  wire             clock
            ex_wb_rd                     = ex_insn`rd;
            ex_wb_val                    = ex_rs1 + ex_i_imm;
         end
+
         `STORE: begin
            ex_writeenable               = 1;
            ex_wb_val                    = ex_rs1 + ex_s_imm;
@@ -398,51 +370,83 @@ module yarvi_ex( input  wire             clock
           end
       endcase
 
+      /* The order here is important, lowest priority first.  */
+      if (use_rs1 && insn`rs1 == ex_wb_rd && ex_valid && ex_insn`opcode == `LOAD) begin
+         $display("%5d    %x: load hazard on r%1d", $time/10, pc, insn`rs1);
+         ex_restart                     = 1;
+         ex_restart_pc                  = pc;
+      end
+
+      if (use_rs2 && insn`rs2 == ex_wb_rd && ex_valid && ex_insn`opcode == `LOAD) begin
+         $display("%5d    %x: load hazard on r%1d", $time/10, pc, insn`rs2);
+         ex_restart                     = 1;
+         ex_restart_pc                  = pc;
+      end
+
       if (!ex_valid) begin
-         ex_csr_waddr                   = ~0;
+         ex_csr_we                      = 0;
+         ex_wb_rd                       = 0;
          ex_restart                     = 0;
       end
 
       if (reset) begin
+         ex_csr_we                      = 0;
          ex_restart                     = 1;
          ex_restart_pc                  = `INIT_PC;
       end
    end
 
-   always @(posedge clock) begin
-      /* Note, there's no conflicts as, by construction, the CSR
-         instructions can't fault and thus ex_XXX will hold the old
-         value of the CSR */
+   always @(posedge clock) if (reset) begin
+      priv                              <= `PRV_M;
+      csr_fflags                        <= 0;
+      csr_frm                           <= 0;
+      csr_mcause                        <= 0;
+      csr_mcycle                        <= 0;
+      csr_mepc                          <= 0;
+      csr_mie                           <= 0;
+      csr_minstret                      <= 0;
+      csr_mip                           <= 0;
+      csr_mscratch                      <= 0;
+      csr_mstatus                       <= {2'd 3, 1'd 0};
+      csr_mtval                         <= 0;
+      csr_mtvec                         <= 0;
+   end else begin
+      csr_mcycle                        <= csr_mcycle + 1;
 
-      priv                              <= ex_priv;
-      csr_mcause                        <= ex_csr_mcause;
-      csr_mepc                          <= ex_csr_mepc;
-      csr_mstatus                       <= ex_csr_mstatus;
-      csr_mtval                         <= ex_csr_mtval;
+      if (ex_valid) begin
+         /* Note, there's no conflicts as, by construction, the CSR
+          instructions can't fault and thus ex_XXX will hold the old
+          value of the CSR */
 
-      case (ex_csr_waddr)
-        `CSR_FFLAGS:    csr_fflags           <= csr_d;
-        `CSR_FRM:       csr_frm              <= csr_d;
-        `CSR_FCSR:      {csr_frm,csr_fflags} <= csr_d;
+         priv                           <= ex_priv;
+         csr_mcause                     <= ex_csr_mcause;
+         csr_mepc                       <= ex_csr_mepc;
+         csr_mstatus                    <= ex_csr_mstatus;
+         csr_mtval                      <= ex_csr_mtval;
+      end
 
-        `CSR_MSTATUS:   csr_mstatus          <= csr_d & ~(15 << 12); // No FP or XS;
-        `CSR_MEDELEG:   csr_medeleg          <= csr_d;
-        `CSR_MIDELEG:   csr_mideleg          <= csr_d;
-        `CSR_MIE:       csr_mie              <= csr_d;
+      if (ex_csr_we)
+         case (ex_insn`imm11_0)
+           `CSR_FCSR:      {csr_frm,csr_fflags} <= csr_d;
+           `CSR_FFLAGS:    csr_fflags   <= csr_d;
+           `CSR_FRM:       csr_frm      <= csr_d;
+//         `CSR_MCAUSE:    csr_mcause   <= csr_d;
+//         `CSR_MCYCLE:    csr_mcycle   <= csr_d;
+           `CSR_MEPC:      csr_mepc     <= csr_d;
+           `CSR_MIE:       csr_mie      <= csr_d;
+//         `CSR_MINSTRET:  csr_instret  <= csr_d;
+           `CSR_MIP:       csr_mip[3]   <= csr_d[3];
+           `CSR_MSCRATCH:  csr_mscratch <= csr_d;
+           `CSR_MSTATUS:   csr_mstatus  <= csr_d & ~(15 << 12); // No FP or XS;
+           `CSR_MTVEC:     csr_mtvec    <= csr_d;
+//         `CSR_MTVAL:     csr_mtvec    <= csr_d;
 
-        `CSR_MSCRATCH:  csr_mscratch         <= csr_d;
-        `CSR_MEPC:      csr_mepc             <= csr_d;
-        `CSR_MIP:       csr_mip[3]           <= csr_d[3];
-        `CSR_MTVEC:     csr_mtvec            <= csr_d;
-        `CSR_STVEC:     csr_stvec            <= csr_d;
-        `CSR_SATP:      csr_satp             <= csr_d;
+           `CSR_PMPCFG0: ;
+           `CSR_PMPADDR0: ;
 
-        `CSR_PMPCFG0: ;
-        `CSR_PMPADDR0: ;
-
-        4095: ;
-        default:
-          $display("                                                 Warning: writing an unimplemented CSR %x", ex_csr_waddr);
-      endcase
+           4095: ;
+           default:
+             $display("                                                 Warning: writing an unimplemented CSR %x", ex_insn`imm11_0);
+         endcase
    end
 endmodule

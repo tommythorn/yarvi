@@ -134,12 +134,18 @@ module yarvi
    always @(posedge clock) me_pc   <= ex_pc;
    always @(posedge clock) me_insn <= ex_insn;
 
+   always @(posedge clock)
+     if (0)
+     $display("%5d  EX WBV %x:r%1d<-%x  ME WBV %x:r%1d<-%x", $time/10,
+              ex_pc, ex_wb_rd, ex_wb_val,
+              me_pc, me_wb_rd, me_wb_val);
+
    yarvi_disass disass
      ( .clock                   (clock)
-     , .valid                   (ex_valid)
-     , .prv                     (ex_priv)
-     , .pc                      (ex_pc)
-     , .insn                    (ex_insn)
-     , .wb_rd                   (ex_wb_rd)
-     , .wb_val                  (ex_wb_val));
+     , .valid                   (me_valid)
+     , .prv                     (me_priv)
+     , .pc                      (me_pc)
+     , .insn                    (me_insn)
+     , .wb_rd                   (me_wb_rd)
+     , .wb_val                  (me_wb_val));
 endmodule
