@@ -1,6 +1,6 @@
 // -----------------------------------------------------------------------
 //
-//   Copyright 2016 Tommy Thorn - All Rights Reserved
+//   Copyright 2016,2018 Tommy Thorn - All Rights Reserved
 //
 //   This program is free software; you can redistribute it and/or modify
 //   it under the terms of the GNU General Public License as published by
@@ -11,6 +11,10 @@
 // -----------------------------------------------------------------------
 
 `timescale 1ns/10ps
+
+`ifndef TIMEOUT
+`define TIMEOUT 16000
+`endif
 
 module toplevel();
    reg clock = 1;
@@ -48,7 +52,7 @@ module toplevel();
       reset = 0;
       $display("out of reset");
 
-      #16000
+      #`TIMEOUT
 	$display("TIMED OUT");
       $finish;
    end

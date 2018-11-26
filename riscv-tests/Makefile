@@ -2,6 +2,8 @@ CORE=../core/
 VERB=
 VERB=-DVERBOSE_SIMULATION
 
+TIMEOUT=16000
+
 SRC=../sim/toplevel.v $(CORE)htif.v $(CORE)yarvi_soc.v $(CORE)yarvi_disass.v $(CORE)yarvi.v $(CORE)yarvi_fe.v $(CORE)yarvi_rf.v $(CORE)yarvi_ex.v $(CORE)yarvi_me.v
 HDR=$(CORE)riscv.h
 
@@ -162,7 +164,7 @@ multisim: $(patsubst %,$(TESTDIR)%.multisim,$(TESTS))
 	spike $< > $@ 2>&1
 
 %.yarvi: %.hex $(SRC) $(HDR)
-	iverilog -I../core/ -DSIMULATION $(VERB) -DINIT_MEM=\"$<\" -o $@ $(SRC)
+	iverilog -I../core/ -DTIMEOUT=$(TIMEOUT) -DSIMULATION $(VERB) -DINIT_MEM=\"$<\" -o $@ $(SRC)
 
 %.trace: %.yarvi %.hex
 	./$^ > $@
