@@ -10,7 +10,7 @@ HDR=$(CORE)riscv.h
 # Adjust to match your RISC-V toolchain
 RVPATH=
 RVPREFIX=$(RVPATH)riscv32-unknown-elf-
-MEMSIZEK=128
+MEMSIZEK=32
 
 TESTS= \
   I-ADD-01.elf \
@@ -97,13 +97,17 @@ newtest: $(patsubst %,$(TESTDIR)%.trace,$(TESTS))
 		 -I../core/ -DSIMULATION $(VERB) -DINIT_MEM=\"$<\" \
 		-o $@ $(ICARUS_SRC) $(SRC)
 
-%.vyarvi: %.hex $(SRC) $(HDR)
-	verilator -Wall --cc \
+%.vsim: %.hex $(SRC) $(HDR) sim_main.cpp
+	verilator -CFLAGS -O3 -O3 -Wall --cc --exe sim_main.cpp \
+		--top-module yarvi \
 		-DBEGIN_SIGNATURE=`nm $(basename $<).elf|egrep ' begin_signature$$'|cut -d' ' -f1` \
 		-DEND_SIGNATURE=`nm $(basename $<).elf|egrep ' end_signature$$'|cut -d' ' -f1` \
 		-DTOHOST=`nm $(basename $<).elf|egrep ' tohost$$'|cut -d' ' -f1` \
+		$(UNDEFS) \
 		 -I../core/ -DSIMULATION $(VERB) -DINIT_MEM=\"$<\" \
-		-o $@ $(SRC)
+		-Mdir $@ $(SRC)
+	make -C $@ -f Vyarvi.mk Vyarvi
+	$@/Vyarvi
 
 %.trace: %.yarvi
 	./$^ > $@

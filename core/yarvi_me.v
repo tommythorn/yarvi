@@ -72,7 +72,7 @@ module yarvi_me( input  wire             clock
        0: misaligned =  0;            // Byte
        1: misaligned =  address[  0]; // Half
        2: misaligned = |address[1:0]; // Word
-       3: misaligned =  'hX;
+       3: misaligned =  1'hX;
      endcase
 
    /* Load path */
@@ -141,7 +141,7 @@ module yarvi_me( input  wire             clock
 `endif
    always @(posedge clock)
      if (we) begin
-        if (0)
+        if (!address_in_mem)
         $display("store %x -> [%x]/%x", wd_aligned, address, wd_mask);
 `ifdef TOHOST
         if (wd_mask == 15 & address == 'h`TOHOST) begin

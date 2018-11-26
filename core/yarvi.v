@@ -13,14 +13,23 @@ This is a simple RISC-V RV64I implementation.
 `include "yarvi.h"
 
 module yarvi
-  ( input  wire         clock
-  , input  wire         reset
+  ( input  wire             clock
+  , input  wire             reset
+
+  , output reg     [ 1:0]   me_priv
+  , output wire             me_valid
+  , output wire [`VMSB:0]   me_pc
+  , output reg     [31:0]   me_insn
+  , output wire    [ 4:0]   me_wb_rd
+  , output wire [`XMSB:0]   me_wb_val
   );
 
    wire [`VMSB:0]   fe_pc;
    wire [31:0]      fe_insn;
 
+/* verilator lint_off UNUSED */
    wire             rf_valid;
+/* verilator lint_on UNUSED */
    wire [`VMSB:0]   rf_pc;
    wire [31:0]      rf_insn;
    wire [`VMSB:0]   rf_rs1_val;
@@ -141,8 +150,6 @@ module yarvi
 
    /* XXX Writeback/Commit */
 
-   reg [ 1:0]      me_priv;
-   reg [31:0]      me_insn;
    always @(posedge clock) me_priv <= ex_priv;
    always @(posedge clock) me_insn <= ex_insn;
 
@@ -152,7 +159,7 @@ module yarvi
               ex_pc, ex_wb_rd, ex_wb_val,
               me_pc, me_wb_rd, me_wb_val);
 */
-
+`ifdef DISASSEMBLE
    yarvi_disass disass
      ( .clock                   (clock)
      , .info                    ({ex_restart,rf_valid, ex_valid, me_valid})
@@ -162,4 +169,5 @@ module yarvi
      , .insn                    (me_insn)
      , .wb_rd                   (me_wb_rd)
      , .wb_val                  (me_wb_val));
+`endif
 endmodule

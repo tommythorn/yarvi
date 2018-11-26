@@ -66,9 +66,9 @@ module yarvi_ex( input  wire             clock
    always @(posedge clock) ex_valid     <= rf_valid & !ex_restart & !me_exc_misaligned & !me_load_hit_store;
 
    reg  [`VMSB:0] me_pc;
-   reg  [`VMSB:0] me_insn;
+   reg            me_insn_opcode_load;
    always @(posedge clock) me_pc        <= ex_pc;
-   always @(posedge clock) me_insn      <= ex_insn;
+   always @(posedge clock) me_insn_opcode_load <= ex_insn`opcode == `LOAD; // XXX Actually only need one bit from opcode
 
    reg  [`VMSB:0] ex_rs1_val;
    reg  [`VMSB:0] ex_rs2_val;
@@ -481,7 +481,7 @@ module yarvi_ex( input  wire             clock
          ex_csr_mstatus`MIE             = 0;
          ex_csr_mstatus`MPP             = priv;
          ex_priv                        = `PRV_M;
-         ex_csr_mcause                  = me_insn`opcode == `LOAD
+         ex_csr_mcause                  = me_insn_opcode_load
                                           ? `CAUSE_MISALIGNED_LOAD
                                           : `CAUSE_MISALIGNED_STORE;
          ex_csr_mtval                   = me_exc_mtval;
