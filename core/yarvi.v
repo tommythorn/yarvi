@@ -20,6 +20,7 @@ module yarvi
    wire [`VMSB:0]   fe_pc;
    wire [31:0]      fe_insn;
 
+   wire             rf_valid;
    wire [`VMSB:0]   rf_pc;
    wire [31:0]      rf_insn;
    wire [`VMSB:0]   rf_rs1_val;
@@ -42,9 +43,11 @@ module yarvi
    wire [`XMSB:0]   ex_writedata;
 
    wire             me_valid;
+   wire [`VMSB:0]   me_pc;
    wire [4:0]       me_wb_rd;
    wire [`XMSB:0]   me_wb_val;
-   wire             me_misaligned_exc;
+   wire             me_exc_misaligned;
+   wire [`XMSB:0]   me_exc_mtval;
    wire             me_load_hit_store;
 
    wire [`VMSB:0]   code_address;
@@ -87,7 +90,8 @@ module yarvi
 
      , .me_wb_rd                (me_wb_rd)
      , .me_wb_val               (me_wb_val)
-     , .me_misaligned_exc       (me_misaligned_exc)
+     , .me_exc_misaligned       (me_exc_misaligned)
+     , .me_exc_mtval            (me_exc_mtval)
      , .me_load_hit_store       (me_load_hit_store)
 
      , .ex_valid                (ex_valid)
@@ -105,12 +109,15 @@ module yarvi
      , .ex_writeenable          (ex_writeenable)
      , .ex_funct3               (ex_funct3)
      , .ex_writedata            (ex_writedata)
+
+     , .rf_valid                (rf_valid)
      );
 
    yarvi_me me
      ( .clock                   (clock)
 
      , .valid                   (ex_valid)
+     , .pc                      (ex_pc)
      , .wb_rd                   (ex_wb_rd)
      , .wb_val                  (ex_wb_val)
 
@@ -124,29 +131,31 @@ module yarvi
      , .code_writemask          (code_writemask)
 
      , .me_valid                (me_valid)
+     , .me_pc                   (me_pc)
      , .me_wb_rd                (me_wb_rd)
      , .me_wb_val               (me_wb_val)
-     , .me_misaligned_exc       (me_misaligned_exc)
+     , .me_exc_misaligned       (me_exc_misaligned)
+     , .me_exc_mtval            (me_exc_mtval)
      , .me_load_hit_store       (me_load_hit_store)
      );
 
    /* XXX Writeback/Commit */
 
    reg [ 1:0]      me_priv;
-   reg [`VMSB:0]   me_pc;
    reg [31:0]      me_insn;
    always @(posedge clock) me_priv <= ex_priv;
-   always @(posedge clock) me_pc   <= ex_pc;
    always @(posedge clock) me_insn <= ex_insn;
 
-   always @(posedge clock)
+/*
      if (0)
      $display("%5d  EX WBV %x:r%1d<-%x  ME WBV %x:r%1d<-%x", $time/10,
               ex_pc, ex_wb_rd, ex_wb_val,
               me_pc, me_wb_rd, me_wb_val);
+*/
 
    yarvi_disass disass
      ( .clock                   (clock)
+     , .info                    ({ex_restart,rf_valid, ex_valid, me_valid})
      , .valid                   (me_valid)
      , .prv                     (me_priv)
      , .pc                      (me_pc)

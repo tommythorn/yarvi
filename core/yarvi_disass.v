@@ -7,13 +7,14 @@
 `include "yarvi.h"
 
 module yarvi_disass( input             clock
-                     , input             valid
-                     , input [ 1:0]      prv
-                     , input [`VMSB:0]   pc
-                     , input [31:0]      insn
+                   , input [ 3:0]      info
+                   , input             valid
+                   , input [ 1:0]      prv
+                   , input [`VMSB:0]   pc
+                   , input [31:0]      insn
 
-                     , input [ 4:0]      wb_rd
-                     , input [`VMSB:0]   wb_val);
+                   , input [ 4:0]      wb_rd
+                   , input [`VMSB:0]   wb_val);
 
    wire        we            = |wb_rd;
 
@@ -34,13 +35,12 @@ module yarvi_disass( input             clock
    wire           disass_en = 1;
 
    always @(posedge clock) begin
-      if (!valid)
-        $display("%5d", $time/10);
+      $write("%5d %b %d", $time/10, info, prv);
 
       if (valid && we)
-        $write("%5d  %d %x %x %x", $time/10, prv, pc, insn, wb_val);
+        $write(" %x %x %x", pc, insn, wb_val);
       else if (valid && disass_en)
-        $write("%5d  %d %x %x         ", $time/10, prv, pc, insn);
+        $write(" %x %x         ", pc, insn);
 
       if (valid && disass_en) begin
          case (insn`opcode)
@@ -158,7 +158,7 @@ module yarvi_disass( input             clock
               $write(" ? opcode %1d", insn`opcode);
            end
          endcase
-         $write("\n");
       end
+      $write("\n");
    end
 endmodule

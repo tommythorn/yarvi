@@ -18,6 +18,7 @@ more cycles.  There might be multiple memory pending at any one time
 module yarvi_me( input  wire             clock
 
                , input  wire             valid
+               , input  wire [31:0]      pc
                , input  wire [ 4:0]      wb_rd
                , input  wire [31:0]      wb_val
                , input  wire             writeenable
@@ -26,9 +27,11 @@ module yarvi_me( input  wire             clock
                , input  wire [31:0]      writedata
 
                , output reg              me_valid
+               , output reg  [31:0]      me_pc
                , output reg  [ 4:0]      me_wb_rd
                , output reg  [31:0]      me_wb_val
-               , output reg              me_misaligned_exc
+               , output reg              me_exc_misaligned
+               , output reg [`XMSB:0]    me_exc_mtval
                , output reg              me_load_hit_store
 
                , output reg [`VMSB:0]    code_address
@@ -62,16 +65,27 @@ module yarvi_me( input  wire             clock
    always @(posedge clock) me_address    <= address;
    always @(posedge clock) me_funct3     <= funct3;
 
+
+   reg                  misaligned;
+   always @(*)
+     case (funct3[1:0])
+       0: misaligned =  0;            // Byte
+       1: misaligned =  address[  0]; // Half
+       2: misaligned = |address[1:0]; // Word
+       3: misaligned =  'hX;
+     endcase
+
    /* Load path */
 
    wire [31:0] me_rd = {mem3[me_wi],mem2[me_wi],mem1[me_wi],mem0[me_wi]};
-   reg  [31:0] me_rd_aligned;
+   reg  [15:0] me_rd_aligned;
+   // Conceptually me_rd >> (8 * me_bi), but optimized
    always @(*)
      case (me_bi)
-       0: me_rd_aligned =        me_rd;
-       1: me_rd_aligned = {24'hX,me_rd[15: 8]}; // must be byte access
-       2: me_rd_aligned = {16'hX,me_rd[31:16]}; // at most half access
-       3: me_rd_aligned = {24'hX,me_rd[31:24]}; // must be byte access
+       0: me_rd_aligned =        me_rd[15: 0];  // at most half access
+       1: me_rd_aligned = {8'hX, me_rd[15: 8]}; // must be byte access
+       2: me_rd_aligned =        me_rd[31:16];  // at most half access
+       3: me_rd_aligned = {8'hX, me_rd[31:24]}; // must be byte access
      endcase
 
    always @(*)
@@ -88,11 +102,6 @@ module yarvi_me( input  wire             clock
       else
              me_wb_val = me_address; // Bypass load
 
-   //assert(!(valid && readenable && address[0] && funct3 > 0));
-   //assert(!(valid && readenable && address[1] && funct3 > 1));
-
-   //assert(me_funct3 == 0 || me_funct3 == 1 || me_funct3 == 2 || me_funct3 == 4 || me_funct3 == 5);
-
    /* Store path */
 
    reg [31:0] wd_aligned;
@@ -104,9 +113,6 @@ module yarvi_me( input  wire             clock
        3: wd_aligned = {writedata[7:0],        24'hX}; // must be byte
      endcase
 
-   //assert(!(valid && writeenable && address[0] && funct3 > 0));
-   //assert(!(valid && writeenable && address[1] && funct3 > 1));
-
    reg [3:0] wd_mask;
    always @(*)
      case (funct3[1:0])
@@ -116,10 +122,8 @@ module yarvi_me( input  wire             clock
        3: wd_mask = 4'hX;
      endcase
 
-   //assert(!(valid && readenable && funct3[1:0] == 3));
-
    wire                 address_in_mem  = (address & (-1 << (`PMSB+1))) == 32'h80000000;
-   wire                 we              = valid && writeenable & address_in_mem;
+   wire                 we              = valid && writeenable & address_in_mem & !misaligned;
    wire [`PMSB-2:0]     wi              = address[`PMSB:2];
    always @(posedge clock) if (we & wd_mask[0]) mem0[wi] <= wd_aligned[ 7: 0];
    always @(posedge clock) if (we & wd_mask[1]) mem1[wi] <= wd_aligned[15: 8];
@@ -152,27 +156,34 @@ module yarvi_me( input  wire             clock
 `endif
      end
 
-   always @(posedge clock)
-     if (0 && me_re)
-        $display("load [%x] -> [%d] %x -> %x -> %x -> r%d",
-                 me_address, me_wi, me_rd, me_rd_aligned, me_wb_val, me_wb_rd);
-
    /* Hazard detection */
 
    reg me_we;
-   always @(posedge clock) me_we <= we;
    always @(posedge clock) begin
-      me_load_hit_store <= 0;
-      me_misaligned_exc <= 0;
-      me_valid <= valid;
-      me_wb_rd <= wb_rd;
+      if (me_exc_misaligned | me_load_hit_store) begin
+         me_valid 		<= 0;
+         me_wb_rd		<= 0;
+      end else begin
+         me_valid		<= valid;
+         me_wb_rd		<= wb_rd;
+      end
+      me_pc 			<= pc;
+      me_we 			<= we;
+      me_load_hit_store 	<= 0;
+      me_exc_misaligned 	<= 0;
+      me_exc_mtval              <= address;
 
-      if (valid && readenable && me_we && address[31:2] == me_address[31:2]) begin
-         me_load_hit_store <= 1;
-         me_valid <= 0;
-         me_wb_rd <= 0;
-         $display("Load-hit-store: load from %x hit the store to %x",
-                  address, me_address);
+      if (valid & misaligned & (readenable | writeenable)) begin
+         me_exc_misaligned 	<= 1;
+         me_valid 		<= 0;
+         me_wb_rd 		<= 0;
+         $display("%5d  ME: %x misaligned load/store address %x", $time/10, pc, address);
+      end else if (valid && readenable && me_we && address[31:2] == me_address[31:2]) begin
+         me_load_hit_store 	<= 1;
+         me_valid 		<= 0;
+         me_wb_rd 		<= 0;
+         $display("%5d  ME: %x load-hit-store: load from address %x hit the store to address %x",
+                  $time/10, pc, address, me_address);
       end
    end
 

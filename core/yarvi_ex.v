@@ -24,7 +24,8 @@ module yarvi_ex( input  wire             clock
 
                , input  wire [ 4:0]      me_wb_rd  // != 0 => WE. !valid => 0
                , input  wire [31:0]      me_wb_val
-               , input  wire             me_misaligned_exc
+               , input  wire             me_exc_misaligned
+               , input  wire [31:0]      me_exc_mtval
                , input  wire             me_load_hit_store
 
                , output reg              ex_valid
@@ -42,6 +43,10 @@ module yarvi_ex( input  wire             clock
                , output reg              ex_writeenable
                , output reg  [ 2:0]      ex_funct3
                , output reg  [`XMSB:0]   ex_writedata
+
+// debug
+               , output reg              rf_valid
+
                );
 
    // Asserts would be nice here
@@ -54,12 +59,11 @@ module yarvi_ex( input  wire             clock
    /* We register all inputs, so ex_??? are inputs to EX after flops
       (this isn't the most natual way to write it but matches how we
       typically draw the pipelines).  */
-   reg rf_valid;
+// reg rf_valid;
    always @(posedge clock) ex_pc        <= pc;
    always @(posedge clock) ex_insn      <= insn;
-   always @(posedge clock) rf_valid     <= !ex_restart;
-   wire valid = rf_valid & !ex_restart;
-   always @(posedge clock) ex_valid     <= valid;
+   always @(posedge clock) rf_valid     <=            !ex_restart & !me_exc_misaligned & !me_load_hit_store;
+   always @(posedge clock) ex_valid     <= rf_valid & !ex_restart & !me_exc_misaligned & !me_load_hit_store;
 
    reg  [`VMSB:0] me_pc;
    reg  [`VMSB:0] me_insn;
@@ -132,7 +136,7 @@ module yarvi_ex( input  wire             clock
         if (insn`rs2 == 0) use_rs2      = 0;
      end
 
-   wire debug_bypass = 0 && valid;
+   wire debug_bypass = 0 && rf_valid & !ex_restart;
 
    always @(posedge clock)
      if      (!use_rs1)
@@ -440,14 +444,6 @@ module yarvi_ex( input  wire             clock
         end
       endcase
 
-      if (me_misaligned_exc) begin
-         ex_trap                        = 1;
-         ex_csr_mcause                  = `CAUSE_ILLEGAL_INSTRUCTION;
-         ex_csr_mtval                   = ex_wb_val;
-         if (ex_valid)
-           $display("Misaligned %x:%x", me_pc, me_insn);
-      end
-
       if (ex_trap) begin
          ex_restart_pc                  = csr_mtvec;
          ex_csr_mepc                    = ex_pc;
@@ -459,13 +455,13 @@ module yarvi_ex( input  wire             clock
 
       /* The order here is important, lowest priority first.  */
       if (use_rs1 && insn`rs1 == ex_wb_rd && ex_valid && ex_insn`opcode == `LOAD) begin
-         $display("%5d    %x: load hazard on r%1d", $time/10, pc, insn`rs1);
+         //$display("%5d    %x: load hazard on r%1d", $time/10, pc, insn`rs1);
          ex_restart                     = 1;
          ex_restart_pc                  = pc;
       end
 
       if (use_rs2 && insn`rs2 == ex_wb_rd && ex_valid && ex_insn`opcode == `LOAD) begin
-         $display("%5d    %x: load hazard on r%1d", $time/10, pc, insn`rs2);
+         //$display("%5d    %x: load hazard on r%1d", $time/10, pc, insn`rs2);
          ex_restart                     = 1;
          ex_restart_pc                  = pc;
       end
@@ -476,9 +472,26 @@ module yarvi_ex( input  wire             clock
          ex_restart                     = 0;
       end
 
-      if (me_load_hit_store) begin
+      /* We can't share the ex_trap logic as that get's annulled if ex_valid = 0 */
+      if (me_exc_misaligned) begin
+         ex_restart                     = 1;
+         ex_restart_pc                  = csr_mtvec;
+         ex_csr_mepc                    = me_pc;
+         ex_csr_mstatus`MPIE            = csr_mstatus`MIE;
+         ex_csr_mstatus`MIE             = 0;
+         ex_csr_mstatus`MPP             = priv;
+         ex_priv                        = `PRV_M;
+         ex_csr_mcause                  = me_insn`opcode == `LOAD
+                                          ? `CAUSE_MISALIGNED_LOAD
+                                          : `CAUSE_MISALIGNED_STORE;
+         ex_csr_mtval                   = me_exc_mtval;
+         //$display("%5d  EX: misaligned load/store exception %x:%x", $time/10, me_pc, me_insn);
+      end
+
+      if (me_load_hit_store) begin // Note, me_load_hit_store & me_exc_misaligned == 0
          ex_restart                     = 1;
          ex_restart_pc                  = me_pc;
+         //$display("%5d  EX: load-hit-store %x:%x", $time/10, me_pc, me_insn);
       end
 
       if (reset) begin
@@ -505,7 +518,7 @@ module yarvi_ex( input  wire             clock
    end else begin
       csr_mcycle                        <= csr_mcycle + 1;
 
-      if (ex_valid) begin
+      if (ex_valid | me_exc_misaligned) begin
          /* Note, there's no conflicts as, by construction, the CSR
           instructions can't fault and thus ex_XXX will hold the old
           value of the CSR */
