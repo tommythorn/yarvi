@@ -12,6 +12,8 @@ RVPATH=
 RVPREFIX=$(RVPATH)riscv32-unknown-elf-
 MEMSIZEK=32
 
+.PRECIOUS: %.hex
+
 TESTS= \
   I-ADD-01.elf \
   I-ADDI-01.elf \
@@ -121,3 +123,4 @@ newtest: $(patsubst %,$(TESTDIR)%.trace,$(TESTS))
 	./$^ | grep ^Signature -A999999|tail -n +2 | \
 		if diff - ../../riscv-compliance/riscv-test-suite/rv32i/references/$(basename $<).reference_output; then \
 			touch $@.pass; else touch $@.fail; fi
+

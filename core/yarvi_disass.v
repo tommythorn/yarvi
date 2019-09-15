@@ -136,6 +136,7 @@ module yarvi_disass( input             clock
                     `ECALL:  $write(" ecall");
                     `EBREAK: $write(" ebreak");
                     `MRET:   $write(" mret");
+                    `WFI:    $write(" wfi");
                     default: begin
                        $write(" PRIV opcode %1d?", insn`imm11_0);
                        $finish;

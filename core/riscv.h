@@ -164,6 +164,8 @@
 `define CSR_MIMPID              'h F13
 `define CSR_MHARTID             'h F14
 
+// Official YARVI Architecture ID for
+`define    VENDORID_YARVI       9
 
 // Trap causes
 

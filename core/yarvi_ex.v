@@ -27,6 +27,7 @@ module yarvi_ex( input  wire             clock
                , input  wire             me_exc_misaligned
                , input  wire [31:0]      me_exc_mtval
                , input  wire             me_load_hit_store
+               , input  wire             me_timer_interrupt
 
                , output reg              ex_valid
                , output reg [`VMSB:0]    ex_pc
@@ -77,12 +78,11 @@ module yarvi_ex( input  wire             clock
    reg  [    1:0] priv;
    reg  [    4:0] csr_fflags;
    reg  [    2:0] csr_frm;
-   reg  [    3:0] csr_mcause;
+   reg  [`VMSB:0] csr_mcause;
    reg  [`VMSB:0] csr_mcycle;
    reg  [`VMSB:0] csr_mepc;
    reg  [    7:0] csr_mie;
    reg  [`VMSB:0] csr_minstret;
-   reg  [    7:0] csr_mip;
    reg  [`VMSB:0] csr_mscratch;
    reg  [`VMSB:0] csr_mstatus;
    reg  [`VMSB:0] csr_mtval;
@@ -91,7 +91,7 @@ module yarvi_ex( input  wire             clock
 
 
    /* Updates to machine state */
-   reg  [    3:0] ex_csr_mcause;
+   reg  [`VMSB:0] ex_csr_mcause;
    reg  [`VMSB:0] ex_csr_mepc;
    reg  [`VMSB:0] ex_csr_mstatus;
    reg  [`VMSB:0] ex_csr_mtval;
@@ -205,9 +205,9 @@ module yarvi_ex( input  wire             clock
 
        `CSR_MSCRATCH:     csr_val = csr_mscratch;
        `CSR_MEPC:         csr_val = csr_mepc;
-       `CSR_MCAUSE:       csr_val = {28'd0, csr_mcause};
+       `CSR_MCAUSE:       csr_val = csr_mcause;
        `CSR_MTVAL:        csr_val = csr_mtval;
-       `CSR_MIP:          csr_val = {24'd0, csr_mip};
+       `CSR_MIP:          csr_val = {25'd0,me_timer_interrupt, 6'd0};
 
        `CSR_MCYCLE:       csr_val = csr_mcycle;
        `CSR_MINSTRET:     csr_val = csr_minstret;
@@ -216,10 +216,10 @@ module yarvi_ex( input  wire             clock
        `CSR_PMPADDR0:     csr_val = 0;
 
        // Standard Machine RO
-       `CSR_MVENDORID:    csr_val = 9;                          // F11
-       `CSR_MARCHID:      csr_val = 0;                          // F12
-       `CSR_MIMPID:       csr_val = 0;                          // F13
-       `CSR_MHARTID:      csr_val = 0;                          // F14
+       `CSR_MVENDORID:    csr_val = `VENDORID_YARVI;
+       `CSR_MARCHID:      csr_val = 0;
+       `CSR_MIMPID:       csr_val = 0;
+       `CSR_MHARTID:      csr_val = 0;
 
        default:           begin
                           csr_val = 0;
@@ -234,8 +234,10 @@ module yarvi_ex( input  wire             clock
       with enables derived in the previous stage.  For now this is
       easier to work with. */
 
-   reg        ex_csr_we;
-   reg        ex_trap;
+   reg           ex_csr_we;
+   reg           ex_trap;
+   reg [`VMSB:0] ex_trap_cause;
+   reg [`VMSB:0] ex_trap_val;
    always @(*) begin
       ex_csr_we                         = 0;
       ex_restart                        = 0;
@@ -255,6 +257,7 @@ module yarvi_ex( input  wire             clock
       ex_csr_mtval                      = csr_mtval;
 
       ex_trap                           = 0;
+      ex_trap_cause			= 0;
 
       case (ex_insn`opcode)
         `OP_IMM, `OP: begin
@@ -274,9 +277,9 @@ module yarvi_ex( input  wire             clock
              `OR:     ex_wb_val         =         ex_rs1  |         ex_rs2_val_imm;
              `AND:    ex_wb_val         =         ex_rs1  &         ex_rs2_val_imm;
              default: begin
-                ex_trap                 = 1;
-                ex_csr_mcause           = `CAUSE_ILLEGAL_INSTRUCTION;
-                ex_csr_mtval            = 0;
+                ex_trap                 = ex_valid;
+                ex_trap_cause           = `CAUSE_ILLEGAL_INSTRUCTION;
+                ex_trap_val             = 0;
 
                 if (ex_valid)
                   $display("Illegal instruction %x:%x", ex_pc, ex_insn);
@@ -287,11 +290,11 @@ module yarvi_ex( input  wire             clock
         `BRANCH: begin
            ex_restart_pc                = ex_pc + ex_sb_imm;
            if (ex_branch_taken) begin
-              ex_restart                = 1;
+              ex_restart                = ex_valid;
               if (ex_restart_pc[1:0] != 0) begin // == ex_sb_imm[1], decode time
-                 ex_trap                = 1;
-                 ex_csr_mcause          = `CAUSE_MISALIGNED_FETCH;
-                 ex_csr_mtval           = ex_restart_pc;
+                 ex_trap                = ex_valid;
+                 ex_trap_cause          = `CAUSE_MISALIGNED_FETCH;
+                 ex_trap_val            = ex_restart_pc;
               end
            end
         end
@@ -309,33 +312,33 @@ module yarvi_ex( input  wire             clock
         `JALR: begin
            ex_wb_rd                     = ex_insn`rd;
            ex_wb_val                    = ex_pc + 4;
-           ex_restart                   = 1;
+           ex_restart                   = ex_valid;
            ex_restart_pc                = (ex_rs1_val + ex_i_imm) & ~32'd1;
            if (ex_restart_pc[1:0] != 0) begin // == ex_rs1_val[1] ^ ex_i_imm[1]
               ex_wb_rd                  = 0;
-              ex_trap                   = 1;
-              ex_csr_mcause             = `CAUSE_MISALIGNED_FETCH;
-              ex_csr_mtval              = ex_restart_pc;
+              ex_trap                   = ex_valid;
+              ex_trap_cause             = `CAUSE_MISALIGNED_FETCH;
+              ex_trap_val               = ex_restart_pc;
            end
         end
 
         `JAL: begin
            ex_wb_rd                     = ex_insn`rd;
            ex_wb_val                    = ex_pc + 4;
-           ex_restart                   = 1;
+           ex_restart                   = ex_valid;
            ex_restart_pc                = ex_pc + ex_uj_imm;
            if (ex_restart_pc[1:0] != 0) begin // == ex_uj_imm[1], decode-time
               ex_wb_rd                  = 0;
-              ex_trap                   = 1;
-              ex_csr_mcause             = `CAUSE_MISALIGNED_FETCH;
-              ex_csr_mtval              = ex_restart_pc;
+              ex_trap                   = ex_valid;
+              ex_trap_cause             = `CAUSE_MISALIGNED_FETCH;
+              ex_trap_val               = ex_restart_pc;
            end
         end
 
         `SYSTEM: begin
            ex_wb_rd                     = ex_insn`rd;
            ex_wb_val                    = csr_val;
-           ex_csr_we                    = 1;
+           ex_csr_we                    = ex_valid;
            case (ex_funct3)
              `CSRRS:  begin csr_d       = csr_val |  ex_rs1; if (ex_insn`rs1 == 0) ex_csr_we = 0; end
              `CSRRC:  begin csr_d       = csr_val &~ ex_rs1; if (ex_insn`rs1 == 0) ex_csr_we = 0; end
@@ -344,18 +347,19 @@ module yarvi_ex( input  wire             clock
              `CSRRCI: begin csr_d       = csr_val &~ {27'd0, ex_insn`rs1}; end
              `CSRRWI: begin csr_d       =            {27'd0, ex_insn`rs1}; end
              `PRIV: begin
+                ex_wb_rd                = ex_insn`rd;
                 ex_csr_we               = 0;
-                ex_restart              = 1;
                 case (ex_insn`imm11_0)
                   `ECALL, `EBREAK: begin
-                     ex_trap            = 1;
-                     ex_csr_mcause      = ex_insn`imm11_0 == `ECALL
-                                          ? `CAUSE_USER_ECALL | {2'd0, priv}
+                     ex_trap            = ex_valid;
+                     ex_trap_cause      = ex_insn`imm11_0 == `ECALL
+                                          ? `CAUSE_USER_ECALL | {30'd0, priv}
                                           : `CAUSE_BREAKPOINT;
-                     ex_csr_mtval       = 0;
+                     ex_trap_val        = 0;
                   end
 
-                  `MRET: begin
+                  `MRET: if (ex_valid) begin
+                     ex_restart         = ex_valid;
                      ex_restart_pc      = csr_mepc;
                      ex_csr_mstatus`MIE = csr_mstatus`MPIE;
                      ex_csr_mstatus`MPIE= 1;
@@ -363,10 +367,12 @@ module yarvi_ex( input  wire             clock
                      ex_csr_mstatus`MPP = `PRV_U;
                   end
 
+                  `WFI: ;
+
                   default: begin
-                     ex_trap            = 1;
-                     ex_csr_mcause      = `CAUSE_ILLEGAL_INSTRUCTION;
-                     ex_csr_mtval       = 0;
+                     ex_trap            = ex_valid;
+                     ex_trap_cause      = `CAUSE_ILLEGAL_INSTRUCTION;
+                     ex_trap_val        = 0;
                      if (ex_valid)
                        $display("Illegal instruction %x:%x", ex_pc, ex_insn);
                   end
@@ -378,9 +384,9 @@ module yarvi_ex( input  wire             clock
            case (ex_funct3)
              `CSRRS, `CSRRC, `CSRRW, `CSRRSI, `CSRRCI, `CSRRWI:
                if (((ex_insn`imm11_0 & 12'hC00) == 12'hC00) && ex_csr_we || priv < ex_insn[31:30]) begin
-                  ex_trap               = 1;
-                  ex_csr_mcause         = `CAUSE_ILLEGAL_INSTRUCTION;
-                  ex_csr_mtval          = 0;
+                  ex_trap               = ex_valid;
+                  ex_trap_cause         = `CAUSE_ILLEGAL_INSTRUCTION;
+                  ex_trap_val           = 0;
                   if (ex_valid)
                     $display("Illegal instruction %x:%x", ex_pc, ex_insn);
                end
@@ -391,28 +397,28 @@ module yarvi_ex( input  wire             clock
             case (ex_funct3)
               `FENCE:  ;
               `FENCE_I: begin
-                 ex_restart             = 1;
+                 ex_restart             = ex_valid;
                  ex_restart_pc          = ex_pc + 4;
               end
 
               default: begin
-                 ex_trap                = 1;
-                 ex_csr_mcause          = `CAUSE_ILLEGAL_INSTRUCTION;
-                 ex_csr_mtval           = 0;
+                 ex_trap                = ex_valid;
+                 ex_trap_cause          = `CAUSE_ILLEGAL_INSTRUCTION;
+                 ex_trap_val            = 0;
                  if (ex_valid)
                    $display("Illegal instruction %x:%x", ex_pc, ex_insn);
               end
           endcase
 
         `LOAD: begin
-           ex_readenable                = 1;
+           ex_readenable                = ex_valid;
            ex_wb_rd                     = ex_insn`rd;
            ex_wb_val                    = ex_rs1 + ex_i_imm;
            case (ex_insn`funct3)
              3, 6, 7: begin
-                ex_trap                 = 1;
-                ex_csr_mcause           = `CAUSE_ILLEGAL_INSTRUCTION;
-                ex_csr_mtval            = 0;
+                ex_trap                 = ex_valid;
+                ex_trap_cause           = `CAUSE_ILLEGAL_INSTRUCTION;
+                ex_trap_val             = 0;
 
                 if (ex_valid)
                   $display("Illegal instruction %x:%x", ex_pc, ex_insn);
@@ -421,13 +427,13 @@ module yarvi_ex( input  wire             clock
         end
 
         `STORE: begin
-           ex_writeenable               = 1;
+           ex_writeenable               = ex_valid;
            ex_wb_val                    = ex_rs1 + ex_s_imm;
            case (ex_insn`funct3)
              3, 4, 5, 6, 7: begin
-                ex_trap                 = 1;
-                ex_csr_mcause           = `CAUSE_ILLEGAL_INSTRUCTION;
-                ex_csr_mtval            = 0;
+                ex_trap                 = ex_valid;
+                ex_trap_cause           = `CAUSE_ILLEGAL_INSTRUCTION;
+                ex_trap_val             = 0;
 
                 if (ex_valid)
                   $display("Illegal instruction %x:%x", ex_pc, ex_insn);
@@ -436,44 +442,32 @@ module yarvi_ex( input  wire             clock
         end
 
         default: begin
-           ex_trap                      = 1;
-           ex_csr_mcause                = `CAUSE_ILLEGAL_INSTRUCTION;
-           ex_csr_mtval                 = 0;
+           ex_trap                      = ex_valid;
+           ex_trap_cause                = `CAUSE_ILLEGAL_INSTRUCTION;
+           ex_trap_val                  = 0;
            if (ex_valid)
              $display("Illegal instruction %x:%x", ex_pc, ex_insn);
         end
       endcase
 
-      if (ex_trap) begin
-         ex_restart_pc                  = csr_mtvec;
-         ex_csr_mepc                    = ex_pc;
-         ex_csr_mstatus`MPIE            = csr_mstatus`MIE;
-         ex_csr_mstatus`MIE             = 0;
-         ex_csr_mstatus`MPP             = priv;
-         ex_priv                        = `PRV_M;
-      end
 
-      /* The order here is important, lowest priority first.  */
-      if (use_rs1 && insn`rs1 == ex_wb_rd && ex_valid && ex_insn`opcode == `LOAD) begin
-         //$display("%5d    %x: load hazard on r%1d", $time/10, pc, insn`rs1);
-         ex_restart                     = 1;
-         ex_restart_pc                  = pc;
-      end
+      /* Handle restart causes in this priority:
+         - reset
+         - misaligned exception, load_hit_store
+         - load_hazards
+         - interrupts
+         - exceptions  (will take after handling interrupt)
+       */
 
-      if (use_rs2 && insn`rs2 == ex_wb_rd && ex_valid && ex_insn`opcode == `LOAD) begin
-         //$display("%5d    %x: load hazard on r%1d", $time/10, pc, insn`rs2);
-         ex_restart                     = 1;
-         ex_restart_pc                  = pc;
-      end
+      if (!ex_valid)
+        ex_wb_rd                        = 0;
 
-      if (!ex_valid) begin
+
+      if (reset) begin
          ex_csr_we                      = 0;
-         ex_wb_rd                       = 0;
-         ex_restart                     = 0;
-      end
-
-      /* We can't share the ex_trap logic as that get's annulled if ex_valid = 0 */
-      if (me_exc_misaligned) begin
+         ex_restart                     = 1;
+         ex_restart_pc                  = `INIT_PC;
+      end else if (me_exc_misaligned) begin
          ex_restart                     = 1;
          ex_restart_pc                  = csr_mtvec;
          ex_csr_mepc                    = me_pc;
@@ -486,18 +480,28 @@ module yarvi_ex( input  wire             clock
                                           : `CAUSE_MISALIGNED_STORE;
          ex_csr_mtval                   = me_exc_mtval;
          //$display("%5d  EX: misaligned load/store exception %x:%x", $time/10, me_pc, me_insn);
-      end
-
-      if (me_load_hit_store) begin // Note, me_load_hit_store & me_exc_misaligned == 0
+      end else if (use_rs1 && insn`rs1 == ex_wb_rd && ex_valid && ex_insn`opcode == `LOAD ||
+                   use_rs2 && insn`rs2 == ex_wb_rd && ex_valid && ex_insn`opcode == `LOAD) begin
+         //$display("%5d    %x: load hazard on r%1d", $time/10, pc, insn`rs1);
          ex_restart                     = 1;
-         ex_restart_pc                  = me_pc;
-         //$display("%5d  EX: load-hit-store %x:%x", $time/10, me_pc, me_insn);
-      end
+         ex_restart_pc                  = pc;
+      end else if (ex_trap | (me_timer_interrupt & csr_mie[7] & csr_mstatus`MIE)) begin
+         if (me_timer_interrupt & csr_mie[7] & csr_mstatus`MIE) begin
+            ex_csr_mcause               = 'h80000007;
+            $display("%5d  TIMER INTERUPT, vector to %x", $time, csr_mtvec);
+         end else begin
+            ex_csr_mcause               = ex_trap_cause;
+            ex_csr_mtval                = ex_trap_val;
+         end
 
-      if (reset) begin
-         ex_csr_we                      = 0;
          ex_restart                     = 1;
-         ex_restart_pc                  = `INIT_PC;
+         ex_restart_pc                  = csr_mtvec;
+         ex_csr_mepc                    = ex_pc;
+         ex_csr_mstatus`MPIE            = csr_mstatus`MIE;
+         ex_csr_mstatus`MIE             = 0;
+         ex_csr_mstatus`MPP             = priv;
+         ex_priv                        = `PRV_M;
+
       end
    end
 
@@ -505,12 +509,11 @@ module yarvi_ex( input  wire             clock
       priv                              <= `PRV_M;
       csr_fflags                        <= 0;
       csr_frm                           <= 0;
-      csr_mcause                        <= 4'd0;
+      csr_mcause                        <= 0;
       csr_mcycle                        <= 0;
       csr_mepc                          <= 0;
       csr_mie                           <= 0;
       csr_minstret                      <= 0;
-      csr_mip                           <= 0;
       csr_mscratch                      <= 0;
       csr_mstatus                       <= {31'd 3, 1'd 0};
       csr_mtval                         <= 0;
@@ -518,7 +521,7 @@ module yarvi_ex( input  wire             clock
    end else begin
       csr_mcycle                        <= csr_mcycle + 1;
 
-      if (ex_valid | me_exc_misaligned) begin
+      begin
          /* Note, there's no conflicts as, by construction, the CSR
           instructions can't fault and thus ex_XXX will hold the old
           value of the CSR */
@@ -540,7 +543,7 @@ module yarvi_ex( input  wire             clock
            `CSR_MEPC:      csr_mepc     <= csr_d & ~3;
            `CSR_MIE:       csr_mie      <= csr_d[7:0];
 //         `CSR_MINSTRET:  csr_instret  <= csr_d;
-           `CSR_MIP:       csr_mip[3]   <= csr_d[3];
+//         `CSR_MIP:       csr_mip[3]   <= csr_d[3];
            `CSR_MSCRATCH:  csr_mscratch <= csr_d;
            `CSR_MSTATUS:   csr_mstatus  <= csr_d & ~(15 << 13); // No FP or XS;
            `CSR_MTVEC:     csr_mtvec    <= csr_d;

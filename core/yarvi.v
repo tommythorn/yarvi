@@ -16,6 +16,8 @@ module yarvi
   ( input  wire             clock
   , input  wire             reset
 
+  , input  wire             freeze
+
   , output reg     [ 1:0]   me_priv
   , output wire             me_valid
   , output wire [`VMSB:0]   me_pc
@@ -58,6 +60,7 @@ module yarvi
    wire             me_exc_misaligned;
    wire [`XMSB:0]   me_exc_mtval;
    wire             me_load_hit_store;
+   wire             me_timer_interrupt;
 
    wire [`VMSB:0]   code_address;
    wire [   31:0]   code_writedata;
@@ -65,6 +68,7 @@ module yarvi
 
    yarvi_fe fe
      ( .clock                   (clock)
+     , .reset                   (reset)
      , .restart                 (ex_restart)
      , .restart_pc              (ex_restart_pc)
 
@@ -101,7 +105,8 @@ module yarvi
      , .me_wb_val               (me_wb_val)
      , .me_exc_misaligned       (me_exc_misaligned)
      , .me_exc_mtval            (me_exc_mtval)
-     , .me_load_hit_store       (me_load_hit_store)
+     , .me_load_hit_store       (me_load_hit_store | freeze)
+     , .me_timer_interrupt      (me_timer_interrupt)
 
      , .ex_valid                (ex_valid)
      , .ex_pc                   (ex_pc)
@@ -124,6 +129,7 @@ module yarvi
 
    yarvi_me me
      ( .clock                   (clock)
+     , .reset                   (reset)
 
      , .valid                   (ex_valid)
      , .pc                      (ex_pc)
@@ -146,6 +152,7 @@ module yarvi
      , .me_exc_misaligned       (me_exc_misaligned)
      , .me_exc_mtval            (me_exc_mtval)
      , .me_load_hit_store       (me_load_hit_store)
+     , .me_timer_interrupt      (me_timer_interrupt)
      );
 
    /* XXX Writeback/Commit */
