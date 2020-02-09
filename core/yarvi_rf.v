@@ -19,6 +19,7 @@ module yarvi_rf( input  wire             clock
                , input  wire [ 4:0]      wb_rd
                , input  wire [`XMSB:0]   wb_val
 
+               , output wire             rf_valid
                , output reg  [`VMSB:0]   rf_pc
                , output reg  [31:0]      rf_insn
                , output wire [`VMSB:0]   rf_rs1_val
@@ -26,6 +27,8 @@ module yarvi_rf( input  wire             clock
 
    reg [`VMSB:0] regs[0:31];
    reg [ 4:0] rp1, rp2;
+
+   assign rf_valid = 1'd 1;
 
    always @(posedge clock) begin
       rf_pc         <= pc;
@@ -39,6 +42,6 @@ module yarvi_rf( input  wire             clock
    assign rf_rs1_val = regs[rp1];
    assign rf_rs2_val = regs[rp2];
 
-   reg [5:0] i;
-   initial for (i = 0; i < 32; i = i + 1) regs[i[4:0]] = {26'd0,i};
+   reg [31:0] i;
+   initial for (i = 0; i < 32; i = i + 1) regs[i[4:0]] = {26'd0,i[5:0]};
 endmodule

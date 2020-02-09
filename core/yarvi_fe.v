@@ -1,12 +1,12 @@
 // -----------------------------------------------------------------------
 //
-//   Copyright 2016,2018 Tommy Thorn - All Rights Reserved
+//   Copyright 2016,2018,2019 Tommy Thorn - All Rights Reserved
 //
 // -----------------------------------------------------------------------
 
 /*************************************************************************
 
-This is a simple RISC-V RV64I implementation.
+This is a simple RISC-V implementation.
 
 *************************************************************************/
 
@@ -29,12 +29,14 @@ module yarvi_fe( input  wire             clock
    reg [31:0] code[(1<<(`PMSB - 1))-1:0];
    assign fe_insn = code[fe_pc[`PMSB:2]];
 
+`ifdef I_GOT_THIS
    wire [`PMSB-2:0] wi = address[`PMSB:2];
    // This probably cannot be synthesized
    always @(posedge clock) if (!reset & writemask[0]) code[wi][ 7: 0] <= writedata[ 7: 0];
    always @(posedge clock) if (!reset & writemask[1]) code[wi][15: 8] <= writedata[15: 8];
    always @(posedge clock) if (!reset & writemask[2]) code[wi][23:16] <= writedata[23:16];
    always @(posedge clock) if (!reset & writemask[3]) code[wi][31:24] <= writedata[31:24];
+`endif
 
    always @(posedge clock) fe_pc <= restart ? restart_pc : fe_pc + 4;
    initial $readmemh(`INIT_MEM, code);

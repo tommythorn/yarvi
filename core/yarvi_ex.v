@@ -199,7 +199,7 @@ module yarvi_ex( input  wire             clock
        `CSR_FCSR:         csr_val = {24'd0, csr_frm, csr_fflags};
 
        `CSR_MSTATUS:      csr_val = csr_mstatus;
-       `CSR_MISA:         csr_val = (2 << 30) | (1 << ("I"-"A"));
+       `CSR_MISA:         csr_val = (2'd 2 << 30) | (30'd 1 << ("I"-"A"));
        `CSR_MIE:          csr_val = {24'd0, csr_mie};
        `CSR_MTVEC:        csr_val = csr_mtvec;
 
@@ -258,6 +258,8 @@ module yarvi_ex( input  wire             clock
 
       ex_trap                           = 0;
       ex_trap_cause			= 0;
+      ex_trap_val                       = 'h X;
+      csr_d                             = 'h X;
 
       case (ex_insn`opcode)
         `OP_IMM, `OP: begin

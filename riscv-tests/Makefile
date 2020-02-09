@@ -11,7 +11,7 @@ HDR=$(CORE)riscv.h
 
 # Adjust to match your RISC-V toolchain
 RVPATH=
-RVPREFIX=$(RVPATH)riscv32-unknown-elf-
+RVPREFIX=$(RVPATH)riscv64-unknown-elf-
 MEMSIZEK=128
 
 TESTSET_UIP= \

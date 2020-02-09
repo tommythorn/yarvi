@@ -1,6 +1,6 @@
 // -----------------------------------------------------------------------
 //
-//   Copyright 2016 Tommy Thorn - All Rights Reserved
+//   Copyright 2016,2019 Tommy Thorn - All Rights Reserved
 //
 //   This program is free software; you can redistribute it and/or modify
 //   it under the terms of the GNU General Public License as published by
@@ -36,14 +36,14 @@ module rs232tx
 
    always @(posedge clock)
       if (~ttyclk[TTYCLK_SIGN]) begin
-         ttyclk     <= ttyclk - 1'd1;
+         ttyclk     <= ttyclk - 1'd 1;
       end else if (~count[COUNT_SIGN]) begin
-         ttyclk     <= period - 2;
-         count      <= count - 1'd1;
-         shift_out  <= {1'b1, shift_out[8:1]};
+         ttyclk     <= period - 2'd 2;
+         count      <= count - 1'd 1;
+         shift_out  <= {1'd 1, shift_out[8:1]};
       end else if (valid) begin
-         ttyclk     <= period - 2;
+         ttyclk     <= period - 2'd 2;
          count      <= 9; // 1 start bit + 8 d + 1 stop - 1 due to SIGN trick
-         shift_out  <= {data, 1'b0};
+         shift_out  <= {data, 1'd 0};
       end
 endmodule

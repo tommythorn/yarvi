@@ -29,9 +29,8 @@ module yarvi_soc
 
             // debug
             , output wire  [3:0] htif_state
+            , output wire  [`VMSB:0] me_pc
             );
-
-   reg         htif_reset = 0;
 
    wire        bus_req_ready;
    wire        bus_req_read;
@@ -66,14 +65,12 @@ module yarvi_soc
      , .s               (htif_state)
      );
 
-   always @(posedge clock)
-     if (bus_req_write && bus_req_address == 'h FFFF_FFFC)
-       htif_reset <= bus_req_data[0];
-
    yarvi yarvi
      ( .clock           (clock)
      , .reset           (reset)
 
+     // Debug
+     , .me_pc           (me_pc)
      /*
      , .bus_req_ready   (bus_req_ready)
      , .bus_req_read    (bus_req_read)

@@ -225,6 +225,7 @@ module yarvi_me( input  wire             clock
       end
    end
 
+`ifdef SIMULATE
    /* Simulation-only */
    reg [31:0] data[(1<<(`PMSB - 1))-1:0];
    reg [31:0] i;
@@ -237,4 +238,5 @@ module yarvi_me( input  wire             clock
          mem3[i] = data[i][31:24];
       end
    end
+`endif
 endmodule

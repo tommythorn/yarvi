@@ -8,6 +8,10 @@
 `define INITDIR ""
 `endif
 
+`ifndef INIT_MEM
+`define INIT_MEM "init_mem.hex"
+`endif
+
 `define DC_WORDS_LG2 13 // 32 KiB
 `define DC_WORDS (1 << `DC_WORDS_LG2)
 `define DC_LINE_WORDS_LG2 1 // 2^1 64-bit words = 16 byte line size

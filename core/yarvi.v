@@ -53,10 +53,6 @@ module yarvi
    wire [ 2:0]      ex_funct3;
    wire [`XMSB:0]   ex_writedata;
 
-   wire             me_valid;
-   wire [`VMSB:0]   me_pc;
-   wire [4:0]       me_wb_rd;
-   wire [`XMSB:0]   me_wb_val;
    wire             me_exc_misaligned;
    wire [`XMSB:0]   me_exc_mtval;
    wire             me_load_hit_store;

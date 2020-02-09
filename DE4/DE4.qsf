@@ -1,0 +1,150 @@
+set_global_assignment -name TOP_LEVEL_ENTITY DE4
+
+set_global_assignment -name FAMILY "Stratix IV"
+set_global_assignment -name DEVICE EP4SGX230KF40C2
+set_global_assignment -name ORIGINAL_QUARTUS_VERSION "9.1 SP2"
+set_global_assignment -name PROJECT_CREATION_TIME_DATE "01:36:56  APRIL 07, 2018"
+set_global_assignment -name LAST_QUARTUS_VERSION "9.1 SP2"
+set_global_assignment -name USE_GENERATED_PHYSICAL_CONSTRAINTS OFF -section_id eda_blast_fpga
+set_global_assignment -name DEVICE_FILTER_PIN_COUNT 1517
+set_global_assignment -name DEVICE_FILTER_SPEED_GRADE 2
+set_global_assignment -name MIN_CORE_JUNCTION_TEMP 0
+set_global_assignment -name MAX_CORE_JUNCTION_TEMP 85
+set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
+set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
+set_global_assignment -name LL_ROOT_REGION ON -section_id "Root Region"
+set_global_assignment -name LL_MEMBER_STATE LOCKED -section_id "Root Region"
+
+set_location_assignment PIN_V34 -to cpu_reset_n
+set_instance_assignment -name IO_STANDARD "2.5 V" -to cpu_reset_n
+
+set_location_assignment PIN_AC35 -to clock_50MHz_bank2
+#set_location_assignment PIN_AV22 -to clock_50MHz_bank3
+#set_location_assignment PIN_AV19 -to clock_50MHz_bank4
+#set_location_assignment PIN_AC6  -to clock_50MHz_bank5
+#set_location_assignment PIN_AB6  -to clock_50MHz_bank6
+#set_location_assignment PIN_A19  -to clock_50MHz_bank7
+set_instance_assignment -name IO_STANDARD "2.5 V" -to clock_50MHz_bank2
+#set_instance_assignment -name IO_STANDARD "1.8 V"       -to clock_50MHz_bank3
+#set_instance_assignment -name IO_STANDARD "1.8 V"       -to clock_50MHz_bank4
+#set_instance_assignment -name IO_STANDARD "3.0-V PCI-X" -to clock_50MHz_bank5
+#set_instance_assignment -name IO_STANDARD "2.5 V"       -to clock_50MHz_bank6
+#set_instance_assignment -name IO_STANDARD "1.8 V"       -to clock_50MHz_bank7
+
+set_location_assignment PIN_AH5 -to button[0]
+set_location_assignment PIN_AG5 -to button[1]
+set_location_assignment PIN_AG7 -to button[2]
+set_location_assignment PIN_AG8 -to button[3]
+set_instance_assignment -name IO_STANDARD "3.0-V PCI-X" -to button[0]
+set_instance_assignment -name IO_STANDARD "3.0-V PCI-X" -to button[1]
+set_instance_assignment -name IO_STANDARD "3.0-V PCI-X" -to button[2]
+set_instance_assignment -name IO_STANDARD "3.0-V PCI-X" -to button[3]
+
+#set_location_assignment PIN_AB13 -to sw[0]
+#set_location_assignment PIN_AB12 -to sw[1]
+#set_location_assignment PIN_AB11 -to sw[2]
+#set_location_assignment PIN_AB10 -to sw[3]
+#set_location_assignment PIN_AB9  -to sw[4]
+#set_location_assignment PIN_AC8  -to sw[5]
+#set_location_assignment PIN_AH6  -to sw[6]
+#set_location_assignment PIN_AG6  -to sw[7]
+#set_instance_assignment -name IO_STANDARD "3.0-V PCI-X" -to sw[0]
+#set_instance_assignment -name IO_STANDARD "3.0-V PCI-X" -to sw[1]
+#set_instance_assignment -name IO_STANDARD "3.0-V PCI-X" -to sw[2]
+#set_instance_assignment -name IO_STANDARD "3.0-V PCI-X" -to sw[3]
+#set_instance_assignment -name IO_STANDARD "3.0-V PCI-X" -to sw[4]
+#set_instance_assignment -name IO_STANDARD "3.0-V PCI-X" -to sw[5]
+#set_instance_assignment -name IO_STANDARD "3.0-V PCI-X" -to sw[6]
+#set_instance_assignment -name IO_STANDARD "3.0-V PCI-X" -to sw[7]
+#
+#set_location_assignment PIN_J7  -to slide_sw[0]
+#set_location_assignment PIN_K7  -to slide_sw[1]
+#set_location_assignment PIN_AK6 -to slide_sw[2]
+#set_location_assignment PIN_L7  -to slide_sw[3]
+#set_instance_assignment -name IO_STANDARD "2.5 V"       -to slide_sw[0]
+#set_instance_assignment -name IO_STANDARD "2.5 V"       -to slide_sw[1]
+#set_instance_assignment -name IO_STANDARD "3.0-V PCI-X" -to slide_sw[2]
+#set_instance_assignment -name IO_STANDARD "2.5 V"       -to slide_sw[3]
+#
+set_location_assignment PIN_AH32 -to uart_rxd
+set_location_assignment PIN_AN34 -to uart_txd
+#set_location_assignment PIN_AH33 -to uart_rts
+#set_location_assignment PIN_AN35 -to uart_cts
+set_instance_assignment -name IO_STANDARD "2.5 V" -to uart_rxd
+set_instance_assignment -name IO_STANDARD "2.5 V" -to uart_txd
+#set_instance_assignment -name IO_STANDARD "2.5 V" -to uart_rts
+#set_instance_assignment -name IO_STANDARD "2.5 V" -to uart_cts
+
+set_location_assignment PIN_V28 -to led[0]
+set_location_assignment PIN_W28 -to led[1]
+set_location_assignment PIN_R29 -to led[2]
+set_location_assignment PIN_P29 -to led[3]
+set_location_assignment PIN_N29 -to led[4]
+set_location_assignment PIN_M29 -to led[5]
+set_location_assignment PIN_M30 -to led[6]
+set_location_assignment PIN_N30 -to led[7]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to led[0]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to led[1]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to led[2]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to led[3]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to led[4]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to led[5]
+
+set_instance_assignment -name IO_STANDARD "2.5 V" -to led[6]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to led[7]
+
+set_location_assignment PIN_L34 -to hex0[0]
+set_location_assignment PIN_M34 -to hex0[1]
+set_location_assignment PIN_M33 -to hex0[2]
+set_location_assignment PIN_H31 -to hex0[3]
+set_location_assignment PIN_J33 -to hex0[4]
+set_location_assignment PIN_L35 -to hex0[5]
+set_location_assignment PIN_K32 -to hex0[6]
+set_location_assignment PIN_AL34 -to hex0[7]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to hex0[0]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to hex0[1]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to hex0[2]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to hex0[3]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to hex0[4]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to hex0[5]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to hex0[6]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to hex0[7]
+
+set_location_assignment PIN_E31 -to hex1[0]
+set_location_assignment PIN_F31 -to hex1[1]
+set_location_assignment PIN_G31 -to hex1[2]
+set_location_assignment PIN_C34 -to hex1[3]
+set_location_assignment PIN_C33 -to hex1[4]
+set_location_assignment PIN_D33 -to hex1[5]
+set_location_assignment PIN_D34 -to hex1[6]
+set_location_assignment PIN_AL35 -to hex1[7]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to hex1[0]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to hex1[1]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to hex1[2]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to hex1[3]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to hex1[4]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to hex1[5]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to hex1[6]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to hex1[7]
+
+
+set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
+set_global_assignment -name VERILOG_FILE DE4.v
+set_global_assignment -name VERILOG_FILE ../core/yarvi_soc.v
+set_global_assignment -name VERILOG_FILE ../core/yarvi.v
+set_global_assignment -name VERILOG_FILE ../core/yarvi_rf.v
+set_global_assignment -name VERILOG_FILE ../core/yarvi_fe.v
+set_global_assignment -name VERILOG_FILE ../core/yarvi_me.v
+set_global_assignment -name VERILOG_FILE ../core/yarvi_ex.v
+set_global_assignment -name VERILOG_FILE ../core/rs232tx.v
+set_global_assignment -name VERILOG_FILE ../core/rs232rx.v
+set_global_assignment -name VERILOG_FILE ../core/htif.v
+set_global_assignment -name VERILOG_FILE ../core/axi_jtaguart.v
+set_global_assignment -name SDC_FILE DE4.sdc
+set_global_assignment -name CDF_FILE DE4.cdf
+
+
+set_global_assignment -name VERILOG_SHOW_LMF_MAPPING_MESSAGES OFF
+set_global_assignment -name STRATIX_DEVICE_IO_STANDARD "2.5 V"
+set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
+set_global_assignment -name MISC_FILE /home/tommy/yarvi/DE4/DE4.dpf

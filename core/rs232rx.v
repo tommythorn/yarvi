@@ -1,6 +1,6 @@
 // -----------------------------------------------------------------------
 //
-//   Copyright 2016 Tommy Thorn - All Rights Reserved
+//   Copyright 2016,2019 Tommy Thorn - All Rights Reserved
 //
 //   This program is free software; you can redistribute it and/or modify
 //   it under the terms of the GNU General Public License as published by
@@ -68,12 +68,12 @@ module rs232rx
             valid <= 1;
          end
 
-         count       <= count - 1'd1;
+         count       <= count - 1'd 1;
          shift_in    <= {rxd2, shift_in[7:1]}; // Shift in from the left
-         ttyclk      <= period - 2;
+         ttyclk      <= period - 2'd 2;
       end else if (~rxd2) begin
          // Just saw the negedge of the start bit
-         ttyclk      <= (3 * period) / 2 - 2;
+         ttyclk      <= (3 * period) / 2 - 2'd 2;
          count       <= 8;
       end
    end
