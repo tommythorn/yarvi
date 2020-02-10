@@ -186,9 +186,11 @@ module yarvi_me( input  wire             clock
            /* XXX Hack for riscv-tests */
            $display("TOHOST = %d", wd_aligned);
 
+`ifdef BEGIN_SIGNATURE
            $display("Signature Begin");
            for (dump_addr = 'h`BEGIN_SIGNATURE; dump_addr < 'h`END_SIGNATURE; dump_addr=dump_addr+4)
               $display("%x", {mem3[dump_addr[`PMSB:2]], mem2[dump_addr[`PMSB:2]], mem1[dump_addr[`PMSB:2]], mem0[dump_addr[`PMSB:2]]});
+`endif
            $finish;
         end
 `endif
@@ -225,7 +227,7 @@ module yarvi_me( input  wire             clock
       end
    end
 
-`ifdef SIMULATE
+`ifdef SIMULATION
    /* Simulation-only */
    reg [31:0] data[(1<<(`PMSB - 1))-1:0];
    reg [31:0] i;

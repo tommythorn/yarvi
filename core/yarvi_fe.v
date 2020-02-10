@@ -17,9 +17,7 @@ module yarvi_fe( input  wire             clock
                , input  wire             restart
                , input  wire [`VMSB:0]   restart_pc
 
-                 /* verilator lint_off UNUSED */
                , input  wire [`VMSB:0]   address
-                 /* verilator lint_on UNUSED */
                , input  wire [   31:0]   writedata
                , input  wire [    3:0]   writemask
 
@@ -29,14 +27,13 @@ module yarvi_fe( input  wire             clock
 
    reg [31:0] code[(1<<(`PMSB - 1))-1:0];
 
-`ifdef I_GOT_THIS
+   wire       we = !reset && address[`VMSB:`PMSB+1] == ('h80000000 >> (`PMSB+1));
    wire [`PMSB-2:0] wi = address[`PMSB:2];
    // This probably cannot be synthesized
-   always @(posedge clock) if (!reset & writemask[0]) code[wi][ 7: 0] <= writedata[ 7: 0];
-   always @(posedge clock) if (!reset & writemask[1]) code[wi][15: 8] <= writedata[15: 8];
-   always @(posedge clock) if (!reset & writemask[2]) code[wi][23:16] <= writedata[23:16];
-   always @(posedge clock) if (!reset & writemask[3]) code[wi][31:24] <= writedata[31:24];
-`endif
+   always @(posedge clock) if (we & writemask[0]) code[wi][ 7: 0] <= writedata[ 7: 0];
+   always @(posedge clock) if (we & writemask[1]) code[wi][15: 8] <= writedata[15: 8];
+   always @(posedge clock) if (we & writemask[2]) code[wi][23:16] <= writedata[23:16];
+   always @(posedge clock) if (we & writemask[3]) code[wi][31:24] <= writedata[31:24];
 
    always @(posedge clock)
      if (reset) begin

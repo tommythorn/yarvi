@@ -7,7 +7,7 @@ TIMEOUT=16000
 SRC=../sim/toplevel.v $(CORE)htif.v $(CORE)yarvi_soc.v $(CORE)yarvi_disass.v $(CORE)yarvi.v $(CORE)yarvi_fe.v $(CORE)yarvi_rf.v $(CORE)yarvi_ex.v $(CORE)yarvi_me.v
 HDR=$(CORE)riscv.h
 
-CONFIG=-DXMSB=31 -DVMSB=31 -DPMSB=14 -DTIMEOUT=$(TIMEOUT) -DSIMULATION $(VERB) -DINIT_MEM=\"$<\"
+CONFIG=-DXMSB=31 -DVMSB=31 -DPMSB=13 -DTIMEOUT=$(TIMEOUT) -DSIMULATION -DDISASSEMBLE $(VERB) -DINIT_MEM=\"$<\"
 
 .PRECIOUS: %.hex %.yarvi
 
@@ -143,7 +143,7 @@ TEST_ALL=$(TESTSET_UIP) $(TESTSET_UIV) $(TESTSET_MI) $(TESTSET_SI) $(TESTSET_UA)
 
 TESTS=$(TESTSET_UIP)
 
-test1: rv32ui-p-simple.trace
+test1: rv32ui-p-addi.trace
 
 newtest: $(patsubst %,$(TESTDIR)%.trace,$(TESTS))
 	@printf "  Total:   %3d\n" $$(echo $(TESTS) | wc -w)
@@ -168,11 +168,11 @@ multisim: $(patsubst %,$(TESTDIR)%.multisim,$(TESTS))
 	spike $< > $@ 2>&1
 
 %.yarvi: %.hex $(SRC) $(HDR)
-	iverilog -I../core/ $(CONFIG) -o $@ $(SRC)
+	iverilog -I../core/ $(CONFIG) -DTOHOST=$(shell nm $(patsubst %.hex,%,$<) | egrep ' tohost$$' | cut -d' ' -f1) -o $@ $(SRC)
 
 %.trace: %.yarvi %.hex
 	./$^ > $@
-	if grep -q 'TOHOST 00000001' $@;then \
+	if grep -q 'TOHOST =          1' $@;then \
 		touch $@.pass; else ln -fs $@ $@.fail; fi
 
 %.run: %.yarvi %.hex

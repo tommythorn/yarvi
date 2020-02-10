@@ -23,6 +23,7 @@ module yarvi_ex( input  wire             clock
                , input  wire [`XMSB:0]   rs1_val
                , input  wire [`XMSB:0]   rs2_val
 
+               , input  wire [31:0]      me_pc
                , input  wire [ 4:0]      me_wb_rd  // != 0 => WE. !valid => 0
                , input  wire [31:0]      me_wb_val
                , input  wire             me_exc_misaligned
@@ -74,23 +75,23 @@ module yarvi_ex( input  wire             clock
    wire [`XMSB:0] rs2_val_cmp        = {insn`br_unsigned,`XMSB'd0} ^ rs2_val_fwd;
    wire           cmp_eq             = rs1_val_fwd == rs2_val_fwd;
    wire           cmp_lt             = $signed(rs1_val_cmp) < $signed(rs2_val_cmp);
-   wire           branch_taken_      = (insn`br_rela ? cmp_lt : cmp_eq);
-   wire           branch_taken       = branch_taken_ ^ insn`br_negate;
-
+   wire           branch_taken       = (insn`br_rela ? cmp_lt : cmp_eq) ^ insn`br_negate;
    wire [`XMSB:0] rs2_val_imm        = (insn`opcode == `OP_IMM || insn`opcode == `OP_IMM_32
                                         ? i_imm : rs2_val_fwd);
 
-
    always @(posedge clock) begin
-      ex_valid <= valid && !ex_restart;
+      ex_valid <= 0;
       ex_restart <= 0;
       ex_restart_pc <= 'hDEADBEEF;
 
       if (valid & !ex_restart) begin
+         ex_valid <= 1;
+
          if (use_rs1 && insn`rs1 == ex_wb_rd && ex_valid && ex_insn`opcode == `LOAD ||
              use_rs2 && insn`rs2 == ex_wb_rd && ex_valid && ex_insn`opcode == `LOAD) begin
             ex_restart <= 1;
-            ex_restart_pc <= 'h 1234; //pc;
+            ex_restart_pc <= pc;
+            ex_valid <= 0;
          end else
            case (insn`opcode)
              `BRANCH: begin
@@ -113,7 +114,7 @@ module yarvi_ex( input  wire             clock
                 ex_restart_pc <= pc + 4;
                 case (insn`funct3)
                   `PRIV:
-                    case (ex_insn`imm11_0)
+                    case (insn`imm11_0)
                       `ECALL, `EBREAK: ex_restart_pc <= csr_mtvec;
                       `MRET: ex_restart_pc <= csr_mepc;
                     endcase
@@ -122,13 +123,20 @@ module yarvi_ex( input  wire             clock
 
              `MISC_MEM:
                case (insn`funct3)
-                 `FENCE_I:
-                   ex_restart <= 1;
+                 `FENCE_I: begin
+                    ex_restart <= 1;
+                    ex_restart_pc <= pc + 4;
+                 end
                endcase
            endcase;
       end
 
-      if (me_exc_misaligned || ex_trap || (me_timer_interrupt && csr_mie[7] && csr_mstatus`MIE)) begin
+      if (me_load_hit_store) begin
+         ex_restart <= 1;
+         ex_restart_pc <= me_pc;
+         ex_valid <= 0;
+         $display("    Load hit store, restarting from %x", me_pc);
+      end else if (me_exc_misaligned || ex_trap || (me_timer_interrupt && csr_mie[7] && csr_mstatus`MIE)) begin
          ex_restart <= 1;
          ex_restart_pc <= csr_mtvec;
       end
@@ -153,9 +161,7 @@ module yarvi_ex( input  wire             clock
 
 
 
-   reg  [`XMSB:0] me_pc;
    reg            me_insn_opcode_load;
-   always @(posedge clock) me_pc    <= ex_pc;
    always @(posedge clock) me_insn_opcode_load <= ex_insn`opcode == `LOAD; // XXX Actually only need one bit from opcode
 
    reg  [`XMSB:0] ex_rs1_val;
@@ -301,7 +307,7 @@ module yarvi_ex( input  wire             clock
 
        default:           begin
                           csr_val = 0;
-                          if (ex_valid_incoming && ex_insn`opcode == `SYSTEM && ex_insn`funct3 != 0)
+                          if (0 && ex_valid_incoming && ex_insn`opcode == `SYSTEM && ex_insn`funct3 != 0)
                             $display("                                                 Warning: CSR %x default to zero",
                                      ex_insn`imm11_0);
                           end
@@ -590,7 +596,8 @@ module yarvi_ex( input  wire             clock
          csr_mtval                      <= ex_csr_mtval;
       end
 
-      if (ex_csr_we)
+      if (ex_csr_we) begin
+         $display("                                                 CSR %x <- %x", ex_insn`imm11_0, csr_d);
          case (ex_insn`imm11_0)
            `CSR_FCSR:      {csr_frm,csr_fflags} <= csr_d[7:0];
            `CSR_FFLAGS:    csr_fflags   <= csr_d[4:0];
@@ -613,5 +620,6 @@ module yarvi_ex( input  wire             clock
            default:
              $display("                                                 Warning: writing an unimplemented CSR %x", ex_insn`imm11_0);
          endcase
+      end
    end
 endmodule

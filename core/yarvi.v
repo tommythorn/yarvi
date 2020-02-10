@@ -101,6 +101,7 @@ module yarvi
      , .rs1_val                 (rf_rs1_val)
      , .rs2_val                 (rf_rs2_val)
 
+     , .me_pc                   (me_pc)
      , .me_wb_rd                (me_wb_rd)
      , .me_wb_val               (me_wb_val)
      , .me_exc_misaligned       (me_exc_misaligned)
@@ -159,11 +160,12 @@ module yarvi
    always @(posedge clock) me_insn <= ex_insn;
 
 /*
-     if (0)
+   always @(posedge clock)
      $display("%5d  EX WBV %x:r%1d<-%x  ME WBV %x:r%1d<-%x", $time/10,
               ex_pc, ex_wb_rd, ex_wb_val,
               me_pc, me_wb_rd, me_wb_val);
 */
+
 `ifdef DISASSEMBLE
    yarvi_disass disass
      ( .clock                   (clock)
