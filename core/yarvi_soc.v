@@ -41,6 +41,13 @@ module yarvi_soc
    wire        bus_res_valid;
    wire [31:0] bus_res_data;
 
+   wire             me_valid;
+   wire    [ 1:0]   me_priv;
+// wire [`VMSB:0]   me_pc;
+   wire    [31:0]   me_insn;
+   wire    [ 4:0]   me_wb_rd;
+   wire [`XMSB:0]   me_wb_val;
+
    htif htif
      ( .clock           (clock)
 
@@ -68,17 +75,13 @@ module yarvi_soc
    yarvi yarvi
      ( .clock           (clock)
      , .reset           (reset)
+     , .freeze          (1'b0)
 
-     // Debug
-     , .me_pc           (me_pc)
-     /*
-     , .bus_req_ready   (bus_req_ready)
-     , .bus_req_read    (bus_req_read)
-     , .bus_req_write   (bus_req_write)
-     , .bus_req_address (bus_req_address)
-     , .bus_req_data    (bus_req_data)
-
-     , .bus_res_valid   (bus_res_valid)
-     , .bus_res_data    (bus_res_data) */
+     , .me_valid	(me_valid)
+     , .me_priv		(me_priv)
+     , .me_pc		(me_pc)
+     , .me_insn		(me_insn)
+     , .me_wb_rd	(me_wb_rd)
+     , .me_wb_val	(me_wb_val)
      );
 endmodule

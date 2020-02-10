@@ -1,6 +1,6 @@
 // -----------------------------------------------------------------------
 //
-//   Copyright 2016,2018 Tommy Thorn - All Rights Reserved
+//   Copyright 2016,2018,2020 Tommy Thorn - All Rights Reserved
 //
 // -----------------------------------------------------------------------
 
@@ -17,10 +17,11 @@ XXX Need to include CSR access permission check
 module yarvi_ex( input  wire             clock
                , input  wire             reset
 
-               , input  wire [`VMSB:0]   pc
+               , input  wire             valid
+               , input  wire [`XMSB:0]   pc
                , input  wire [31:0]      insn
-               , input  wire [`VMSB:0]   rs1_val
-               , input  wire [`VMSB:0]   rs2_val
+               , input  wire [`XMSB:0]   rs1_val
+               , input  wire [`XMSB:0]   rs2_val
 
                , input  wire [ 4:0]      me_wb_rd  // != 0 => WE. !valid => 0
                , input  wire [31:0]      me_wb_val
@@ -30,25 +31,111 @@ module yarvi_ex( input  wire             clock
                , input  wire             me_timer_interrupt
 
                , output reg              ex_valid
-               , output reg [`VMSB:0]    ex_pc
-               , output reg [31:0]       ex_insn
-               , output reg [ 1:0]       ex_priv
+               , output reg  [`XMSB:0]   ex_pc
+               , output reg  [31:0]      ex_insn
+               , output reg  [ 1:0]      ex_priv
 
                , output reg              ex_restart
-               , output reg [`VMSB:0]    ex_restart_pc
+               , output reg  [`XMSB:0]   ex_restart_pc
 
                , output reg  [ 4:0]      ex_wb_rd  // != 0 => WE. !valid => 0
-               , output reg  [`VMSB:0]   ex_wb_val
+               , output reg  [`XMSB:0]   ex_wb_val
 
                , output reg              ex_readenable
                , output reg              ex_writeenable
                , output reg  [ 2:0]      ex_funct3
                , output reg  [`XMSB:0]   ex_writedata
-
-// debug
-               , output reg              rf_valid
-
                );
+
+   wire        sign                  = insn[31];
+   wire [19:0] sign20                = {20{sign}};
+   wire [11:0] sign12                = {12{sign}};
+
+   // I-type
+   wire [`XMSB:0] i_imm              = {sign20, insn`funct7, insn`rs2};
+
+   // S-type
+   wire [`XMSB:0] s_imm              = {sign20, insn`funct7, insn`rd};
+   wire [`XMSB:0] sb_imm             = {sign20, insn[7], insn[30:25], insn[11:8], 1'd0};
+
+   // U-type
+   wire [`XMSB:0] uj_imm             = {sign12, insn[19:12], insn[20], insn[30:21], 1'd0};
+
+
+   wire [`XMSB:0] rs1_val_fwd        = insn`rs1 == 0        ? 0         :
+                                       insn`rs1 == ex_wb_rd ? ex_wb_val :
+                                       insn`rs1 == me_wb_rd ? me_wb_val : rs1_val;
+
+   wire [`XMSB:0] rs2_val_fwd        = insn`rs2 == 0        ? 0         :
+                                       insn`rs2 == ex_wb_rd ? ex_wb_val :
+                                       insn`rs2 == me_wb_rd ? me_wb_val : rs2_val;
+
+   wire [`XMSB:0] rs1_val_cmp        = {insn`br_unsigned,`XMSB'd0} ^ rs1_val_fwd;
+   wire [`XMSB:0] rs2_val_cmp        = {insn`br_unsigned,`XMSB'd0} ^ rs2_val_fwd;
+   wire           cmp_eq             = rs1_val_fwd == rs2_val_fwd;
+   wire           cmp_lt             = $signed(rs1_val_cmp) < $signed(rs2_val_cmp);
+   wire           branch_taken_      = (insn`br_rela ? cmp_lt : cmp_eq);
+   wire           branch_taken       = branch_taken_ ^ insn`br_negate;
+
+   wire [`XMSB:0] rs2_val_imm        = (insn`opcode == `OP_IMM || insn`opcode == `OP_IMM_32
+                                        ? i_imm : rs2_val_fwd);
+
+
+   always @(posedge clock) begin
+      ex_valid <= valid && !ex_restart;
+      ex_restart <= 0;
+      ex_restart_pc <= 'hDEADBEEF;
+
+      if (valid & !ex_restart) begin
+         if (use_rs1 && insn`rs1 == ex_wb_rd && ex_valid && ex_insn`opcode == `LOAD ||
+             use_rs2 && insn`rs2 == ex_wb_rd && ex_valid && ex_insn`opcode == `LOAD) begin
+            ex_restart <= 1;
+            ex_restart_pc <= 'h 1234; //pc;
+         end else
+           case (insn`opcode)
+             `BRANCH: begin
+                ex_restart_pc <= pc + sb_imm;
+                if (branch_taken)
+                  ex_restart <= 1;
+             end
+             `JALR: begin
+                ex_restart <= 1;
+                ex_restart_pc <= (rs1_val_fwd + i_imm) & ~32'd1;
+             end
+
+             `JAL: begin
+                ex_restart <= 1;
+                ex_restart_pc <= pc + uj_imm;
+             end
+
+             `SYSTEM: begin
+                ex_restart <= 1;
+                ex_restart_pc <= pc + 4;
+                case (insn`funct3)
+                  `PRIV:
+                    case (ex_insn`imm11_0)
+                      `ECALL, `EBREAK: ex_restart_pc <= csr_mtvec;
+                      `MRET: ex_restart_pc <= csr_mepc;
+                    endcase
+                endcase
+             end
+
+             `MISC_MEM:
+               case (insn`funct3)
+                 `FENCE_I:
+                   ex_restart <= 1;
+               endcase
+           endcase;
+      end
+
+      if (me_exc_misaligned || ex_trap || (me_timer_interrupt && csr_mie[7] && csr_mstatus`MIE)) begin
+         ex_restart <= 1;
+         ex_restart_pc <= csr_mtvec;
+      end
+   end
+
+   wire ex_flush_this = me_exc_misaligned | me_load_hit_store;
+   wire ex_flush_next = ex_restart | ex_flush_this;
 
    // Asserts would be nice here
    always @(posedge clock)
@@ -56,64 +143,64 @@ module yarvi_ex( input  wire             clock
         $display("assert(ex_valid || ex_wb_rd == 0) failed");
         $finish;
      end
+   always @(posedge clock) ex_pc    <= pc;
+   always @(posedge clock) ex_insn  <= insn;
 
-   /* We register all inputs, so ex_??? are inputs to EX after flops
-      (this isn't the most natual way to write it but matches how we
-      typically draw the pipelines).  */
-// reg rf_valid;
-   always @(posedge clock) ex_pc        <= pc;
-   always @(posedge clock) ex_insn      <= insn;
-   always @(posedge clock) rf_valid     <=            !ex_restart & !me_exc_misaligned & !me_load_hit_store;
-   always @(posedge clock) ex_valid     <= rf_valid & !ex_restart & !me_exc_misaligned & !me_load_hit_store;
+   reg                     ex_valid_incoming = 0;
+   always @(posedge clock) ex_valid_incoming <= valid & !ex_flush_next;
+// always @(*)             ex_valid = ex_valid_incoming & !ex_flush_this;
 
-   reg  [`VMSB:0] me_pc;
+
+
+
+   reg  [`XMSB:0] me_pc;
    reg            me_insn_opcode_load;
-   always @(posedge clock) me_pc        <= ex_pc;
+   always @(posedge clock) me_pc    <= ex_pc;
    always @(posedge clock) me_insn_opcode_load <= ex_insn`opcode == `LOAD; // XXX Actually only need one bit from opcode
 
-   reg  [`VMSB:0] ex_rs1_val;
-   reg  [`VMSB:0] ex_rs2_val;
+   reg  [`XMSB:0] ex_rs1_val;
+   reg  [`XMSB:0] ex_rs2_val;
 
    /* Processor architectual state is exactly this + register file and pc */
    reg  [    1:0] priv;
    reg  [    4:0] csr_fflags;
    reg  [    2:0] csr_frm;
-   reg  [`VMSB:0] csr_mcause;
-   reg  [`VMSB:0] csr_mcycle;
-   reg  [`VMSB:0] csr_mepc;
+   reg  [`XMSB:0] csr_mcause;
+   reg  [`XMSB:0] csr_mcycle;
+   reg  [`XMSB:0] csr_mepc;
    reg  [    7:0] csr_mie;
-   reg  [`VMSB:0] csr_minstret;
-   reg  [`VMSB:0] csr_mscratch;
-   reg  [`VMSB:0] csr_mstatus;
-   reg  [`VMSB:0] csr_mtval;
-   reg  [`VMSB:0] csr_mtvec;
+   reg  [`XMSB:0] csr_minstret;
+   reg  [`XMSB:0] csr_mscratch;
+   reg  [`XMSB:0] csr_mstatus;
+   reg  [`XMSB:0] csr_mtval;
+   reg  [`XMSB:0] csr_mtvec;
 
 
 
    /* Updates to machine state */
-   reg  [`VMSB:0] ex_csr_mcause;
-   reg  [`VMSB:0] ex_csr_mepc;
-   reg  [`VMSB:0] ex_csr_mstatus;
-   reg  [`VMSB:0] ex_csr_mtval;
+   reg  [`XMSB:0] ex_csr_mcause;
+   reg  [`XMSB:0] ex_csr_mepc;
+   reg  [`XMSB:0] ex_csr_mstatus;
+   reg  [`XMSB:0] ex_csr_mtval;
 
    wire        ex_sign                  = ex_insn[31];
    wire [19:0] ex_sign20                = {20{ex_sign}};
    wire [11:0] ex_sign12                = {12{ex_sign}};
 
    // I-type
-   wire [`VMSB:0] ex_i_imm              = {ex_sign20, ex_insn`funct7, ex_insn`rs2};
+   wire [`XMSB:0] ex_i_imm              = {ex_sign20, ex_insn`funct7, ex_insn`rs2};
 
    // S-type
-   wire [`VMSB:0] ex_s_imm              = {ex_sign20, ex_insn`funct7, ex_insn`rd};
-   wire [`VMSB:0] ex_sb_imm             = {ex_sign20, ex_insn[7], ex_insn[30:25], ex_insn[11:8], 1'd0};
+   wire [`XMSB:0] ex_s_imm              = {ex_sign20, ex_insn`funct7, ex_insn`rd};
+   wire [`XMSB:0] ex_sb_imm             = {ex_sign20, ex_insn[7], ex_insn[30:25], ex_insn[11:8], 1'd0};
 
    // U-type
-   wire [`VMSB:0] ex_uj_imm             = {ex_sign12, ex_insn[19:12], ex_insn[20], ex_insn[30:21], 1'd0};
+   wire [`XMSB:0] ex_uj_imm             = {ex_sign12, ex_insn[19:12], ex_insn[20], ex_insn[30:21], 1'd0};
 
    /* XXX style violation: operates directly on inputs; should be moved to decode */
    reg use_rs1, use_rs2;
    always @(*)
-     if (!rf_valid)
+     if (!valid)
        {use_rs2,use_rs1}                = 0;
      else begin
         {use_rs2,use_rs1}               = 0;
@@ -136,21 +223,15 @@ module yarvi_ex( input  wire             clock
         if (insn`rs2 == 0) use_rs2      = 0;
      end
 
-   wire debug_bypass = 0 && rf_valid & !ex_restart;
+   wire debug_bypass = 0;
 
    always @(posedge clock)
      if      (!use_rs1)
        ex_rs1_val <= 0;
-     else if (insn`rs1 == ex_wb_rd && ex_valid && ex_insn`opcode != `LOAD) begin
+     else if (insn`rs1 == ex_wb_rd)
        ex_rs1_val <= ex_wb_val;
-       if (debug_bypass)
-       $display("%x: bypass r%1d from EX %x", pc, insn`rs1, ex_wb_val);
-     end
-     else if (insn`rs1 == me_wb_rd) begin
+     else if (insn`rs1 == me_wb_rd)
        ex_rs1_val <= me_wb_val;
-       if (debug_bypass)
-       $display("%x: bypass r%1d from ME %x", pc, insn`rs1, me_wb_val);
-     end
      else begin
        ex_rs1_val <= rs1_val;
        if (debug_bypass)
@@ -161,11 +242,8 @@ module yarvi_ex( input  wire             clock
    always @(posedge clock)
      if      (!use_rs2)
        ex_rs2_val <= 0;
-     else if (insn`rs2 == ex_wb_rd && ex_valid && ex_insn`opcode != `LOAD) begin
+     else if (insn`rs2 == ex_wb_rd)
        ex_rs2_val <= ex_wb_val;
-       if (debug_bypass)
-       $display("%x: bypass r%1d from EX %x", pc, insn`rs2, ex_wb_val);
-     end
      else if (insn`rs2 == me_wb_rd) begin
        ex_rs2_val <= me_wb_val;
        if (debug_bypass)
@@ -177,20 +255,20 @@ module yarvi_ex( input  wire             clock
        $display("%x: get    r%1d from RF %x", pc, insn`rs2, rs2_val);
      end
 
-   wire [`VMSB:0] ex_rs1                = ex_rs1_val;
-   wire [`VMSB:0] ex_rs2                = ex_rs2_val;
+   wire [`XMSB:0] ex_rs1                = ex_rs1_val;
+   wire [`XMSB:0] ex_rs2                = ex_rs2_val;
 
-   wire [`VMSB:0] ex_rs1_val_cmp        = {ex_insn`br_unsigned,`VMSB'd0} ^ ex_rs1;
-   wire [`VMSB:0] ex_rs2_val_cmp        = {ex_insn`br_unsigned,`VMSB'd0} ^ ex_rs2;
+   wire [`XMSB:0] ex_rs1_val_cmp        = {ex_insn`br_unsigned,`XMSB'd0} ^ ex_rs1;
+   wire [`XMSB:0] ex_rs2_val_cmp        = {ex_insn`br_unsigned,`XMSB'd0} ^ ex_rs2;
    wire           ex_cmp_eq             = ex_rs1 == ex_rs2;
    wire           ex_cmp_lt             = $signed(ex_rs1_val_cmp) < $signed(ex_rs2_val_cmp);
    wire           ex_branch_taken       = (ex_insn`br_rela ? ex_cmp_lt : ex_cmp_eq) ^ ex_insn`br_negate;
 
-   wire [`VMSB:0] ex_rs2_val_imm        = ex_insn`opcode == `OP_IMM || ex_insn`opcode == `OP_IMM_32 ? ex_i_imm : ex_rs2;
+   wire [`XMSB:0] ex_rs2_val_imm        = ex_insn`opcode == `OP_IMM || ex_insn`opcode == `OP_IMM_32 ? ex_i_imm : ex_rs2;
 
    // XXX for timing, we should calculate csr_val already in RF and deal with the hazards
-   reg [`VMSB:0]  csr_d;
-   reg [`VMSB:0]  csr_val;
+   reg [`XMSB:0]  csr_d;
+   reg [`XMSB:0]  csr_val;
    always @(*)
      case (ex_insn`imm11_0)
        // Standard User R/W
@@ -199,7 +277,7 @@ module yarvi_ex( input  wire             clock
        `CSR_FCSR:         csr_val = {24'd0, csr_frm, csr_fflags};
 
        `CSR_MSTATUS:      csr_val = csr_mstatus;
-       `CSR_MISA:         csr_val = (2'd 2 << 30) | (30'd 1 << ("I"-"A"));
+       `CSR_MISA:         csr_val = (32'd 2 << 30) | (32'd 1 << ("I"-"A"));
        `CSR_MIE:          csr_val = {24'd0, csr_mie};
        `CSR_MTVEC:        csr_val = csr_mtvec;
 
@@ -223,7 +301,7 @@ module yarvi_ex( input  wire             clock
 
        default:           begin
                           csr_val = 0;
-                          if (ex_valid && ex_insn`opcode == `SYSTEM && ex_insn`funct3 != 0)
+                          if (ex_valid_incoming && ex_insn`opcode == `SYSTEM && ex_insn`funct3 != 0)
                             $display("                                                 Warning: CSR %x default to zero",
                                      ex_insn`imm11_0);
                           end
@@ -236,19 +314,17 @@ module yarvi_ex( input  wire             clock
 
    reg           ex_csr_we;
    reg           ex_trap;
-   reg [`VMSB:0] ex_trap_cause;
-   reg [`VMSB:0] ex_trap_val;
+   reg [`XMSB:0] ex_trap_cause;
+   reg [`XMSB:0] ex_trap_val;
    always @(*) begin
       ex_csr_we                         = 0;
-      ex_restart                        = 0;
-      ex_restart_pc                     = 0;
 
       ex_readenable                     = 0;
       ex_writeenable                    = 0;
       ex_writedata                      = ex_rs2_val;
       ex_funct3                         = ex_insn`funct3;
       ex_wb_rd                          = 0;
-      ex_wb_val                         = 'hX;
+      ex_wb_val                         = 0;
 
       ex_priv                           = priv;
       ex_csr_mcause                     = csr_mcause;
@@ -290,9 +366,7 @@ module yarvi_ex( input  wire             clock
         end
 
         `BRANCH: begin
-           ex_restart_pc                = ex_pc + ex_sb_imm;
            if (ex_branch_taken) begin
-              ex_restart                = ex_valid;
               if (ex_restart_pc[1:0] != 0) begin // == ex_sb_imm[1], decode time
                  ex_trap                = ex_valid;
                  ex_trap_cause          = `CAUSE_MISALIGNED_FETCH;
@@ -314,8 +388,6 @@ module yarvi_ex( input  wire             clock
         `JALR: begin
            ex_wb_rd                     = ex_insn`rd;
            ex_wb_val                    = ex_pc + 4;
-           ex_restart                   = ex_valid;
-           ex_restart_pc                = (ex_rs1_val + ex_i_imm) & ~32'd1;
            if (ex_restart_pc[1:0] != 0) begin // == ex_rs1_val[1] ^ ex_i_imm[1]
               ex_wb_rd                  = 0;
               ex_trap                   = ex_valid;
@@ -327,8 +399,6 @@ module yarvi_ex( input  wire             clock
         `JAL: begin
            ex_wb_rd                     = ex_insn`rd;
            ex_wb_val                    = ex_pc + 4;
-           ex_restart                   = ex_valid;
-           ex_restart_pc                = ex_pc + ex_uj_imm;
            if (ex_restart_pc[1:0] != 0) begin // == ex_uj_imm[1], decode-time
               ex_wb_rd                  = 0;
               ex_trap                   = ex_valid;
@@ -361,8 +431,6 @@ module yarvi_ex( input  wire             clock
                   end
 
                   `MRET: if (ex_valid) begin
-                     ex_restart         = ex_valid;
-                     ex_restart_pc      = csr_mepc;
                      ex_csr_mstatus`MIE = csr_mstatus`MPIE;
                      ex_csr_mstatus`MPIE= 1;
                      ex_priv            = csr_mstatus`MPP;
@@ -399,8 +467,6 @@ module yarvi_ex( input  wire             clock
             case (ex_funct3)
               `FENCE:  ;
               `FENCE_I: begin
-                 ex_restart             = ex_valid;
-                 ex_restart_pc          = ex_pc + 4;
               end
 
               default: begin
@@ -454,7 +520,6 @@ module yarvi_ex( input  wire             clock
 
 
       /* Handle restart causes in this priority:
-         - reset
          - misaligned exception, load_hit_store
          - load_hazards
          - interrupts
@@ -465,13 +530,7 @@ module yarvi_ex( input  wire             clock
         ex_wb_rd                        = 0;
 
 
-      if (reset) begin
-         ex_csr_we                      = 0;
-         ex_restart                     = 1;
-         ex_restart_pc                  = `INIT_PC;
-      end else if (me_exc_misaligned) begin
-         ex_restart                     = 1;
-         ex_restart_pc                  = csr_mtvec;
+      if (me_exc_misaligned) begin
          ex_csr_mepc                    = me_pc;
          ex_csr_mstatus`MPIE            = csr_mstatus`MIE;
          ex_csr_mstatus`MIE             = 0;
@@ -485,8 +544,6 @@ module yarvi_ex( input  wire             clock
       end else if (use_rs1 && insn`rs1 == ex_wb_rd && ex_valid && ex_insn`opcode == `LOAD ||
                    use_rs2 && insn`rs2 == ex_wb_rd && ex_valid && ex_insn`opcode == `LOAD) begin
          //$display("%5d    %x: load hazard on r%1d", $time/10, pc, insn`rs1);
-         ex_restart                     = 1;
-         ex_restart_pc                  = pc;
       end else if (ex_trap | (me_timer_interrupt & csr_mie[7] & csr_mstatus`MIE)) begin
          if (me_timer_interrupt & csr_mie[7] & csr_mstatus`MIE) begin
             ex_csr_mcause               = 'h80000007;
@@ -496,8 +553,6 @@ module yarvi_ex( input  wire             clock
             ex_csr_mtval                = ex_trap_val;
          end
 
-         ex_restart                     = 1;
-         ex_restart_pc                  = csr_mtvec;
          ex_csr_mepc                    = ex_pc;
          ex_csr_mstatus`MPIE            = csr_mstatus`MIE;
          ex_csr_mstatus`MIE             = 0;

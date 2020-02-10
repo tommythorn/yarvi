@@ -7,6 +7,8 @@ TIMEOUT=16000
 SRC=../sim/toplevel.v $(CORE)htif.v $(CORE)yarvi_soc.v $(CORE)yarvi_disass.v $(CORE)yarvi.v $(CORE)yarvi_fe.v $(CORE)yarvi_rf.v $(CORE)yarvi_ex.v $(CORE)yarvi_me.v
 HDR=$(CORE)riscv.h
 
+CONFIG=-DXMSB=31 -DVMSB=31 -DPMSB=14 -DTIMEOUT=$(TIMEOUT) -DSIMULATION $(VERB) -DINIT_MEM=\"$<\"
+
 .PRECIOUS: %.hex %.yarvi
 
 # Adjust to match your RISC-V toolchain
@@ -141,6 +143,8 @@ TEST_ALL=$(TESTSET_UIP) $(TESTSET_UIV) $(TESTSET_MI) $(TESTSET_SI) $(TESTSET_UA)
 
 TESTS=$(TESTSET_UIP)
 
+test1: rv32ui-p-simple.trace
+
 newtest: $(patsubst %,$(TESTDIR)%.trace,$(TESTS))
 	@printf "  Total:   %3d\n" $$(echo $(TESTS) | wc -w)
 	@printf "  Passing: %3d\n" $$(ls $(patsubst %,$(TESTDIR)%.trace.pass,$(TESTS)) 2> /dev/null| wc -l)
@@ -164,7 +168,7 @@ multisim: $(patsubst %,$(TESTDIR)%.multisim,$(TESTS))
 	spike $< > $@ 2>&1
 
 %.yarvi: %.hex $(SRC) $(HDR)
-	iverilog -I../core/ -DTIMEOUT=$(TIMEOUT) -DSIMULATION $(VERB) -DINIT_MEM=\"$<\" -o $@ $(SRC)
+	iverilog -I../core/ $(CONFIG) -o $@ $(SRC)
 
 %.trace: %.yarvi %.hex
 	./$^ > $@

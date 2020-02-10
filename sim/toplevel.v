@@ -22,7 +22,6 @@ module toplevel();
 
    always #5 clock = ~clock;
 
-
    wire        tx_ready;
    wire        tx_valid = 0;
    wire  [7:0] tx_data;
@@ -48,7 +47,7 @@ module toplevel();
       $dumpfile("test.vcd");
       $dumpvars(0,yarvi_soc);
 
-      #10
+      #30
       reset = 0;
       $display("out of reset");
 

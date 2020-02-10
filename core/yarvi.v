@@ -18,20 +18,19 @@ module yarvi
 
   , input  wire             freeze
 
-  , output reg     [ 1:0]   me_priv
   , output wire             me_valid
+  , output reg     [ 1:0]   me_priv
   , output wire [`VMSB:0]   me_pc
   , output reg     [31:0]   me_insn
   , output wire    [ 4:0]   me_wb_rd
   , output wire [`XMSB:0]   me_wb_val
   );
 
+   wire             fe_valid;
    wire [`VMSB:0]   fe_pc;
    wire [31:0]      fe_insn;
 
-/* verilator lint_off UNUSED */
    wire             rf_valid;
-/* verilator lint_on UNUSED */
    wire [`VMSB:0]   rf_pc;
    wire [31:0]      rf_insn;
    wire [`VMSB:0]   rf_rs1_val;
@@ -72,18 +71,21 @@ module yarvi
      , .writedata               (code_writedata)
      , .writemask               (code_writemask)
 
+     , .fe_valid                (fe_valid)
      , .fe_pc                   (fe_pc)
      , .fe_insn                 (fe_insn));
 
    yarvi_rf rf
      ( .clock                   (clock)
 
+     , .valid                   (fe_valid & !ex_restart)
      , .pc                      (fe_pc)
      , .insn                    (fe_insn)
 
      , .wb_rd                   (me_wb_rd)
      , .wb_val                  (me_wb_val)
 
+     , .rf_valid                (rf_valid)
      , .rf_pc                   (rf_pc)
      , .rf_insn                 (rf_insn)
      , .rf_rs1_val              (rf_rs1_val)
@@ -92,6 +94,8 @@ module yarvi
    yarvi_ex ex
      ( .clock                   (clock)
      , .reset                   (reset)
+
+     , .valid                   (rf_valid)
      , .pc                      (rf_pc)
      , .insn                    (rf_insn)
      , .rs1_val                 (rf_rs1_val)
@@ -119,8 +123,6 @@ module yarvi
      , .ex_writeenable          (ex_writeenable)
      , .ex_funct3               (ex_funct3)
      , .ex_writedata            (ex_writedata)
-
-     , .rf_valid                (rf_valid)
      );
 
    yarvi_me me

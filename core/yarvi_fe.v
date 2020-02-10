@@ -23,11 +23,11 @@ module yarvi_fe( input  wire             clock
                , input  wire [   31:0]   writedata
                , input  wire [    3:0]   writemask
 
+               , output reg              fe_valid = 0
                , output reg  [`VMSB:0]   fe_pc
                , output wire [   31:0]   fe_insn);
 
    reg [31:0] code[(1<<(`PMSB - 1))-1:0];
-   assign fe_insn = code[fe_pc[`PMSB:2]];
 
 `ifdef I_GOT_THIS
    wire [`PMSB-2:0] wi = address[`PMSB:2];
@@ -38,6 +38,20 @@ module yarvi_fe( input  wire             clock
    always @(posedge clock) if (!reset & writemask[3]) code[wi][31:24] <= writedata[31:24];
 `endif
 
-   always @(posedge clock) fe_pc <= restart ? restart_pc : fe_pc + 4;
+   always @(posedge clock)
+     if (reset) begin
+        fe_valid <= 0;
+        fe_pc    <= `INIT_PC;
+     end else if (restart) begin
+        fe_valid <= 1;
+        fe_pc    <= restart_pc;
+     end else begin
+        fe_valid <= 1;
+        if (fe_valid)
+          fe_pc    <= fe_pc + 4;
+     end
+
+   assign fe_insn   = code[fe_pc[`PMSB:2]];
+
    initial $readmemh(`INIT_MEM, code);
 endmodule

@@ -187,6 +187,8 @@ module htif ( input  wire        clock
              else
                s <= `S_START;
           end
+
+        default:;
       endcase
    end
 endmodule
