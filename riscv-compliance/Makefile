@@ -6,6 +6,7 @@ VERB=-DVERBOSE_SIMULATION
 ICARUS_SRC=../sim/toplevel.v $(CORE)htif.v $(CORE)yarvi_soc.v
 SRC=$(CORE)yarvi.v $(CORE)yarvi_fe.v $(CORE)yarvi_rf.v $(CORE)yarvi_ex.v $(CORE)yarvi_me.v $(CORE)yarvi_disass.v
 HDR=$(CORE)riscv.h
+CONFIG=-DXMSB=31 -DVMSB=31 -DPMSB=13 -DTIMEOUT=16000 -DSIMULATION $(VERB) -DINIT_MEM=\"$<\"
 
 # Adjust to match your RISC-V toolchain
 RVPATH=
@@ -96,7 +97,7 @@ newtest: $(patsubst %,$(TESTDIR)%.trace,$(TESTS))
 		-DBEGIN_SIGNATURE=`nm $(basename $<).elf|egrep ' begin_signature$$'|cut -d' ' -f1` \
 		-DEND_SIGNATURE=`nm $(basename $<).elf|egrep ' end_signature$$'|cut -d' ' -f1` \
 		-DTOHOST=`nm $(basename $<).elf|egrep ' tohost$$'|cut -d' ' -f1` \
-		 -I../core/ -DSIMULATION $(VERB) -DINIT_MEM=\"$<\" \
+		 -I../core/ $(CONFIG) -DINIT_MEM=\"$<\" \
 		-o $@ $(ICARUS_SRC) $(SRC)
 
 %.vsim: %.hex $(SRC) $(HDR) sim_main.cpp
@@ -106,7 +107,7 @@ newtest: $(patsubst %,$(TESTDIR)%.trace,$(TESTS))
 		-DEND_SIGNATURE=`nm $(basename $<).elf|egrep ' end_signature$$'|cut -d' ' -f1` \
 		-DTOHOST=`nm $(basename $<).elf|egrep ' tohost$$'|cut -d' ' -f1` \
 		$(UNDEFS) \
-		 -I../core/ -DSIMULATION $(VERB) -DINIT_MEM=\"$<\" \
+		 -I../core/ $(CONFIG) -DINIT_MEM=\"$<\" \
 		-Mdir $@ $(SRC)
 	make -C $@ -f Vyarvi.mk Vyarvi
 	$@/Vyarvi
