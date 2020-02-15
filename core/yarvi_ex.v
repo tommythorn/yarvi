@@ -139,6 +139,7 @@ module yarvi_ex( input  wire             clock
       end else if (me_exc_misaligned || ex_trap || (me_timer_interrupt && csr_mie[7] && csr_mstatus`MIE)) begin
          ex_restart <= 1;
          ex_restart_pc <= csr_mtvec;
+         ex_valid <= 0;
       end
    end
 
