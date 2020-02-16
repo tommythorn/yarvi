@@ -1,13 +1,13 @@
 // -----------------------------------------------------------------------
 //
-//   Copyright 2018 Tommy Thorn - All Rights Reserved
+//   Copyright 2018,2020 Tommy Thorn - All Rights Reserved
 //
 // -----------------------------------------------------------------------
 
 /*************************************************************************
 
 The memory, AKA load-store, unit.  If ME_READY is asserted, it will
-accent a load or store operation per cycle.  Loads will come back 1 or
+accept a load or store operation per cycle.  Loads will come back 1 or
 more cycles.  There might be multiple memory pending at any one time
 (if ME_READY allows it).
 
@@ -128,10 +128,17 @@ module yarvi_me( input  wire             clock
    reg [31:0] wd_aligned;
    always @(*)
      case (address[1:0])
-       0: wd_aligned =              writedata;
-       1: wd_aligned = {16'hX,  writedata[7:0], 8'hX}; // must be byte
-       2: wd_aligned = {    writedata[15:0],   16'hX}; // at most half
-       3: wd_aligned = {writedata[7:0],        24'hX}; // must be byte
+/*
+       0: wd_aligned = {writedata[31:24], writedata[23:16], writedata[15: 8], writedata[ 7: 0]};
+       1: wd_aligned = {            8'hX,             8'hX, writedata[ 7: 0],             8'hX}; // must be byte
+       2: wd_aligned = {writedata[15: 8], writedata[ 7: 0],             8'hX,             8'hX}; // at most half
+       3: wd_aligned = {writedata[ 7: 0],             8'hX,             8'hX,             8'hX}; // must be byte
+*/
+       // An explicitly cheap aligner     v one-bit sel       v one-bit sel    v fixed
+       0: wd_aligned = {writedata[31:24], writedata[23:16], writedata[15:8], writedata[7:0]};
+       1: wd_aligned = {writedata[ 7: 0], writedata[23:16], writedata[ 7:0], writedata[7:0]}; // must be byte
+       2: wd_aligned = {writedata[15: 8], writedata[ 7: 0], writedata[15:8], writedata[7:0]}; // at most half
+       3: wd_aligned = {writedata[ 7: 0], writedata[ 7: 0], writedata[ 7:0], writedata[7:0]}; // must be byte
      endcase
 
    reg [3:0] wd_mask;
