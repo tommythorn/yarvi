@@ -143,8 +143,6 @@ TEST_ALL=$(TESTSET_UIP) $(TESTSET_UIV) $(TESTSET_MI) $(TESTSET_SI) $(TESTSET_UA)
 
 TESTS=$(TESTSET_UIP)
 
-test1: rv32ui-p-addi.trace
-
 newtest: $(patsubst %,$(TESTDIR)%.trace,$(TESTS))
 	@printf "  Total:   %3d\n" $$(echo $(TESTS) | wc -w)
 	@printf "  Passing: %3d\n" $$(ls $(patsubst %,$(TESTDIR)%.trace.pass,$(TESTS)) 2> /dev/null| wc -l)
