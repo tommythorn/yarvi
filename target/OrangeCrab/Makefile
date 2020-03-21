@@ -4,17 +4,21 @@
 
 PROJ=top
 CONSTR=OrangeCrab.lpf
-TRELLIS=/usr/share/trellis
 #Image read mode: qspi, dual-spi, fast-read
 FLASH_MODE=qspi
 #Image read freq, in MHz: 2.4, 4.8, 9.7, 19.4, 38.8, 62.0
 FLASH_FREQ=38.8 #MHz
+CORE=../../core/
 
+
+SRC=top.v $(CORE)htif.v $(CORE)yarvi_soc.v $(CORE)yarvi.v $(CORE)yarvi_fe.v $(CORE)yarvi_rf.v $(CORE)yarvi_ex.v $(CORE)yarvi_me.v rs232out.v rs232in.v
+HDR=$(CORE)riscv.h
+CONFIG=-DXMSB=31 -DVMSB=31 -DPMSB=13 -DTIMEOUT=$(TIMEOUT) $(VERB) -DINIT_MEM=\"I-ECALL-01.hex\"
 
 all: $(PROJ).prog
 
-%.json: %.v rs232out.v rs232in.v
-	yosys -p "synth_ecp5 -json $@" $^ > yosys.out
+top.json: $(SRC)
+	yosys -p "synth_ecp5 -json $@" $(CONFIG) $(SRC) > yosys.out
 
 %_out.config: %.json
 	nextpnr-ecp5 --json $< --lpf $(CONSTR) --textcfg $@ --85k --package CSFBGA285 --speed 6 2> nextpnr-ecp5.out

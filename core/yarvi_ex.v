@@ -146,12 +146,15 @@ module yarvi_ex( input  wire             clock
    wire ex_flush_this = me_exc_misaligned | me_load_hit_store;
    wire ex_flush_next = ex_restart | ex_flush_this;
 
+`ifdef SIMULATION
    // Asserts would be nice here
    always @(posedge clock)
      if (!ex_valid && ex_wb_rd != 0) begin
         $display("assert(ex_valid || ex_wb_rd == 0) failed");
         $finish;
      end
+`endif
+
    always @(posedge clock) ex_pc    <= pc;
    always @(posedge clock) ex_insn  <= insn;
 
