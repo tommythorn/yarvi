@@ -88,6 +88,8 @@ module yarvi_me( input  wire             clock
 
 
    /* Memory mapped io devices (only word-wide accesses are allowed) */
+   // XXX me_rd_other should be folded into the bypass load register
+   // to avoid the late mux in the load path
    reg [31:0]  me_rd_other;
    always @(*)
      case (me_wi)
@@ -99,29 +101,28 @@ module yarvi_me( input  wire             clock
           me_rd_other = 0;
      endcase
 
-   reg [15:0]  me_rd_aligned;
+   reg [31:0]  me_rd_aligned;
    // Conceptually me_rd >> (8 * me_bi), but optimized
    always @(*)
      case (me_bi)
-       0: me_rd_aligned =        me_rd[15: 0];  // at most half access
-       1: me_rd_aligned = {8'hX, me_rd[15: 8]}; // must be byte access
-       2: me_rd_aligned =        me_rd[31:16];  // at most half access
-       3: me_rd_aligned = {8'hX, me_rd[31:24]}; // must be byte access
+       0: me_rd_aligned =         me_rd;
+       1: me_rd_aligned = {24'hX, me_rd[15: 8]}; // must be byte access
+       2: me_rd_aligned = {16'hX, me_rd[31:16]}; // at most half access
+       3: me_rd_aligned = {24'hX, me_rd[31:24]}; // must be byte access
      endcase
 
    always @(*)
-      if (me_re)
-        case (me_funct3)
-          0: me_wb_val = {{24{me_rd_aligned[ 7]}}, me_rd_aligned[ 7:0]};
-          4: me_wb_val = { 24'h0,                  me_rd_aligned[ 7:0]};
-          1: me_wb_val = {{16{me_rd_aligned[15]}}, me_rd_aligned[15:0]};
-          5: me_wb_val = { 16'h0,                  me_rd_aligned[15:0]};
-          2: me_wb_val = me_address_in_mem ?       me_rd : me_rd_other;
-         default:
-             me_wb_val = 32'h DEADBEEF /* X */;
-      endcase
-      else
-             me_wb_val = me_address; // Bypass load
+     case (me_funct3 | {3{!me_re}})
+       0: me_wb_val = {{24{me_rd_aligned[ 7]}}, me_rd_aligned[ 7:0]};//LB
+       1: me_wb_val = {{16{me_rd_aligned[15]}}, me_rd_aligned[15:0]};//LH
+       2: me_wb_val = me_address_in_mem ?       me_rd_aligned : me_rd_other; //LW
+       4: me_wb_val = { 24'h0,                  me_rd_aligned[ 7:0]};//LBU
+       5: me_wb_val = { 16'h0,                  me_rd_aligned[15:0]};//LHU
+       7: me_wb_val = me_address; // Bypass load
+       default:
+          me_wb_val = 32'h DEADBEEF /* X */;
+     endcase
+
 
    /* Store path */
 
