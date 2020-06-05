@@ -1,6 +1,7 @@
 CORE=../../rtl/
 VERB=
 VERB=-DVERBOSE_SIMULATION
+QUIET=@
 
 TIMEOUT=16000
 
@@ -9,7 +10,7 @@ HDR=$(CORE)riscv.h
 
 CONFIG=-DXMSB=31 -DVMSB=31 -DPMSB=13 -DTIMEOUT=$(TIMEOUT) -DSIMULATION -DDISASSEMBLE $(VERB) -DINIT_MEM=\"$<\"
 
-.PRECIOUS: %.hex %.yarvi
+.PRECIOUS: %.hex %.yarvi %.bin
 
 # Adjust to match your RISC-V toolchain
 RVPATH=
@@ -155,10 +156,10 @@ multisim: $(patsubst %,$(TESTDIR)%.multisim,$(TESTS))
 	multisim -c $<
 
 %.bin: %
-	$(RVPREFIX)objcopy -O binary $^ $@
+	$(QUIET)$(RVPREFIX)objcopy -O binary $^ $@
 
 %.hex: %.bin
-	cat $^ /dev/zero|dd iflag=fullblock bs=1k count=$(MEMSIZEK)|hexdump -ve '"%08x\n"' > $@
+	$(QUIET)cat $^ /dev/zero|dd iflag=fullblock bs=1k count=$(MEMSIZEK) 2>/dev/null|hexdump -ve '"%08x\n"' > $@
 
 %.dump: %
 	$(RVPREFIX)objdump -d -M numeric,no-aliases $^ > $@
@@ -167,12 +168,14 @@ multisim: $(patsubst %,$(TESTDIR)%.multisim,$(TESTS))
 	spike $< > $@ 2>&1
 
 %.yarvi: %.hex $(SRC) $(HDR)
-	iverilog -I$(CORE)/ $(CONFIG) -DTOHOST=$(shell nm $(patsubst %.hex,%,$<) | egrep ' tohost$$' | cut -d' ' -f1) -o $@ $(SRC)
+	$(QUIET)iverilog -I$(CORE)/ $(CONFIG) -DTOHOST=$(shell nm $(patsubst %.hex,%,$<) | egrep ' tohost$$' | cut -d' ' -f1) -o $@ $(SRC)
 
 %.trace: %.yarvi %.hex
-	./$^ > $@
-	if grep -q 'TOHOST =          1' $@;then \
-		touch $@.pass; else ln -fs $@ $@.fail; fi
+	$(QUIET)./$^ > $@
+	$(QUIET)if grep -q 'TOHOST =          1' $@;then \
+		printf "%-20s PASSED\n" $(basename $@); touch $@.pass; \
+	else\
+		printf "%-20s FAILED\n" $(basename $@); ln -fs $@ $@.fail; fi
 
 %.run: %.yarvi %.hex
 	./$^
