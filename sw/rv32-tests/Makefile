@@ -1,4 +1,4 @@
-CORE=../core/
+CORE=../../rtl/
 VERB=
 VERB=-DVERBOSE_SIMULATION
 
