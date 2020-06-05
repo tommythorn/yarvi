@@ -1,3 +1,12 @@
+#
+# The test infrastructure for running 32-bit riscv-tests (just UIP for
+# now).
+#
+# Issues:
+# - This tests bench embeds entirely too much knowledge about how to
+#   build YARVI2 [for simulation]
+# - The test names should be discovered automatically
+
 CORE=../../rtl/
 VERB=
 VERB=-DVERBOSE_SIMULATION
@@ -77,7 +86,6 @@ TESTSET_UIV=\
   rv32ui-v-jalr		\
   rv32ui-v-lb		\
   rv32ui-v-lbu		\
-  rv32ui-v-ld		\
   rv32ui-v-lh		\
   rv32ui-v-lhu		\
   rv32ui-v-lui		\
@@ -85,7 +93,6 @@ TESTSET_UIV=\
   rv32ui-v-or		\
   rv32ui-v-ori		\
   rv32ui-v-sb		\
-  rv32ui-v-sd		\
   rv32ui-v-sh		\
   rv32ui-v-simple	\
   rv32ui-v-sll		\
@@ -104,7 +111,6 @@ TESTSET_UIV=\
   rv32ui-v-xori
 
 TESTSET_MI= \
-  rv32mi-p-access	\
   rv32mi-p-breakpoint	\
   rv32mi-p-csr		\
   rv32mi-p-illegal	\
@@ -141,9 +147,10 @@ TESTSET_UM= \
   rv32um-v-rem		\
   rv32um-v-remu
 
-TEST_ALL=$(TESTSET_UIP) $(TESTSET_UIV) $(TESTSET_MI) $(TESTSET_SI) $(TESTSET_UA) $(TESTSET_UC) $(TESTSET_UD) $(TESTSET_UF) $(TESTSET_UM)
+TESTSET_ALL=$(TESTSET_UIP) $(TESTSET_UIV) $(TESTSET_MI) $(TESTSET_SI) $(TESTSET_UA) $(TESTSET_UC) $(TESTSET_UD) $(TESTSET_UF) $(TESTSET_UM)
 
 TESTS=$(TESTSET_UIP)
+TESTS=$(TESTSET_ALL)
 
 newtest: $(patsubst %,$(TESTDIR)%.trace,$(TESTS))
 	@printf "  Total:   %3d\n" $$(echo $(TESTS) | wc -w)
