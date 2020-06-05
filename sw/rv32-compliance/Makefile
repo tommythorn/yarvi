@@ -1,19 +1,30 @@
-CORE=../core/
+#
+# The test infrastructure for running 32-bit riscv-compliance
+#
+# Issues:
+# - This tests bench embeds entirely too much knowledge about how to
+#   build YARVI2 [for simulation]
+# - The test names should be discovered automatically
+
+CORE=../../rtl/
+VERB=
+VERB=-DVERBOSE_SIMULATION
+QUIET=@
 
 VERB=
 VERB=-DVERBOSE_SIMULATION
 
-ICARUS_SRC=../sim/toplevel.v $(CORE)htif.v $(CORE)yarvi_soc.v
+ICARUS_SRC=../../target/sim/toplevel.v $(CORE)htif.v $(CORE)yarvi_soc.v
 SRC=$(CORE)yarvi.v $(CORE)yarvi_fe.v $(CORE)yarvi_rf.v $(CORE)yarvi_ex.v $(CORE)yarvi_me.v $(CORE)yarvi_disass.v
 HDR=$(CORE)riscv.h
 CONFIG=-DXMSB=31 -DVMSB=31 -DPMSB=13 -DTIMEOUT=16000 -DSIMULATION $(VERB) -DINIT_MEM=\"$<\"
 
 # Adjust to match your RISC-V toolchain
 RVPATH=
-RVPREFIX=$(RVPATH)riscv32-unknown-elf-
+RVPREFIX=$(RVPATH)riscv64-unknown-elf-
 MEMSIZEK=32
 
-.PRECIOUS: %.hex
+.PRECIOUS: %.hex %.yarvi
 
 TESTS= \
   I-ADD-01.elf \
@@ -93,35 +104,37 @@ newtest: $(patsubst %,$(TESTDIR)%.trace,$(TESTS))
 	spike $< > $@ 2>&1
 
 %.yarvi: %.hex $(ICARUS_SRC) $(SRC) $(HDR)
-	iverilog \
+	$(QUIET)iverilog \
 		-DBEGIN_SIGNATURE=`nm $(basename $<).elf|egrep ' begin_signature$$'|cut -d' ' -f1` \
 		-DEND_SIGNATURE=`nm $(basename $<).elf|egrep ' end_signature$$'|cut -d' ' -f1` \
 		-DTOHOST=`nm $(basename $<).elf|egrep ' tohost$$'|cut -d' ' -f1` \
-		 -I../core/ $(CONFIG) -DINIT_MEM=\"$<\" \
+		 -I$(CORE)/ $(CONFIG) -DINIT_MEM=\"$<\" \
 		-o $@ $(ICARUS_SRC) $(SRC)
 
 %.vsim: %.hex $(SRC) $(HDR) sim_main.cpp
-	verilator -CFLAGS -O3 -O3 -Wall --cc --exe sim_main.cpp \
+	$(QUIET)verilator -CFLAGS -O3 -O3 -Wall --cc --exe sim_main.cpp \
 		--top-module yarvi \
 		-DBEGIN_SIGNATURE=`nm $(basename $<).elf|egrep ' begin_signature$$'|cut -d' ' -f1` \
 		-DEND_SIGNATURE=`nm $(basename $<).elf|egrep ' end_signature$$'|cut -d' ' -f1` \
 		-DTOHOST=`nm $(basename $<).elf|egrep ' tohost$$'|cut -d' ' -f1` \
 		$(UNDEFS) \
-		 -I../core/ $(CONFIG) -DINIT_MEM=\"$<\" \
+		 -I$(CORE)/ $(CONFIG) -DINIT_MEM=\"$<\" \
 		-Mdir $@ $(SRC)
 	make -C $@ -f Vyarvi.mk Vyarvi
 	$@/Vyarvi
 
 %.trace: %.yarvi
-	./$^ > $@
-	if grep -q 'TOHOST 00000001' $@;then \
+	$(QUIET)./$^ > $@
+	$(QUIET)if grep -q 'TOHOST 00000001' $@;then \
 		touch $@.pass; else ln -fs $@ $@.fail; fi
 
 %.run: %.yarvi
 	./$^
 
 %.comply: %.yarvi
-	./$^ | grep ^Signature -A999999|tail -n +2 | \
-		if diff - ../../riscv-compliance/riscv-test-suite/rv32i/references/$(basename $<).reference_output; then \
-			touch $@.pass; else touch $@.fail; fi
+	$(QUIET)./$^ | grep ^Signature -A999999|tail -n +2 | \
+	if diff - $(basename $<).ref; then \
+		printf "%-20s PASSED\n" $(basename $@); touch $@.pass; \
+	else\
+		printf "%-20s FAILED\n" $(basename $@); ln -fs $@ $@.fail; fi
 
