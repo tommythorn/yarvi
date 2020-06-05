@@ -4,7 +4,7 @@ VERB=-DVERBOSE_SIMULATION
 
 TIMEOUT=16000
 
-SRC=../sim/toplevel.v $(CORE)htif.v $(CORE)yarvi_soc.v $(CORE)yarvi_disass.v $(CORE)yarvi.v $(CORE)yarvi_fe.v $(CORE)yarvi_rf.v $(CORE)yarvi_ex.v $(CORE)yarvi_me.v
+SRC=../../target/sim/toplevel.v $(CORE)htif.v $(CORE)yarvi_soc.v $(CORE)yarvi_disass.v $(CORE)yarvi.v $(CORE)yarvi_fe.v $(CORE)yarvi_rf.v $(CORE)yarvi_ex.v $(CORE)yarvi_me.v
 HDR=$(CORE)riscv.h
 
 CONFIG=-DXMSB=31 -DVMSB=31 -DPMSB=13 -DTIMEOUT=$(TIMEOUT) -DSIMULATION -DDISASSEMBLE $(VERB) -DINIT_MEM=\"$<\"
@@ -15,6 +15,8 @@ CONFIG=-DXMSB=31 -DVMSB=31 -DPMSB=13 -DTIMEOUT=$(TIMEOUT) -DSIMULATION -DDISASSE
 RVPATH=
 RVPREFIX=$(RVPATH)riscv64-unknown-elf-
 MEMSIZEK=128
+
+all: newtest
 
 TESTSET_UIP= \
   rv32ui-p-add		\
@@ -107,7 +109,6 @@ TESTSET_MI= \
   rv32mi-p-illegal	\
   rv32mi-p-ma_addr	\
   rv32mi-p-ma_fetch	\
-  rv32mi-p-ma_fetch.dump\
   rv32mi-p-mcsr		\
   rv32mi-p-sbreak	\
   rv32mi-p-scall
@@ -160,13 +161,13 @@ multisim: $(patsubst %,$(TESTDIR)%.multisim,$(TESTS))
 	cat $^ /dev/zero|dd iflag=fullblock bs=1k count=$(MEMSIZEK)|hexdump -ve '"%08x\n"' > $@
 
 %.dump: %
-	riscv32-unknown-elf-objdump -d -M numeric,no-aliases $^ > $@
+	$(RVPREFIX)objdump -d -M numeric,no-aliases $^ > $@
 
 %.spike: %
 	spike $< > $@ 2>&1
 
 %.yarvi: %.hex $(SRC) $(HDR)
-	iverilog -I../core/ $(CONFIG) -DTOHOST=$(shell nm $(patsubst %.hex,%,$<) | egrep ' tohost$$' | cut -d' ' -f1) -o $@ $(SRC)
+	iverilog -I$(CORE)/ $(CONFIG) -DTOHOST=$(shell nm $(patsubst %.hex,%,$<) | egrep ' tohost$$' | cut -d' ' -f1) -o $@ $(SRC)
 
 %.trace: %.yarvi %.hex
 	./$^ > $@
