@@ -1,0 +1,7 @@
+rv32mi-p-illegal     FAILED
+rv32mi-p-mcsr        FAILED
+rv32si-p-csr         FAILED
+rv32si-p-sbreak      FAILED
+rv32si-p-ma_fetch    FAILED
+rv32si-p-scall       FAILED
+rv32si-p-dirty       FAILED

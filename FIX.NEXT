@@ -1,0 +1,8 @@
+rv32um-p-div         FAILED
+rv32um-p-divu        FAILED
+rv32um-p-mul         FAILED
+rv32um-p-mulh        FAILED
+rv32um-p-mulhsu      FAILED
+rv32um-p-mulhu       FAILED
+rv32um-p-rem         FAILED
+rv32um-p-remu        FAILED

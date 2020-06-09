@@ -98,7 +98,20 @@
 `define CSR_UTVAL               'h 043
 `define CSR_UIP                 'h 044
 
+`define CSR_SSTATUS             'h 100
+`define CSR_SEDELEG             'h 102
+`define CSR_SIDELEG             'h 103
+`define CSR_SIE                 'h 104
 `define CSR_STVEC               'h 105
+`define CSR_SCOUNTEREN          'h 106
+
+`define CSR_SSCRATCH            'h 140
+`define CSR_SEPC                'h 141
+`define CSR_SCAUSE              'h 142
+`define CSR_STVAL               'h 143
+`define CSR_SIP                 'h 144
+
+`define CSR_SATP                'h 180
 
 // User-level, counter/timers
 `define CSR_CYCLE               'h C00
@@ -134,8 +147,6 @@
   `define TSR   [22]     // Trap SRET
   `define SD    [31]     // Summary Dirty (FS==11 || XS==11)
 
-`define CSR_SATP                'h 180
-
 `define CSR_MISA                'h 301
 `define CSR_MEDELEG             'h 302
 `define CSR_MIDELEG             'h 303
@@ -148,6 +159,9 @@
 `define CSR_MCAUSE              'h 342
 `define CSR_MTVAL               'h 343
 `define CSR_MIP                 'h 344
+
+// uppercase are writeable: meip 0 SEIP ueip mtip 0 STIP utip msip 0 SSIP usip
+`define CSR_MIP_WMASK           'b 001000100010
 
 `define CSR_PMPCFG0             'h 3A0
 `define CSR_PMPADDR0            'h 3B0
