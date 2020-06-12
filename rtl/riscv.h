@@ -89,23 +89,32 @@
 `define CSR_FFLAGS              'h 001
 `define CSR_FRM                 'h 002
 `define CSR_FCSR                'h 003                  /* alias for the frm + fflags */
-`define CSR_UIE                 'h 004
-`define CSR_UTVEC               'h 005
+//`define CSR_UIE                 'h 004
+//`define CSR_UTVEC               'h 005
 
-`define CSR_USCRATCH            'h 040
-`define CSR_UEPC                'h 041
-`define CSR_UCAUSE              'h 042
-`define CSR_UTVAL               'h 043
-`define CSR_UIP                 'h 044
+//`define CSR_USCRATCH            'h 040
+//`define CSR_UEPC                'h 041
+//`define CSR_UCAUSE              'h 042
+//`define CSR_UTVAL               'h 043
+//`define CSR_UIP                 'h 044
 
 `define CSR_SSTATUS             'h 100
-`define CSR_SEDELEG             'h 102
-`define CSR_SIDELEG             'h 103
+
+//`define CSR_SEDELEG             'h 102
+//`define CSR_SIDELEG             'h 103
 `define CSR_SIE                 'h 104
 `define CSR_STVEC               'h 105
 `define CSR_SCOUNTEREN          'h 106
 
 `define CSR_SSCRATCH            'h 140
+`define SSTATUS_MASK (  MSTATUS_SIE   \
+                      | MSTATUS_SPIE  \
+                      | MSTATUS_SPP   \
+                      | MSTATUS_FS    \
+                      | MSTATUS_SUM   \
+                      | MSTATUS_MXR   \
+                      | MSTATUS_UXL_MASK )
+
 `define CSR_SEPC                'h 141
 `define CSR_SCAUSE              'h 142
 `define CSR_STVAL               'h 143
