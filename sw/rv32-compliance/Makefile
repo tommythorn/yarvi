@@ -24,7 +24,12 @@ RVPATH=
 RVPREFIX=$(RVPATH)riscv64-unknown-elf-
 MEMSIZEK=32
 
-.PRECIOUS: %.hex %.yarvi
+# Pick your favorite simulator, Icarus Verilog (icarus) or Verilator (verilator)
+#SIM=icarus
+SIM=verilator
+
+
+.PRECIOUS: %.hex %.$(SIM)
 
 TESTS= \
   I-ADD-01.elf \
@@ -103,7 +108,7 @@ newtest: $(patsubst %,$(TESTDIR)%.trace,$(TESTS))
 %.spike: %
 	spike $< > $@ 2>&1
 
-%.yarvi: %.hex $(ICARUS_SRC) $(SRC) $(HDR)
+%.icarus: %.hex $(ICARUS_SRC) $(SRC) $(HDR)
 	$(QUIET)iverilog \
 		-DBEGIN_SIGNATURE=`nm $(basename $<).elf|egrep ' begin_signature$$'|cut -d' ' -f1` \
 		-DEND_SIGNATURE=`nm $(basename $<).elf|egrep ' end_signature$$'|cut -d' ' -f1` \
@@ -111,7 +116,7 @@ newtest: $(patsubst %,$(TESTDIR)%.trace,$(TESTS))
 		 -I$(CORE)/ $(CONFIG) -DINIT_MEM=\"$<\" \
 		-o $@ $(ICARUS_SRC) $(SRC)
 
-%.vsim: %.hex $(SRC) $(HDR) sim_main.cpp
+%.verilator: %.hex $(SRC) $(HDR) sim_main.cpp
 	$(QUIET)verilator -CFLAGS -O3 -O3 -Wall --cc --exe sim_main.cpp \
 		--top-module yarvi \
 		-DBEGIN_SIGNATURE=`nm $(basename $<).elf|egrep ' begin_signature$$'|cut -d' ' -f1` \
@@ -123,15 +128,15 @@ newtest: $(patsubst %,$(TESTDIR)%.trace,$(TESTS))
 	make -C $@ -f Vyarvi.mk Vyarvi
 	$@/Vyarvi
 
-%.trace: %.yarvi
+%.trace: %.$(SIM)
 	$(QUIET)./$^ > $@
 	$(QUIET)if grep -q 'TOHOST 00000001' $@;then \
 		touch $@.pass; else ln -fs $@ $@.fail; fi
 
-%.run: %.yarvi
+%.run: %.$(SIM)
 	./$^
 
-%.comply: %.yarvi
+%.comply: %.$(SIM)
 	$(QUIET)./$^ | grep ^Signature -A999999|tail -n +2 | \
 	if diff - $(basename $<).ref; then \
 		printf "%-20s PASSED\n" $(basename $@); touch $@.pass; \

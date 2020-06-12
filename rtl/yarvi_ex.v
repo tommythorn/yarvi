@@ -12,6 +12,9 @@ XXX Need to include CSR access permission check
 
 *************************************************************************/
 
+/* The width comparisons in Verilator are completely broken. */
+/* verilator lint_off WIDTH */
+
 `include "yarvi.h"
 `default_nettype none
 
@@ -68,18 +71,13 @@ module yarvi_ex( input  wire             clock
    reg  [   11:0] csr_medeleg;
 
    // XXX some aren't use as they are virtual window on the M version
-   reg  [`XMSB:0] csr_sedeleg;
-   reg  [`XMSB:0] csr_sideleg;
-   reg  [   11:0] csr_sie;
    reg  [`XMSB:0] csr_stvec;
-   reg  [`XMSB:0] csr_scounteren;
-   reg  [`XMSB:0] csr_sscratch;
+// reg  [`XMSB:0] csr_scounteren;
+// reg  [`XMSB:0] csr_sscratch;
    reg  [`XMSB:0] csr_sepc;
    reg  [`XMSB:0] csr_scause;
    reg  [`XMSB:0] csr_stval;
-   reg  [   11:0] csr_sip;
-   reg  [`XMSB:0] csr_satp;
-
+// reg  [`XMSB:0] csr_satp;
    wire [   11:0] csr_mip_and_mie    = csr_mip & csr_mie;
 
 
@@ -111,8 +109,8 @@ module yarvi_ex( input  wire             clock
    wire           cmp_eq             = rs1_val_fwd == rs2_val_fwd;
    wire           cmp_lt             = $signed(rs1_val_cmp) < $signed(rs2_val_cmp);
    wire           branch_taken       = (insn`br_rela ? cmp_lt : cmp_eq) ^ insn`br_negate;
-   wire [`XMSB:0] rs2_val_imm        = (insn`opcode == `OP_IMM || insn`opcode == `OP_IMM_32
-                                        ? i_imm : rs2_val_fwd);
+// wire [`XMSB:0] rs2_val_imm        = (insn`opcode == `OP_IMM || insn`opcode == `OP_IMM_32
+//                                      ? i_imm : rs2_val_fwd);
 
    always @(posedge clock) begin
       ex_valid <= 0;
@@ -195,10 +193,6 @@ module yarvi_ex( input  wire             clock
 
    reg                     ex_valid_incoming = 0;
    always @(posedge clock) ex_valid_incoming <= valid & !ex_flush_next;
-// always @(*)             ex_valid = ex_valid_incoming & !ex_flush_this;
-
-
-
 
    reg            me_insn_opcode_load;
    always @(posedge clock) me_insn_opcode_load <= ex_insn`opcode == `LOAD; // XXX Actually only need one bit from opcode
@@ -215,7 +209,7 @@ module yarvi_ex( input  wire             clock
    reg  [`XMSB:0] ex_csr_sepc;
    reg  [`XMSB:0] ex_csr_scause;
    reg  [`XMSB:0] ex_csr_stval;
-   reg  [`XMSB:0] ex_csr_stvec;
+// reg  [`XMSB:0] ex_csr_stvec;
 
    reg  [   11:0] ex_csr_mideleg;
    reg  [   11:0] ex_csr_medeleg;
@@ -363,7 +357,6 @@ module yarvi_ex( input  wire             clock
    reg           cause_intr;
    reg [    3:0] cause;
    reg           deleg;
-   reg [`XMSB:0] tval;
 
    always @(*) begin
       ex_csr_we                         = 0;
@@ -384,7 +377,7 @@ module yarvi_ex( input  wire             clock
       ex_csr_scause                     = csr_scause;
       ex_csr_sepc                       = csr_sepc;
       ex_csr_stval                      = csr_stval;
-      ex_csr_stvec                      = csr_stvec;
+//      ex_csr_stvec                      = csr_stvec;
 
       ex_csr_mideleg                    = csr_mideleg;
       ex_csr_medeleg                    = csr_medeleg;
@@ -634,7 +627,7 @@ module yarvi_ex( input  wire             clock
             ex_csr_stval                   = ex_trap_val;
             ex_csr_mstatus`SPIE            = csr_mstatus`SIE;
             ex_csr_mstatus`SIE             = 0;
-            ex_csr_mstatus`SPP             = priv;
+            ex_csr_mstatus`SPP             = priv; // XXX SPP is one bit whose two values are USER and SUPERVISOR?
             ex_priv                        = `PRV_S;
          end else begin
             ex_csr_mcause[`XMSB]           = cause_intr;
