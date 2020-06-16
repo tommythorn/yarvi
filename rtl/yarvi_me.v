@@ -36,7 +36,7 @@ module yarvi_me( input  wire             clock
                , output reg              me_load_hit_store
                , output reg              me_timer_interrupt
 
-               , output reg [`VMSB:0]    code_address
+               , output reg [`VMSB:2]    code_address
                , output reg [   31:0]    code_writedata
                , output reg [    3:0]    code_writemask
                );
@@ -176,7 +176,7 @@ module yarvi_me( input  wire             clock
    end
 
    always @(posedge clock) begin
-      code_address   <= address;
+      code_address   <= address[`VMSB:2];
       code_writedata <= wd_aligned;
       code_writemask <= we ? wd_mask : 0;
    end

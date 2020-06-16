@@ -25,8 +25,8 @@ RVPREFIX=$(RVPATH)riscv64-unknown-elf-
 MEMSIZEK=32
 
 # Pick your favorite simulator, Icarus Verilog (icarus) or Verilator (verilator)
-#SIM=icarus
-SIM=verilator
+SIM=icarus
+#SIM=verilator not quite ready yet
 
 
 .PRECIOUS: %.hex %.$(SIM)
@@ -126,14 +126,17 @@ newtest: $(patsubst %,$(TESTDIR)%.trace,$(TESTS))
 		 -I$(CORE)/ $(CONFIG) -DINIT_MEM=\"$<\" \
 		-Mdir $@ $(SRC)
 	make -C $@ -f Vyarvi.mk Vyarvi
-	$@/Vyarvi
 
 %.trace: %.$(SIM)
 	$(QUIET)./$^ > $@
 	$(QUIET)if grep -q 'TOHOST 00000001' $@;then \
 		touch $@.pass; else ln -fs $@ $@.fail; fi
 
-%.run: %.$(SIM)
+%.run: %.verilator
+	$@/Vyarvi
+
+
+%.run: %.icarus
 	./$^
 
 %.comply: %.$(SIM)

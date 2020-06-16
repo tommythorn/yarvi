@@ -12,12 +12,15 @@ This is a simple RISC-V implementation.
 
 `include "yarvi.h"
 
+/* The width comparisons in Verilator are completely broken. */
+/* verilator lint_off WIDTH */
+
 module yarvi_fe( input  wire             clock
                , input  wire             reset
                , input  wire             restart
                , input  wire [`VMSB:0]   restart_pc
 
-               , input  wire [`VMSB:0]   address
+               , input  wire [`VMSB:2]   address
                , input  wire [   31:0]   writedata
                , input  wire [    3:0]   writemask
 

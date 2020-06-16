@@ -57,7 +57,7 @@ module yarvi
    wire             me_load_hit_store;
    wire             me_timer_interrupt;
 
-   wire [`VMSB:0]   code_address;
+   wire [`VMSB:2]   code_address;
    wire [   31:0]   code_writedata;
    wire [    3:0]   code_writemask;
 

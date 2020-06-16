@@ -82,18 +82,17 @@ module yarvi_ex( input  wire             clock
 
 
    wire        sign                  = insn[31];
-   wire [19:0] sign20                = {20{sign}};
-   wire [11:0] sign12                = {12{sign}};
+   wire [`XMSB-12:0] sext12          = {(`XMSB-11){sign}};
+   wire [`XMSB-20:0] sext20          = {(`XMSB-19){sign}};
 
    // I-type
-   wire [`XMSB:0] i_imm              = {sign20, insn`funct7, insn`rs2};
+   wire [`XMSB:0] i_imm              = {sext12, insn`funct7, insn`rs2};
 
    // S-type
-   wire [`XMSB:0] s_imm              = {sign20, insn`funct7, insn`rd};
-   wire [`XMSB:0] sb_imm             = {sign20, insn[7], insn[30:25], insn[11:8], 1'd0};
+   wire [`XMSB:0] sb_imm             = {sext12, insn[7], insn[30:25], insn[11:8], 1'd0};
 
    // U-type
-   wire [`XMSB:0] uj_imm             = {sign12, insn[19:12], insn[20], insn[30:21], 1'd0};
+   wire [`XMSB:0] uj_imm             = {sext20, insn[19:12], insn[20], insn[30:21], 1'd0};
 
 
    wire [`XMSB:0] rs1_val_fwd        = insn`rs1 == 0        ? 0         :
@@ -215,18 +214,18 @@ module yarvi_ex( input  wire             clock
    reg  [   11:0] ex_csr_medeleg;
 
    wire        ex_sign                  = ex_insn[31];
-   wire [19:0] ex_sign20                = {20{ex_sign}};
-   wire [11:0] ex_sign12                = {12{ex_sign}};
+   wire [19:0] ex_sext12                = {20{ex_sign}};
+// wire [11:0] ex_sext20                = {12{ex_sign}};
 
    // I-type
-   wire [`XMSB:0] ex_i_imm              = {ex_sign20, ex_insn`funct7, ex_insn`rs2};
+   wire [`XMSB:0] ex_i_imm              = {ex_sext12, ex_insn`funct7, ex_insn`rs2};
 
    // S-type
-   wire [`XMSB:0] ex_s_imm              = {ex_sign20, ex_insn`funct7, ex_insn`rd};
-   wire [`XMSB:0] ex_sb_imm             = {ex_sign20, ex_insn[7], ex_insn[30:25], ex_insn[11:8], 1'd0};
+   wire [`XMSB:0] ex_s_imm              = {ex_sext12, ex_insn`funct7, ex_insn`rd};
+// wire [`XMSB:0] ex_sb_imm             = {ex_sext12, ex_insn[7], ex_insn[30:25], ex_insn[11:8], 1'd0};
 
    // U-type
-   wire [`XMSB:0] ex_uj_imm             = {ex_sign12, ex_insn[19:12], ex_insn[20], ex_insn[30:21], 1'd0};
+// wire [`XMSB:0] ex_uj_imm             = {ex_sext20, ex_insn[19:12], ex_insn[20], ex_insn[30:21], 1'd0};
 
    /* XXX style violation: operates directly on inputs; should be moved to decode */
    reg use_rs1, use_rs2;
@@ -467,7 +466,7 @@ module yarvi_ex( input  wire             clock
              `CSRRW:  begin csr_d       =            ex_rs1; end
              `CSRRSI: begin csr_d       = csr_val |  {27'd0, ex_insn`rs1}; end
              `CSRRCI: begin csr_d       = csr_val &~ {27'd0, ex_insn`rs1}; end
-             `CSRRWI: begin csr_d       =            {27'd0, ex_insn`rs1}; end
+             `CSRRWI: begin csr_d       = $unsigned(ex_insn`rs1); end
              `PRIV: begin
                 ex_wb_rd                = ex_insn`rd;
                 ex_csr_we               = 0;
@@ -475,7 +474,7 @@ module yarvi_ex( input  wire             clock
                   `ECALL, `EBREAK: begin
                      ex_trap            = ex_valid;
                      ex_trap_cause      = ex_insn`imm11_0 == `ECALL
-                                          ? `CAUSE_USER_ECALL | {30'd0, priv}
+                                          ? `CAUSE_USER_ECALL | $unsigned(priv)
                                           : `CAUSE_BREAKPOINT;
                      ex_trap_val        = 0;
                   end
@@ -618,7 +617,7 @@ module yarvi_ex( input  wire             clock
             cause                       = ex_trap_cause;
          end
 
-         deleg = ex_priv <= 1 && ((cause_intr ? csr_mideleg : csr_medeleg) >> cause) & 1;
+         deleg = ex_priv <= 1 && ((cause_intr ? csr_mideleg : csr_medeleg) >> cause) & 1'd1;
 
          if (deleg) begin
             ex_csr_scause[`XMSB]           = cause_intr;
