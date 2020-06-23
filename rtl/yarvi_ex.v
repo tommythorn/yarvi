@@ -357,7 +357,44 @@ module yarvi_ex( input  wire             clock
    reg [    3:0] cause;
    reg           deleg;
 
+   reg           ex_alu_insn30;
+   reg [    2:0] ex_alu_funct3;
+   reg [`XMSB:0] ex_alu_op1;
+   reg [`XMSB:0] ex_alu_op2;
+   wire[`XMSB:0] ex_alu_result;
+
+   yarvi_alu alu(ex_alu_insn30, ex_alu_funct3, ex_alu_op1, ex_alu_op2, ex_alu_result);
+
    always @(*) begin
+      // ALU inputs
+      ex_alu_insn30 = ex_opcode == `OP && ex_insn`funct3 == `ADDSUB ||
+                      ((ex_opcode == `OP ||
+                        ex_opcode == `OP_IMM    ||
+                        ex_opcode == `OP_IMM_32) && ex_insn`funct3 == `SR_) ?
+                      ex_insn[30] : 0;
+
+      ex_alu_funct3 = ex_opcode == `OP        ||
+                      ex_opcode == `OP_IMM    ||
+                      ex_opcode == `OP_IMM_32 ? ex_insn`funct3 : `ADDSUB;
+
+      // Lots of instructions needs adds and we have some freedom here
+      // ARGH, need to handle conditional branches too
+      ex_alu_op1                        = ex_opcode == `AUIPC ||
+                                          ex_opcode == `JALR  ||
+                                          ex_opcode == `JAL    ? ex_pc   :
+                                          ex_opcode == `LUI    ? 0       :
+                                          ex_opcode == `SYSTEM ? csr_val :
+                                                                 ex_rs1;
+
+      ex_alu_op2                        = ex_opcode == `AUIPC ||
+                                          ex_opcode == `LUI    ? {ex_insn[31:12], 12'd0} :
+                                          ex_opcode == `JALR  ||
+                                          ex_opcode == `JAL    ? 4                       :
+                                          ex_opcode == `SYSTEM ? 0                       :
+                                          ex_opcode == `LOAD   ? ex_i_imm                :
+                                          ex_opcode == `STORE  ? ex_s_imm                :
+                                                                 ex_rs2_val_imm;
+
       ex_csr_we                         = 0;
 
       ex_readenable                     = 0;
@@ -698,6 +735,24 @@ module yarvi_ex( input  wire             clock
            default:
              $display("                                                 Warning: writing an unimplemented CSR %x", ex_insn`imm11_0);
          endcase
+      end
+
+      if (ex_valid && ex_alu_result != ex_wb_val) begin
+         $display("Divergence: %x:%x (op %x) %x %x %x %x -> %x, should have been %x",
+                  ex_pc, ex_insn, ex_opcode,
+                  ex_alu_insn30, ex_alu_funct3, ex_alu_op1, ex_alu_op2, ex_alu_result,
+                  ex_wb_val);
+
+         $display("%x %x",
+                  ex_opcode == `OP,
+                  ex_opcode == `SR_);
+
+         $display("%x %x",
+                  (ex_opcode == `OP || ex_opcode == `SR_),
+                  ex_insn[30] && (ex_opcode == `OP || ex_opcode == `SR_));
+
+         if (ex_wb_rd != 0)
+           $finish;
       end
    end
 endmodule
