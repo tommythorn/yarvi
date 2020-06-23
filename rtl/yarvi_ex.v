@@ -44,7 +44,7 @@ module yarvi_ex( input  wire             clock
                , output reg  [`XMSB:0]   ex_restart_pc
 
                , output reg  [ 4:0]      ex_wb_rd  // != 0 => WE. !valid => 0
-               , output reg  [`XMSB:0]   ex_wb_val
+               , output wire [`XMSB:0]   ex_wb_val
 
                , output reg              ex_readenable
                , output reg              ex_writeenable
@@ -81,9 +81,8 @@ module yarvi_ex( input  wire             clock
    wire [   11:0] csr_mip_and_mie    = csr_mip & csr_mie;
 
 
-   wire        sign                  = insn[31];
-   wire [`XMSB-12:0] sext12          = {(`XMSB-11){sign}};
-   wire [`XMSB-20:0] sext20          = {(`XMSB-19){sign}};
+   wire [`XMSB-12:0] sext12          = {(`XMSB-11){insn[31]}};
+   wire [`XMSB-20:0] sext20          = {(`XMSB-19){insn[31]}};
 
    // I-type
    wire [`XMSB:0] i_imm              = {sext12, insn`funct7, insn`rs2};
@@ -361,9 +360,8 @@ module yarvi_ex( input  wire             clock
    reg [    2:0] ex_alu_funct3;
    reg [`XMSB:0] ex_alu_op1;
    reg [`XMSB:0] ex_alu_op2;
-   wire[`XMSB:0] ex_alu_result;
 
-   yarvi_alu alu(ex_alu_insn30, ex_alu_funct3, ex_alu_op1, ex_alu_op2, ex_alu_result);
+   yarvi_alu alu(ex_alu_insn30, ex_alu_funct3, ex_alu_op1, ex_alu_op2, ex_wb_val);
 
    always @(*) begin
       // ALU inputs
@@ -402,7 +400,6 @@ module yarvi_ex( input  wire             clock
       ex_writedata                      = ex_rs2_val;
       ex_funct3                         = ex_insn`funct3;
       ex_wb_rd                          = 0;
-      ex_wb_val                         = 0;
 
       ex_priv                           = priv;
       ex_csr_mcause                     = csr_mcause;
@@ -419,34 +416,13 @@ module yarvi_ex( input  wire             clock
       ex_csr_medeleg                    = csr_medeleg;
 
       ex_trap                           = 0;
-      ex_trap_cause			= 0;
-      ex_trap_val                       = 'h X;
+      ex_trap_cause                     = 0;
+      ex_trap_val                       = 0;
       csr_d                             = 'h X;
 
       case (ex_opcode)
-        `OP_IMM, `OP: begin
+        `OP_IMM, `OP, `AUIPC, `LUI:
            ex_wb_rd                     = ex_insn`rd;
-           case (ex_funct3)
-             `ADDSUB: ex_wb_val         = ex_insn[30] && ex_opcode == `OP
-                                          ?       ex_rs1  -         ex_rs2_val_imm
-                                          :       ex_rs1  +         ex_rs2_val_imm;
-             `SLT:    ex_wb_val         = {31'd0,$signed(ex_rs1) < $signed(ex_rs2_val_imm)}; // or flip MSB of both operands
-             `SLTU:   ex_wb_val         = {31'd0, ex_rs1  <         ex_rs2_val_imm};
-             `XOR:    ex_wb_val         =         ex_rs1  ^         ex_rs2_val_imm;
-             `SR_:    if (ex_insn[30])
-                        ex_wb_val       = $signed(ex_rs1) >>>       ex_rs2_val_imm[4:0];
-                      else
-                        ex_wb_val       =         ex_rs1  >>        ex_rs2_val_imm[4:0];
-             `SLL:    ex_wb_val         =         ex_rs1  <<        ex_rs2_val_imm[4:0];
-             `OR:     ex_wb_val         =         ex_rs1  |         ex_rs2_val_imm;
-             `AND:    ex_wb_val         =         ex_rs1  &         ex_rs2_val_imm;
-             default: begin
-                ex_trap                 = ex_valid;
-                ex_trap_cause           = `CAUSE_ILLEGAL_INSTRUCTION;
-                ex_trap_val             = 0;
-             end
-           endcase
-        end
 
         `BRANCH: begin
            if (ex_branch_taken) begin
@@ -458,19 +434,8 @@ module yarvi_ex( input  wire             clock
            end
         end
 
-        `AUIPC: begin
-           ex_wb_rd                     = ex_insn`rd;
-           ex_wb_val                    = ex_pc + {ex_insn[31:12], 12'd0};
-        end
-
-        `LUI: begin
-           ex_wb_rd                     = ex_insn`rd;
-           ex_wb_val                    = {ex_insn[31:12], 12'd0};
-        end
-
         `JALR: begin
            ex_wb_rd                     = ex_insn`rd;
-           ex_wb_val                    = ex_pc + 4;
            if (ex_restart_pc[1:0] != 0) begin // == ex_rs1_val[1] ^ ex_i_imm[1]
               ex_wb_rd                  = 0;
               ex_trap                   = ex_valid;
@@ -481,7 +446,6 @@ module yarvi_ex( input  wire             clock
 
         `JAL: begin
            ex_wb_rd                     = ex_insn`rd;
-           ex_wb_val                    = ex_pc + 4;
            if (ex_restart_pc[1:0] != 0) begin // == ex_uj_imm[1], decode-time
               ex_wb_rd                  = 0;
               ex_trap                   = ex_valid;
@@ -492,7 +456,6 @@ module yarvi_ex( input  wire             clock
 
         `SYSTEM: begin
            ex_wb_rd                     = ex_insn`rd;
-           ex_wb_val                    = csr_val;
            ex_csr_we                    = ex_valid;
            case (ex_funct3)
              `CSRRS:  begin csr_d       = csr_val |  ex_rs1; if (ex_insn`rs1 == 0) ex_csr_we = 0; end
@@ -502,7 +465,7 @@ module yarvi_ex( input  wire             clock
              `CSRRCI: begin csr_d       = csr_val &~ {27'd0, ex_insn`rs1}; end
              `CSRRWI: begin csr_d       = $unsigned(ex_insn`rs1); end
              `PRIV: begin
-                ex_wb_rd                = ex_insn`rd;
+                ex_wb_rd                = 0;
                 ex_csr_we               = 0;
                 case (ex_insn`imm11_0)
                   `ECALL, `EBREAK: begin
@@ -510,7 +473,6 @@ module yarvi_ex( input  wire             clock
                      ex_trap_cause      = ex_insn`imm11_0 == `ECALL
                                           ? `CAUSE_USER_ECALL | $unsigned(priv)
                                           : `CAUSE_BREAKPOINT;
-                     ex_trap_val        = 0;
                   end
 
                   `MRET: if (ex_valid) begin
@@ -525,7 +487,6 @@ module yarvi_ex( input  wire             clock
                   default: begin
                      ex_trap            = ex_valid;
                      ex_trap_cause      = `CAUSE_ILLEGAL_INSTRUCTION;
-                     ex_trap_val        = 0;
                   end
                 endcase
              end
@@ -537,7 +498,6 @@ module yarvi_ex( input  wire             clock
                if (((ex_insn`imm11_0 & 12'hC00) == 12'hC00) && ex_csr_we || priv < ex_insn[31:30]) begin
                   ex_trap               = ex_valid;
                   ex_trap_cause         = `CAUSE_ILLEGAL_INSTRUCTION;
-                  ex_trap_val           = 0;
                end
            endcase
         end
@@ -551,36 +511,32 @@ module yarvi_ex( input  wire             clock
               default: begin
                  ex_trap                = ex_valid;
                  ex_trap_cause          = `CAUSE_ILLEGAL_INSTRUCTION;
-                 ex_trap_val            = 0;
               end
           endcase
 
         `LOAD: begin
            ex_readenable                = ex_valid;
            ex_wb_rd                     = ex_insn`rd;
-           ex_wb_val                    = ex_rs1 + ex_i_imm;
+           //load_address               = ex_rs1 + ex_i_imm;
            if (ex_insn == 0) begin
                 ex_trap                 = ex_valid;
                 ex_trap_cause           = `CAUSE_ILLEGAL_INSTRUCTION;
-                ex_trap_val             = 0;
            end
            case (ex_insn`funct3)
              3, 6, 7: begin
                 ex_trap                 = ex_valid;
                 ex_trap_cause           = `CAUSE_ILLEGAL_INSTRUCTION;
-                ex_trap_val             = 0;
              end
            endcase
         end
 
         `STORE: begin
            ex_writeenable               = ex_valid;
-           ex_wb_val                    = ex_rs1 + ex_s_imm;
+           //store_address              = ex_rs1 + ex_s_imm;
            case (ex_insn`funct3)
              3, 4, 5, 6, 7: begin
                 ex_trap                 = ex_valid;
                 ex_trap_cause           = `CAUSE_ILLEGAL_INSTRUCTION;
-                ex_trap_val             = 0;
              end
            endcase
         end
@@ -588,7 +544,6 @@ module yarvi_ex( input  wire             clock
         default: begin
            ex_trap                      = ex_valid;
            ex_trap_cause                = `CAUSE_ILLEGAL_INSTRUCTION;
-           ex_trap_val                  = 0;
         end
       endcase
 
@@ -735,24 +690,6 @@ module yarvi_ex( input  wire             clock
            default:
              $display("                                                 Warning: writing an unimplemented CSR %x", ex_insn`imm11_0);
          endcase
-      end
-
-      if (ex_valid && ex_alu_result != ex_wb_val) begin
-         $display("Divergence: %x:%x (op %x) %x %x %x %x -> %x, should have been %x",
-                  ex_pc, ex_insn, ex_opcode,
-                  ex_alu_insn30, ex_alu_funct3, ex_alu_op1, ex_alu_op2, ex_alu_result,
-                  ex_wb_val);
-
-         $display("%x %x",
-                  ex_opcode == `OP,
-                  ex_opcode == `SR_);
-
-         $display("%x %x",
-                  (ex_opcode == `OP || ex_opcode == `SR_),
-                  ex_insn[30] && (ex_opcode == `OP || ex_opcode == `SR_));
-
-         if (ex_wb_rd != 0)
-           $finish;
       end
    end
 endmodule
