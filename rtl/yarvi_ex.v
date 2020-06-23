@@ -13,6 +13,7 @@ XXX Need to include CSR access permission check
 *************************************************************************/
 
 `include "yarvi.h"
+`default_nettype none
 
 module yarvi_ex( input  wire             clock
                , input  wire             reset
