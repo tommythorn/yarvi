@@ -108,8 +108,8 @@ module yarvi_ex( input  wire             clock
    wire           cmp_eq             = rs1_val_fwd == rs2_val_fwd;
    wire           cmp_lt             = $signed(rs1_val_cmp) < $signed(rs2_val_cmp);
    wire           branch_taken       = (insn`br_rela ? cmp_lt : cmp_eq) ^ insn`br_negate;
-// wire [`XMSB:0] rs2_val_imm        = (insn`opcode == `OP_IMM || insn`opcode == `OP_IMM_32
-//                                      ? i_imm : rs2_val_fwd);
+
+   wire [4:0]     ex_opcode          = ex_insn`opcode;
 
    always @(posedge clock) begin
       ex_valid <= 0;
@@ -119,8 +119,8 @@ module yarvi_ex( input  wire             clock
       if (valid & !ex_restart) begin
          ex_valid <= 1;
 
-         if (use_rs1 && insn`rs1 == ex_wb_rd && ex_valid && ex_insn`opcode == `LOAD ||
-             use_rs2 && insn`rs2 == ex_wb_rd && ex_valid && ex_insn`opcode == `LOAD) begin
+         if (use_rs1 && insn`rs1 == ex_wb_rd && ex_valid && ex_opcode == `LOAD ||
+             use_rs2 && insn`rs2 == ex_wb_rd && ex_valid && ex_opcode == `LOAD) begin
             ex_restart <= 1;
             ex_restart_pc <= pc;
             ex_valid <= 0;
@@ -194,7 +194,7 @@ module yarvi_ex( input  wire             clock
    always @(posedge clock) ex_valid_incoming <= valid & !ex_flush_next;
 
    reg            me_insn_opcode_load;
-   always @(posedge clock) me_insn_opcode_load <= ex_insn`opcode == `LOAD; // XXX Actually only need one bit from opcode
+   always @(posedge clock) me_insn_opcode_load <= ex_opcode == `LOAD; // XXX Actually only need one bit from opcode
 
    reg  [`XMSB:0] ex_rs1_val;
    reg  [`XMSB:0] ex_rs2_val;
@@ -294,7 +294,7 @@ module yarvi_ex( input  wire             clock
    wire           ex_cmp_lt             = $signed(ex_rs1_val_cmp) < $signed(ex_rs2_val_cmp);
    wire           ex_branch_taken       = (ex_insn`br_rela ? ex_cmp_lt : ex_cmp_eq) ^ ex_insn`br_negate;
 
-   wire [`XMSB:0] ex_rs2_val_imm        = ex_insn`opcode == `OP_IMM || ex_insn`opcode == `OP_IMM_32 ? ex_i_imm : ex_rs2;
+   wire [`XMSB:0] ex_rs2_val_imm        = ex_opcode == `OP_IMM || ex_opcode == `OP_IMM_32 ? ex_i_imm : ex_rs2;
 
    // XXX for timing, we should calculate csr_val already in RF and deal with the hazards
    reg [`XMSB:0]  csr_d;
@@ -338,7 +338,7 @@ module yarvi_ex( input  wire             clock
 
        default:           begin
                           csr_val = 0;
-                          if (0 && ex_valid_incoming && ex_insn`opcode == `SYSTEM && ex_insn`funct3 != 0)
+                          if (0 && ex_valid_incoming && ex_opcode == `SYSTEM && ex_insn`funct3 != 0)
                             $display("                                                 Warning: CSR %x default to zero",
                                      ex_insn`imm11_0);
                           end
@@ -376,7 +376,7 @@ module yarvi_ex( input  wire             clock
       ex_csr_scause                     = csr_scause;
       ex_csr_sepc                       = csr_sepc;
       ex_csr_stval                      = csr_stval;
-//      ex_csr_stvec                      = csr_stvec;
+//    ex_csr_stvec                      = csr_stvec;
 
       ex_csr_mideleg                    = csr_mideleg;
       ex_csr_medeleg                    = csr_medeleg;
@@ -386,11 +386,11 @@ module yarvi_ex( input  wire             clock
       ex_trap_val                       = 'h X;
       csr_d                             = 'h X;
 
-      case (ex_insn`opcode)
+      case (ex_opcode)
         `OP_IMM, `OP: begin
            ex_wb_rd                     = ex_insn`rd;
            case (ex_funct3)
-             `ADDSUB: ex_wb_val         = ex_insn[30] && ex_insn`opcode == `OP
+             `ADDSUB: ex_wb_val         = ex_insn[30] && ex_opcode == `OP
                                           ?       ex_rs1  -         ex_rs2_val_imm
                                           :       ex_rs1  +         ex_rs2_val_imm;
              `SLT:    ex_wb_val         = {31'd0,$signed(ex_rs1) < $signed(ex_rs2_val_imm)}; // or flip MSB of both operands
@@ -407,9 +407,6 @@ module yarvi_ex( input  wire             clock
                 ex_trap                 = ex_valid;
                 ex_trap_cause           = `CAUSE_ILLEGAL_INSTRUCTION;
                 ex_trap_val             = 0;
-
-                if (ex_valid)
-                  $display("Illegal instruction %x:%x", ex_pc, ex_insn);
              end
            endcase
         end
@@ -492,8 +489,6 @@ module yarvi_ex( input  wire             clock
                      ex_trap            = ex_valid;
                      ex_trap_cause      = `CAUSE_ILLEGAL_INSTRUCTION;
                      ex_trap_val        = 0;
-                     if (ex_valid)
-                       $display("Illegal instruction %x:%x", ex_pc, ex_insn);
                   end
                 endcase
              end
@@ -506,8 +501,6 @@ module yarvi_ex( input  wire             clock
                   ex_trap               = ex_valid;
                   ex_trap_cause         = `CAUSE_ILLEGAL_INSTRUCTION;
                   ex_trap_val           = 0;
-                  if (ex_valid)
-                    $display("Illegal instruction %x:%x", ex_pc, ex_insn);
                end
            endcase
         end
@@ -522,8 +515,6 @@ module yarvi_ex( input  wire             clock
                  ex_trap                = ex_valid;
                  ex_trap_cause          = `CAUSE_ILLEGAL_INSTRUCTION;
                  ex_trap_val            = 0;
-                 if (ex_valid)
-                   $display("Illegal instruction %x:%x", ex_pc, ex_insn);
               end
           endcase
 
@@ -535,18 +526,12 @@ module yarvi_ex( input  wire             clock
                 ex_trap                 = ex_valid;
                 ex_trap_cause           = `CAUSE_ILLEGAL_INSTRUCTION;
                 ex_trap_val             = 0;
-
-                if (ex_valid)
-                  $display("Illegal instruction %x:%x", ex_pc, ex_insn);
            end
            case (ex_insn`funct3)
              3, 6, 7: begin
                 ex_trap                 = ex_valid;
                 ex_trap_cause           = `CAUSE_ILLEGAL_INSTRUCTION;
                 ex_trap_val             = 0;
-
-                if (ex_valid)
-                  $display("Illegal instruction %x:%x", ex_pc, ex_insn);
              end
            endcase
         end
@@ -559,9 +544,6 @@ module yarvi_ex( input  wire             clock
                 ex_trap                 = ex_valid;
                 ex_trap_cause           = `CAUSE_ILLEGAL_INSTRUCTION;
                 ex_trap_val             = 0;
-
-                if (ex_valid)
-                  $display("Illegal instruction %x:%x", ex_pc, ex_insn);
              end
            endcase
         end
@@ -570,8 +552,6 @@ module yarvi_ex( input  wire             clock
            ex_trap                      = ex_valid;
            ex_trap_cause                = `CAUSE_ILLEGAL_INSTRUCTION;
            ex_trap_val                  = 0;
-           if (ex_valid)
-             $display("Illegal instruction %x:%x", ex_pc, ex_insn);
         end
       endcase
 
@@ -598,8 +578,8 @@ module yarvi_ex( input  wire             clock
                                           : `CAUSE_MISALIGNED_STORE;
          ex_csr_mtval                   = me_exc_mtval;
          //$display("%5d  EX: misaligned load/store exception %x:%x", $time/10, me_pc, me_insn);
-      end else if (use_rs1 && insn`rs1 == ex_wb_rd && ex_valid && ex_insn`opcode == `LOAD ||
-                   use_rs2 && insn`rs2 == ex_wb_rd && ex_valid && ex_insn`opcode == `LOAD) begin
+      end else if (use_rs1 && insn`rs1 == ex_wb_rd && ex_valid && ex_opcode == `LOAD ||
+                   use_rs2 && insn`rs2 == ex_wb_rd && ex_valid && ex_opcode == `LOAD) begin
          //$display("%5d    %x: load hazard on r%1d", $time/10, pc, insn`rs1);
       end else if (ex_trap || csr_mip_and_mie != 0 && csr_mstatus`MIE) begin
          if (csr_mip_and_mie != 0 && csr_mstatus`MIE) begin
@@ -638,8 +618,6 @@ module yarvi_ex( input  wire             clock
             ex_csr_mstatus`MPP             = priv;
             ex_priv                        = `PRV_M;
          end
-         $display("%5d  EXCEPTION cause %x vector to %x",
-                  $time, ex_csr_mcause, csr_mtvec);
       end
    end
 
