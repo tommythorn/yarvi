@@ -8,16 +8,17 @@ CONSTR=OrangeCrab.lpf
 FLASH_MODE=qspi
 #Image read freq, in MHz: 2.4, 4.8, 9.7, 19.4, 38.8, 62.0
 FLASH_FREQ=38.8 #MHz
-CORE=../../core/
+JLINK=JTAGLoadExe
+#JLINK=JTAGLoad
 
-
-SRC=top.v $(CORE)htif.v $(CORE)yarvi_soc.v $(CORE)yarvi.v $(CORE)yarvi_fe.v $(CORE)yarvi_rf.v $(CORE)yarvi_ex.v $(CORE)yarvi_me.v rs232out.v rs232in.v
-HDR=$(CORE)riscv.h
+RTL=../../rtl/
+SRC=top.v $(RTL)htif.v $(RTL)yarvi_soc.v $(RTL)yarvi.v $(RTL)yarvi_fe.v $(RTL)yarvi_rf.v $(RTL)yarvi_ex.v $(RTL)yarvi_me.v $(RTL)yarvi_alu.v rs232out.v rs232in.v
+HDR=$(RTL)riscv.h
 CONFIG=-DXMSB=31 -DVMSB=31 -DPMSB=13 -DTIMEOUT=$(TIMEOUT) $(VERB) -DINIT_MEM=\"I-ECALL-01.hex\"
 
 all: $(PROJ).prog
 
-top.json: $(SRC)
+top.json: $(SRC) Makefile
 	yosys -p "synth_ecp5 -json $@" $(CONFIG) $(SRC) > yosys.out
 
 %_out.config: %.json
@@ -32,7 +33,7 @@ $(PROJ).svf: $(PROJ).bit
 #prog: $(PROJ).svf
 #	openocd -f ../openocd.cfg -c "init; svf  $<; exit"
 %.prog: %.svf
-	JTAGLoadExe $<
+	$(JLINK) $<
 
 clean:
 	rm -f $(PROJ).json $(PROJ).svf $(PROJ).bit $(PROJ)_out.config
