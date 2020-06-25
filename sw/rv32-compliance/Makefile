@@ -7,17 +7,18 @@
 # - The test names should be discovered automatically
 
 CORE=../../rtl/
-VERB=
+# use `make V=1 ...`
+V=
 VERB=-DVERBOSE_SIMULATION
-QUIET=@
-
-VERB=
-VERB=-DVERBOSE_SIMULATION
+VERB1=-DVERBOSE_SIMULATION -DDISASSEMBLE
+Q=@
+Q1=
+QUIET=$(Q$(V))
 
 ICARUS_SRC=../../target/sim/toplevel.v $(CORE)htif.v $(CORE)yarvi_soc.v
 SRC=$(CORE)yarvi.v $(CORE)yarvi_fe.v $(CORE)yarvi_rf.v $(CORE)yarvi_ex.v $(CORE)yarvi_me.v $(CORE)yarvi_disass.v $(CORE)yarvi_alu.v
 HDR=$(CORE)riscv.h
-CONFIG=-DXMSB=31 -DVMSB=31 -DPMSB=13 -DTIMEOUT=16000 -DSIMULATION $(VERB) -DINIT_MEM=\"$<\"
+CONFIG=-DXMSB=31 -DVMSB=31 -DPMSB=13 -DTIMEOUT=16000 -DSIMULATION $(VERB$(V)) -DINIT_MEM=\"$<\"
 
 # Adjust to match your RISC-V toolchain
 RVPATH=
@@ -145,4 +146,3 @@ newtest: $(patsubst %,$(TESTDIR)%.trace,$(TESTS))
 		printf "%-20s PASSED\n" $(basename $@); touch $@.pass; \
 	else\
 		printf "%-20s FAILED\n" $(basename $@); ln -fs $@ $@.fail; fi
-
