@@ -77,13 +77,15 @@ module yarvi_ex( input  wire             clock
 // reg  [`XMSB:0] csr_satp;
 
    /* Instruction decoding (migrate out) */
+   wire [    4:0] opcode          = insn`opcode;
+
    reg use_rs1, use_rs2;
    always @(*)
      if (!valid)
        {use_rs2,use_rs1}                = 0;
      else begin
         {use_rs2,use_rs1}               = 0;
-        case (insn`opcode)
+        case (opcode)
           `BRANCH: {use_rs2,use_rs1}    = 3;
           `OP:     {use_rs2,use_rs1}    = 3;
           `STORE:  {use_rs2,use_rs1}    = 3;
@@ -144,7 +146,7 @@ module yarvi_ex( input  wire             clock
             ex_restart <= 1;
             ex_restart_pc <= pc;
          end else
-           case (insn`opcode)
+           case (opcode)
              `BRANCH: begin
                 ex_restart <= branch_taken;
                 ex_restart_pc <= pc + sb_imm;
@@ -204,7 +206,6 @@ module yarvi_ex( input  wire             clock
      end
 `endif
 
-   reg            ex_valid_incoming = 0;
    reg  [`XMSB:0] ex_rs1;
    reg  [`XMSB:0] ex_rs2;
 
@@ -234,18 +235,15 @@ module yarvi_ex( input  wire             clock
 
    always @(posedge clock) ex_pc               <= pc;
    always @(posedge clock) ex_insn             <= insn;
-   always @(posedge clock) ex_valid_incoming   <= valid & !ex_flush_next;
    always @(posedge clock) ex_i_imm            <= i_imm;
    always @(posedge clock) ex_s_imm            <= s_imm;
    always @(posedge clock) ex_rs1              <= rs1_val_fwd;
    always @(posedge clock) ex_rs2              <= rs2_val_fwd;
-   always @(posedge clock) ex_branch_taken     <= branch_taken;
 
-   // XXX for timing, we should calculate csr_val already in RF and deal with the hazards
-   reg [`XMSB:0]  csr_d;
+   /* CSR read port (Notice, this is happening in DE) */
    reg [`XMSB:0]  csr_val;
    always @(*)
-     case (ex_insn`imm11_0)
+     case (insn`imm11_0)
        // Standard User R/W
        `CSR_FFLAGS:       csr_val = {27'd0, csr_fflags};
        `CSR_FRM:          csr_val = {29'd0, csr_frm};
@@ -280,16 +278,37 @@ module yarvi_ex( input  wire             clock
        `CSR_SCAUSE:       csr_val = csr_scause;
        `CSR_STVAL:        csr_val = csr_stval;
        `CSR_STVEC:        csr_val = csr_stvec;
-
-       default:           begin
-                          csr_val = 0;
-                          if (0 && ex_valid_incoming && ex_opcode == `SYSTEM && ex_insn`funct3 != 0)
-                            $display("                                                 Warning: CSR %x default to zero",
-                                     ex_insn`imm11_0);
-                          end
+        default:          csr_val = 0;
      endcase
 
+   /* Register bypassed ALU inputs */
+   always @(posedge clock)
+     ex_alu_op1 <= opcode == `AUIPC ||
+                   opcode == `JALR  ||
+                   opcode == `JAL    ? pc   :
+                   opcode == `LUI    ? 0       :
+                   opcode == `SYSTEM ? csr_val :
+                                       rs1_val_fwd;
+
+   always @(posedge clock)
+     ex_alu_op2 <= opcode == `AUIPC ||
+                   opcode == `LUI    ? {insn[31:12], 12'd0} :
+                   opcode == `JALR  ||
+                   opcode == `JAL    ? 4                       :
+                   opcode == `SYSTEM ? 0                       :
+                   opcode == `OP_IMM ||
+                   opcode == `OP_IMM_32 ||
+                   opcode == `LOAD   ? i_imm                :
+                   opcode == `STORE  ? s_imm                :
+                                       rs2_val_fwd;
+
+   always @(posedge clock)
+     ex_branch_taken <= branch_taken;
+
    reg           ex_csr_we;
+   reg [`XMSB:0] ex_csr_val;
+   reg [`XMSB:0] ex_csr_d;
+
    reg           ex_trap;
    reg [    3:0] ex_trap_cause;
    reg [`XMSB:0] ex_trap_val;
@@ -318,23 +337,6 @@ module yarvi_ex( input  wire             clock
 
       // Lots of instructions needs adds and we have some freedom here
       // ARGH, need to handle conditional branches too
-      ex_alu_op1                        = ex_opcode == `AUIPC ||
-                                          ex_opcode == `JALR  ||
-                                          ex_opcode == `JAL    ? ex_pc   :
-                                          ex_opcode == `LUI    ? 0       :
-                                          ex_opcode == `SYSTEM ? csr_val :
-                                                                 ex_rs1;
-
-      ex_alu_op2                        = ex_opcode == `AUIPC ||
-                                          ex_opcode == `LUI    ? {ex_insn[31:12], 12'd0} :
-                                          ex_opcode == `JALR  ||
-                                          ex_opcode == `JAL    ? 4                       :
-                                          ex_opcode == `SYSTEM ? 0                       :
-                                          ex_opcode == `OP_IMM ||
-                                          ex_opcode == `OP_IMM_32 ||
-                                          ex_opcode == `LOAD   ? ex_i_imm                :
-                                          ex_opcode == `STORE  ? ex_s_imm                :
-                                                                 ex_rs2;
 
       ex_csr_we                         = 0;
 
@@ -361,7 +363,7 @@ module yarvi_ex( input  wire             clock
       ex_trap                           = 0;
       ex_trap_cause                     = 0;
       ex_trap_val                       = 0;
-      csr_d                             = 'h X;
+      ex_csr_d                          = 'h X;
 
       case (ex_opcode)
         `OP_IMM, `OP, `AUIPC, `LUI:
@@ -401,12 +403,12 @@ module yarvi_ex( input  wire             clock
            ex_wb_rd                     = ex_insn`rd;
            ex_csr_we                    = ex_valid;
            case (ex_funct3)
-             `CSRRS:  begin csr_d       = csr_val |  ex_rs1; if (ex_insn`rs1 == 0) ex_csr_we = 0; end
-             `CSRRC:  begin csr_d       = csr_val &~ ex_rs1; if (ex_insn`rs1 == 0) ex_csr_we = 0; end
-             `CSRRW:  begin csr_d       =            ex_rs1; end
-             `CSRRSI: begin csr_d       = csr_val |  {27'd0, ex_insn`rs1}; end
-             `CSRRCI: begin csr_d       = csr_val &~ {27'd0, ex_insn`rs1}; end
-             `CSRRWI: begin csr_d       = $unsigned(ex_insn`rs1); end
+             `CSRRS:  begin ex_csr_d    = ex_csr_val |  ex_rs1; if (ex_insn`rs1 == 0) ex_csr_we = 0; end
+             `CSRRC:  begin ex_csr_d    = ex_csr_val &~ ex_rs1; if (ex_insn`rs1 == 0) ex_csr_we = 0; end
+             `CSRRW:  begin ex_csr_d    =               ex_rs1; end
+             `CSRRSI: begin ex_csr_d    = ex_csr_val |  {27'd0, ex_insn`rs1}; end
+             `CSRRCI: begin ex_csr_d    = ex_csr_val &~ {27'd0, ex_insn`rs1}; end
+             `CSRRWI: begin ex_csr_d    = $unsigned(ex_insn`rs1); end
              `PRIV: begin
                 ex_wb_rd                = 0;
                 ex_csr_we               = 0;
@@ -579,6 +581,8 @@ module yarvi_ex( input  wire             clock
       csr_stval                         <= 0;
 
    end else begin
+      ex_csr_val                        <= csr_val;
+
       csr_mcycle                        <= csr_mcycle + 1;
       csr_mip[7]                        <= me_timer_interrupt;
 
@@ -599,35 +603,34 @@ module yarvi_ex( input  wire             clock
          csr_medeleg                    <= ex_csr_medeleg;
       end
 
+      /* CSR write port (notice, this happens in EX) */
       if (ex_csr_we) begin
          $display(
-"                                                 CSR %x <- %x", ex_insn`imm11_0, csr_d);
+"                                                 CSR %x <- %x", ex_insn`imm11_0, ex_csr_d);
          case (ex_insn`imm11_0)
-           `CSR_FCSR:      {csr_frm,csr_fflags} <= csr_d[7:0];
-           `CSR_FFLAGS:    csr_fflags   <= csr_d[4:0];
-           `CSR_FRM:       csr_frm      <= csr_d[2:0];
-           `CSR_MCAUSE:    csr_mcause   <= csr_d;
-//         `CSR_MCYCLE:    csr_mcycle   <= csr_d;
-           `CSR_MEPC:      csr_mepc     <= csr_d & ~3;
-           `CSR_MIE:       csr_mie      <= csr_d;
-//         `CSR_MINSTRET:  csr_instret  <= csr_d;
-           `CSR_MIP:       csr_mip      <= csr_d & `CSR_MIP_WMASK | csr_mip & ~`CSR_MIP_WMASK;
-           `CSR_MIDELEG:   csr_mideleg  <= csr_d;
-           `CSR_MEDELEG:   csr_medeleg  <= csr_d;
-           `CSR_MSCRATCH:  csr_mscratch <= csr_d;
-           `CSR_MSTATUS:   csr_mstatus  <= csr_d & ~(15 << 13); // No FP or XS;
-           `CSR_MTVEC:     csr_mtvec    <= csr_d & ~1; // We don't support vectored interrupts
-           `CSR_MTVAL:     csr_mtvec    <= csr_d;
+           `CSR_FCSR:      {csr_frm,csr_fflags} <= ex_csr_d[7:0];
+           `CSR_FFLAGS:    csr_fflags   <= ex_csr_d[4:0];
+           `CSR_FRM:       csr_frm      <= ex_csr_d[2:0];
+           `CSR_MCAUSE:    csr_mcause   <= ex_csr_d;
+//         `CSR_MCYCLE:    csr_mcycle   <= ex_csr_d;
+           `CSR_MEPC:      csr_mepc     <= ex_csr_d & ~3;
+           `CSR_MIE:       csr_mie      <= ex_csr_d;
+//         `CSR_MINSTRET:  csr_instret  <= ex_csr_d;
+           `CSR_MIP:       csr_mip      <= ex_csr_d & `CSR_MIP_WMASK | csr_mip & ~`CSR_MIP_WMASK;
+           `CSR_MIDELEG:   csr_mideleg  <= ex_csr_d;
+           `CSR_MEDELEG:   csr_medeleg  <= ex_csr_d;
+           `CSR_MSCRATCH:  csr_mscratch <= ex_csr_d;
+           `CSR_MSTATUS:   csr_mstatus  <= ex_csr_d & ~(15 << 13); // No FP or XS;
+           `CSR_MTVEC:     csr_mtvec    <= ex_csr_d & ~1; // We don't support vectored interrupts
+           `CSR_MTVAL:     csr_mtvec    <= ex_csr_d;
 
-           `CSR_SCAUSE:    csr_scause   <= csr_d;
-           `CSR_SEPC:      csr_sepc     <= csr_d;
-           `CSR_STVEC:     csr_stvec    <= csr_d & ~1; // We don't support vectored interrupts
-           `CSR_STVAL:     csr_stvec    <= csr_d;
+           `CSR_SCAUSE:    csr_scause   <= ex_csr_d;
+           `CSR_SEPC:      csr_sepc     <= ex_csr_d;
+           `CSR_STVEC:     csr_stvec    <= ex_csr_d & ~1; // We don't support vectored interrupts
+           `CSR_STVAL:     csr_stvec    <= ex_csr_d;
 
            `CSR_PMPCFG0: ;
            `CSR_PMPADDR0: ;
-
-           4095: ;
            default:
              $display("                                                 Warning: writing an unimplemented CSR %x", ex_insn`imm11_0);
          endcase

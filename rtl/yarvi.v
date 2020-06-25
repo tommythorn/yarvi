@@ -1,12 +1,26 @@
 // -----------------------------------------------------------------------
 //
-//   Copyright 2016,2018 Tommy Thorn - All Rights Reserved
+//   Copyright 2016,2018,2020 Tommy Thorn - All Rights Reserved
 //
 // -----------------------------------------------------------------------
 
 /*************************************************************************
 
-This is a simple RISC-V RV64I implementation.
+YARVI2 is currently a classic four stage implementation:
+
+       _________________    ___
+      /                 \  /   \
+     v                   \v     \
+    FE --> DE/RF/CSR --> EX --> ME
+              ^   ^      /      /
+               \   \____/      /
+                \_____________/
+
+Since CSRXX instruction read the CSR file in DE but written in EX,
+there's a potential RAW hazard if the CSR file was updated in EX.
+For simplicity, we thus restart on user CSR writes, but a better
+alternative might be for DE to detect this and insert a bubble between
+two CSR instructions.
 
 *************************************************************************/
 

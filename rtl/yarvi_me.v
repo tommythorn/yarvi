@@ -50,8 +50,8 @@ module yarvi_me( input  wire             clock
    reg [63:0] mtime;
    reg [63:0] mtimecmp;
 
-   wire        address_in_mem  = (address & (-1 << (`PMSB+1))) == 32'h80000000;
    wire [31:0] address = wb_val;
+   wire        address_in_mem  = (address & (-1 << (`PMSB+1))) == 32'h80000000;
 
    /*
     * Reads come in with full addresses which we split into
@@ -85,6 +85,9 @@ module yarvi_me( input  wire             clock
    /* Load path */
 
    wire [31:0] me_rd = {mem3[me_wi],mem2[me_wi],mem1[me_wi],mem0[me_wi]};
+// SOON, we just need to move the address calculation up
+// reg [31:0]           me_rd = 0;
+// always @(posedge clock) me_rd <= {mem3[me_wi],mem2[me_wi],mem1[me_wi],mem0[me_wi]};
 
 
    /* Memory mapped io devices (only word-wide accesses are allowed) */

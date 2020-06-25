@@ -1,6 +1,6 @@
 // -----------------------------------------------------------------------
 //
-//   Copyright 2016,2018 Tommy Thorn - All Rights Reserved
+//   Copyright 2016,2018,2020 Tommy Thorn - All Rights Reserved
 //
 //   This program is free software; you can redistribute it and/or modify
 //   it under the terms of the GNU General Public License as published by
@@ -10,6 +10,7 @@
 //
 // -----------------------------------------------------------------------
 
+`default_nettype none
 `timescale 1ns / 1ps
 module yarvi_soc
             ( input  wire        clock
