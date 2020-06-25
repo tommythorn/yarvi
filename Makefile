@@ -1,5 +1,8 @@
-all:  check-speed run-tests
+all:  check-speed lint run-tests
 	grep MHz target/OrangeCrab/nextpnr-ecp5.out|tail -1
+
+lint:
+	$(MAKE) -s -C rtl
 
 run-tests:
 	$(MAKE) -s -C sw/rv32-compliance
