@@ -19,10 +19,10 @@ CONFIG=-DXMSB=31 -DVMSB=31 -DPMSB=13 -DTIMEOUT=$(TIMEOUT) $(VERB) -DINIT_MEM=\"I
 all: $(PROJ).prog
 
 top.json: $(SRC) Makefile
-	yosys -p "synth_ecp5 -json $@" $(CONFIG) $(SRC) > yosys.out
+	time yosys -p "synth_ecp5 -json $@" $(CONFIG) $(SRC) > yosys.out
 
 %_out.config: %.json
-	nextpnr-ecp5 --json $< --lpf $(CONSTR) --textcfg $@ --85k --package CSFBGA285 --speed 6 2> nextpnr-ecp5.out
+	time nextpnr-ecp5 --json $< --lpf $(CONSTR) --textcfg $@ --85k --package CSFBGA285 --speed 6 2> nextpnr-ecp5.out
 
 %.bit: %_out.config
 	ecppack --svf-rowsize 100000  --spimode $(FLASH_MODE) --freq $(FLASH_FREQ) \
