@@ -27,6 +27,8 @@ This is the purely combinatorial ALU of YARVI
 
 `default_nettype none
 
+`define X2MSB ($clog2(`XMSB+1)-1)
+
 module yarvi_alu(
     input  wire           insn30
   , input  wire [    2:0] funct3
@@ -38,15 +40,10 @@ module yarvi_alu(
 always @(*)
    case (funct3)
      `ADDSUB: result = op1 + ({32{insn30}} ^ op2) + insn30;
-
      `SLT:    result = {`XMSB'd0, $signed(op1) < $signed(op2)}; // or flip MSB of both operands
      `SLTU:   result = {`XMSB'd0, op1 < op2};
 
-     `SR_:
-       if (insn30)
-              result = $signed(op1) >>> op2[4:0]; // XXX RV64
-       else
-              result = op1 >> op2[4:0]; // XXX RV64
+     `SR_:    result = $signed({op1[`XMSB] & insn30, op1}) >>> op2[`X2MSB:0];
      `SLL:    result = op1 << op2[4:0]; // XXX RV64
 
      `AND:    result = op1 & op2;
