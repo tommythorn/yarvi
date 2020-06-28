@@ -37,7 +37,7 @@ module yarvi_alu(
 
 always @(*)
    case (funct3)
-     `ADDSUB: result = insn30 ? op1 - op2 : op1 + op2;
+     `ADDSUB: result = op1 + ({32{insn30}} ^ op2) + insn30;
 
      `SLT:    result = {`XMSB'd0, $signed(op1) < $signed(op2)}; // or flip MSB of both operands
      `SLTU:   result = {`XMSB'd0, op1 < op2};
