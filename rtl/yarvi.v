@@ -96,6 +96,7 @@ module yarvi
      , .pc                      (fe_pc)
      , .insn                    (fe_insn)
 
+     , .wb_valid                (me_valid)
      , .wb_rd                   (me_wb_rd)
      , .wb_val                  (me_wb_val)
 
@@ -109,11 +110,11 @@ module yarvi
      ( .clock                   (clock)
      , .reset                   (reset)
 
-     , .valid                   (rf_valid)
-     , .pc                      (rf_pc)
-     , .insn                    (rf_insn)
-     , .rs1_val                 (rf_rs1_val)
-     , .rs2_val                 (rf_rs2_val)
+     , .de_valid                (rf_valid)
+     , .de_pc                   (rf_pc)
+     , .de_insn                 (rf_insn)
+     , .de_rs1_val              (rf_rs1_val)
+     , .de_rs2_val              (rf_rs2_val)
 
      , .me_pc                   (me_pc)
      , .me_wb_rd                (me_wb_rd)

@@ -17,6 +17,8 @@ module yarvi_rf( input  wire             clock
                , input  wire             valid
                , input  wire [`VMSB:0]   pc
                , input  wire [31:0]      insn
+
+               , input  wire             wb_valid
                , input  wire [ 4:0]      wb_rd
                , input  wire [`XMSB:0]   wb_val
 
@@ -36,7 +38,7 @@ module yarvi_rf( input  wire             clock
       rf_insn       <= insn;
       rp1           <= insn`rs1;
       rp2           <= insn`rs2;
-      if (|wb_rd)
+      if (wb_valid & |wb_rd)
          regs[wb_rd] <= wb_val;
    end
 
