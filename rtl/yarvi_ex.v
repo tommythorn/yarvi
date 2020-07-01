@@ -77,32 +77,12 @@ module yarvi_ex( input  wire             clock
 // reg  [`XMSB:0] csr_satp;
 
    /* Instruction decoding (migrate out) */
-   wire [    4:0] opcode          = insn`opcode;
+   wire              use_rs1, use_rs2;
 
-   reg use_rs1, use_rs2;
-   always @(*)
-     if (!valid)
-       {use_rs2,use_rs1}                = 0;
-     else begin
-        {use_rs2,use_rs1}               = 0;
-        case (opcode)
-          `BRANCH: {use_rs2,use_rs1}    = 3;
-          `OP:     {use_rs2,use_rs1}    = 3;
-          `STORE:  {use_rs2,use_rs1}    = 3;
+   yarvi_dec_reg_usage yarvi_dec_reg_usage_inst(valid, insn, use_rs1, use_rs2);
 
-          `OP_IMM: {use_rs2,use_rs1}    = 1;
-          `LOAD:   {use_rs2,use_rs1}    = 1;
-          `JALR:   {use_rs2,use_rs1}    = 1;
-          `SYSTEM:
-            case (insn`funct3)
-              `CSRRS:  {use_rs2,use_rs1}= 1;
-              `CSRRC:  {use_rs2,use_rs1}= 1;
-              `CSRRW:  {use_rs2,use_rs1}= 1;
-            endcase
-        endcase
-        if (insn`rs1 == 0) use_rs1      = 0;
-        if (insn`rs2 == 0) use_rs2      = 0;
-     end
+   wire [       4:0] opcode          = insn`opcode;
+
    wire [`XMSB-12:0] sext12          = {(`XMSB-11){insn[31]}};
    wire [`XMSB-20:0] sext20          = {(`XMSB-19){insn[31]}};
    wire [`XMSB:0] i_imm              = {sext12, insn`funct7, insn`rs2};

@@ -12,7 +12,7 @@ RVPREFIX=$(RVPATH)riscv64-linux-gnu-
 CC=$(RVPREFIX)gcc -std=gnu99 -O
 MEMSIZEK=128
 
-YARVISRC=htif.v yarvi_soc.v yarvi_disass.v yarvi.v yarvi_fe.v yarvi_rf.v yarvi_ex.v yarvi_me.v yarvi_alu.v
+YARVISRC=htif.v yarvi_soc.v yarvi_disass.v yarvi.v yarvi_fe.v yarvi_rf.v yarvi_ex.v yarvi_me.v yarvi_alu.v yarvi_dec_reg_usage.v
 YARVIHDR=riscv.h
 YARVICONFIG=-DXMSB=31 -DVMSB=31 -DPMSB=13 -DTIMEOUT=16000 $(VERB$(V))
 
