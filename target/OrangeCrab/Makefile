@@ -11,10 +11,11 @@ FLASH_FREQ=38.8 #MHz
 JLINK=JTAGLoadExe
 #JLINK=JTAGLoad
 
-RTL=../../rtl/
-SRC=top.v $(RTL)htif.v $(RTL)yarvi_soc.v $(RTL)yarvi.v $(RTL)yarvi_fe.v $(RTL)yarvi_rf.v $(RTL)yarvi_ex.v $(RTL)yarvi_me.v $(RTL)yarvi_alu.v rs232out.v rs232in.v
-HDR=$(RTL)riscv.h
-CONFIG=-DXMSB=31 -DVMSB=31 -DPMSB=13 -DTIMEOUT=$(TIMEOUT) $(VERB) -DINIT_MEM=\"I-ECALL-01.hex\"
+CORE=../../rtl/
+include $(CORE)/Makefile.common
+SRC=top.v $(patsubst %,$(CORE)/%,$(YARVISRC)) rs232out.v rs232in.v
+HDR=$(patsubst %,$(CORE)/%,$(YARVIHDR))
+CONFIG=$(YARVICONFIG) -DINIT_MEM=\"I-ECALL-01.hex\"
 
 all: $(PROJ).prog
 

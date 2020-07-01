@@ -1,11 +1,10 @@
-SRC=htif.v yarvi_soc.v yarvi_disass.v yarvi.v yarvi_fe.v yarvi_rf.v yarvi_ex.v yarvi_me.v yarvi_alu.v
-HDR=riscv.h
+include Makefile.common
 CONSTR=OrangeCrab.lpf
-CONFIG=-DXMSB=31 -DVMSB=31 -DPMSB=13 -DTIMEOUT=$(TIMEOUT) $(VERB) -DINIT_MEM=\"I-ECALL-01.hex\"
 SPEEDGRADE=6 # My OC is -6. 8 is the fastest available (85G?)
+CONFIG=$(YARVICONFIG) -DINIT_MEM=\"I-ECALL-01.hex\"
 
 lint:
-	verilator --lint-only --top-module yarvi_soc -DXMSB=31 -DVMSB=31 -DPMSB=14 -D $(SRC)
+	verilator --lint-only --top-module yarvi_soc -DXMSB=31 -DVMSB=31 -DPMSB=14 -D $(YARVISRC)
 
 bench_alu: bench_alu.config
 

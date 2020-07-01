@@ -7,23 +7,12 @@
 # - The test names should be discovered automatically
 
 CORE=../../rtl/
-# use `make V=1 ...`
-V=
-VERB=-DVERBOSE_SIMULATION
-VERB1=-DVERBOSE_SIMULATION -DDISASSEMBLE
-Q=@
-Q1=
-QUIET=$(Q$(V))
+include $(CORE)/Makefile.common
 
-ICARUS_SRC=../../target/sim/toplevel.v $(CORE)htif.v $(CORE)yarvi_soc.v
-SRC=$(CORE)yarvi.v $(CORE)yarvi_fe.v $(CORE)yarvi_rf.v $(CORE)yarvi_ex.v $(CORE)yarvi_me.v $(CORE)yarvi_disass.v $(CORE)yarvi_alu.v
-HDR=$(CORE)riscv.h
-CONFIG=-DXMSB=31 -DVMSB=31 -DPMSB=13 -DTIMEOUT=16000 -DSIMULATION $(VERB$(V)) -DINIT_MEM=\"$<\"
-
-# Adjust to match your RISC-V toolchain
-RVPATH=
-RVPREFIX=$(RVPATH)riscv64-unknown-elf-
-MEMSIZEK=32
+ICARUS_SRC=../../target/sim/toplevel.v
+SRC=$(patsubst %,$(CORE)/%,$(YARVISRC))
+HDR=$(patsubst %,$(CORE)/%,$(YARVIHDR))
+CONFIG=$(YARVICONFIG) -DSIMULATION -DDISASSEMBLE -DINIT_MEM=\"$<\"
 
 # Pick your favorite simulator, Icarus Verilog (icarus) or Verilator (verilator)
 SIM=icarus

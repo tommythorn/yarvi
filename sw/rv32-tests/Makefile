@@ -8,23 +8,15 @@
 # - The test names should be discovered automatically
 
 CORE=../../rtl/
-VERB=
-VERB=-DVERBOSE_SIMULATION
-QUIET=@
+include $(CORE)/Makefile.common
 
 TIMEOUT=16000
 
-SRC=../../target/sim/toplevel.v $(CORE)htif.v $(CORE)yarvi_soc.v $(CORE)yarvi_disass.v $(CORE)yarvi.v $(CORE)yarvi_fe.v $(CORE)yarvi_rf.v $(CORE)yarvi_ex.v $(CORE)yarvi_me.v $(CORE)yarvi_alu.v
-HDR=$(CORE)riscv.h
-
-CONFIG=-DXMSB=31 -DVMSB=31 -DPMSB=13 -DTIMEOUT=$(TIMEOUT) -DSIMULATION -DDISASSEMBLE $(VERB) -DINIT_MEM=\"$<\"
+SRC=../../target/sim/toplevel.v $(patsubst %,$(CORE)/%,$(YARVISRC))
+HDR=$(patsubst %,$(CORE)/%,$(YARVIHDR))
+CONFIG=$(YARVICONFIG) -DSIMULATION -DDISASSEMBLE -DINIT_MEM=\"$<\"
 
 .PRECIOUS: %.hex %.yarvi %.bin
-
-# Adjust to match your RISC-V toolchain
-RVPATH=
-RVPREFIX=$(RVPATH)riscv64-unknown-elf-
-MEMSIZEK=128
 
 all: newtest
 

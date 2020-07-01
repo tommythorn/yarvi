@@ -1,3 +1,20 @@
+# use `make V=1 ...`
+V=
+VERB=-DVERBOSE_SIMULATION
+VERB1=-DVERBOSE_SIMULATION -DDISASSEMBLE
+Q=@
+Q1=
+QUIET=$(Q$(V))
+
+# Adjust to match your RISC-V toolchain
+RVPATH=
+RVPREFIX=$(RVPATH)riscv64-unknown-elf-
+MEMSIZEK=128
+
+YARVISRC=htif.v yarvi_soc.v yarvi_disass.v yarvi.v yarvi_fe.v yarvi_rf.v yarvi_ex.v yarvi_me.v yarvi_alu.v
+YARVIHDR=riscv.h
+YARVICONFIG=-DXMSB=31 -DVMSB=31 -DPMSB=13 -DTIMEOUT=16000 $(VERB$(V))
+
 # Adjust to match your RISC-V toolchain
 RVPATH=
 RVPREFIX=$(RVPATH)riscv64-unknown-elf-

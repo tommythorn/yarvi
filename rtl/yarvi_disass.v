@@ -1,6 +1,6 @@
 // -----------------------------------------------------------------------
 //
-//   Copyright 2016,2018 Tommy Thorn - All Rights Reserved
+//   Copyright 2016,2018,2020 Tommy Thorn - All Rights Reserved
 //
 // -----------------------------------------------------------------------
 
@@ -16,6 +16,7 @@ module yarvi_disass( input             clock
                    , input [ 4:0]      wb_rd
                    , input [`VMSB:0]   wb_val);
 
+`ifdef DISASSEMBLE
    wire        we            = |wb_rd;
 
    wire        sign          = insn[31];
@@ -162,4 +163,5 @@ module yarvi_disass( input             clock
       end
       $write("\n");
    end
+`endif
 endmodule
