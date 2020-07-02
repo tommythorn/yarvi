@@ -20,11 +20,13 @@ register fetch, execution, memory access, and writeback.
 module yarvi_ex( input  wire             clock
                , input  wire             reset
 
-               , input  wire             de_valid
-               , input  wire [`XMSB:0]   de_pc
-               , input  wire [31:0]      de_insn
-               , input  wire [`XMSB:0]   de_rs1_val
-               , input  wire [`XMSB:0]   de_rs2_val
+               , input  wire             valid
+               , input  wire [`VMSB:0]   pc
+               , input  wire [31:0]      insn
+
+               , input  wire             wb_valid
+               , input  wire [ 4:0]      wb_rd
+               , input  wire [`XMSB:0]   wb_val
 
                , input  wire [`XMSB:0]   me_pc
                , input  wire [ 4:0]      me_wb_rd  // != 0 => WE. !valid => 0
@@ -54,7 +56,9 @@ module yarvi_ex( input  wire             clock
                , output reg  [`XMSB:0]   ex_writedata
                );
 
-   /* Processor architectual state (excluding register file and pc) */
+   /* Processor architectual state (excluding pc) */
+   reg  [`XMSB:0] regs[0:31];
+
    reg  [    1:0] priv;
    reg  [    4:0] csr_fflags;
    reg  [    2:0] csr_frm;
@@ -78,7 +82,29 @@ module yarvi_ex( input  wire             clock
    reg  [`XMSB:0] csr_stval;
 // reg  [`XMSB:0] csr_satp;
 
-   /* Instruction decoding (migrate out) */
+   /* Instruction decoding */
+   reg              de_valid = 0;
+   reg  [`XMSB:0]   de_pc;
+   reg  [31:0]      de_insn;
+   reg  [    4:0]   de_rs1, de_rs2;
+
+   always @(posedge clock) begin
+      de_valid <= valid;
+      de_pc    <= pc;
+      de_insn  <= insn;
+      de_rs1   <= insn`rs1;
+      de_rs2   <= insn`rs2;
+      if (wb_valid & |wb_rd)
+         regs[wb_rd] <= wb_val;
+   end
+
+   wire [`XMSB:0]   de_rs1_val = regs[de_rs1];
+   wire [`XMSB:0]   de_rs2_val = regs[de_rs2];
+
+   reg [31:0] i;
+   initial for (i = 0; i < 32; i = i + 1) regs[i[4:0]] = {26'd0,i[5:0]};
+
+
    wire              de_use_rs1, de_use_rs2;
 
    /* NB: r0 is not considered used */
@@ -109,7 +135,6 @@ module yarvi_ex( input  wire             clock
    wire           de_cmp_eq          = de_rs1_val_fwd == de_rs2_val_fwd;
    wire           de_cmp_lt          = $signed(de_rs1_val_cmp) < $signed(de_rs2_val_cmp);
    wire           de_branch_taken    = (de_insn`br_rela ? de_cmp_lt : de_cmp_eq) ^ de_insn`br_negate;
-
 
 
    /* Shorthand */

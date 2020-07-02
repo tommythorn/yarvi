@@ -44,12 +44,6 @@ module yarvi
    wire [`VMSB:0]   fe_pc;
    wire [31:0]      fe_insn;
 
-   wire             rf_valid;
-   wire [`VMSB:0]   rf_pc;
-   wire [31:0]      rf_insn;
-   wire [`VMSB:0]   rf_rs1_val;
-   wire [`VMSB:0]   rf_rs2_val;
-
    wire             ex_valid;
    wire [`VMSB:0]   ex_pc;
    wire [31:0]      ex_insn;
@@ -89,8 +83,9 @@ module yarvi
      , .fe_pc                   (fe_pc)
      , .fe_insn                 (fe_insn));
 
-   yarvi_rf rf
+   yarvi_ex ex
      ( .clock                   (clock)
+     , .reset                   (reset)
 
      , .valid                   (fe_valid & !ex_restart)
      , .pc                      (fe_pc)
@@ -99,22 +94,6 @@ module yarvi
      , .wb_valid                (me_valid)
      , .wb_rd                   (me_wb_rd)
      , .wb_val                  (me_wb_val)
-
-     , .rf_valid                (rf_valid)
-     , .rf_pc                   (rf_pc)
-     , .rf_insn                 (rf_insn)
-     , .rf_rs1_val              (rf_rs1_val)
-     , .rf_rs2_val              (rf_rs2_val));
-
-   yarvi_ex ex
-     ( .clock                   (clock)
-     , .reset                   (reset)
-
-     , .de_valid                (rf_valid)
-     , .de_pc                   (rf_pc)
-     , .de_insn                 (rf_insn)
-     , .de_rs1_val              (rf_rs1_val)
-     , .de_rs2_val              (rf_rs2_val)
 
      , .me_pc                   (me_pc)
      , .me_wb_rd                (me_wb_rd)
@@ -181,7 +160,7 @@ module yarvi
               me_pc, me_wb_rd, me_wb_val);
 */
 
-`ifdef DISASSEMBLE
+`ifdef DISASSEMBLE_disabled_for_now
    yarvi_disass disass
      ( .clock                   (clock)
      , .info                    ({ex_restart,rf_valid, ex_valid, me_valid})
