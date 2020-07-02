@@ -30,7 +30,7 @@ module yarvi_me( input  wire             clock
                , output reg              me_valid
                , output reg  [31:0]      me_pc
                , output reg  [ 4:0]      me_wb_rd
-               , output reg  [31:0]      me_wb_val
+               , output wire[`XMSB:0]    me_wb_val
                , output reg              me_exc_misaligned
                , output reg [`XMSB:0]    me_exc_mtval
                , output reg              me_load_hit_store
@@ -104,62 +104,25 @@ module yarvi_me( input  wire             clock
           me_rd_other = 0;
      endcase
 
-   reg [31:0]  me_rd_aligned;
-   // Conceptually me_rd >> (8 * me_bi), but optimized
-   always @(*)
-     case (me_bi)
-       0: me_rd_aligned =         me_rd;
-       1: me_rd_aligned = {24'hX, me_rd[15: 8]}; // must be byte access
-       2: me_rd_aligned = {16'hX, me_rd[31:16]}; // at most half access
-       3: me_rd_aligned = {24'hX, me_rd[31:24]}; // must be byte access
-     endcase
-
-   always @(*)
-     case (me_funct3 | {3{!me_re}})
-       0: me_wb_val = {{24{me_rd_aligned[ 7]}}, me_rd_aligned[ 7:0]};//LB
-       1: me_wb_val = {{16{me_rd_aligned[15]}}, me_rd_aligned[15:0]};//LH
-       2: me_wb_val = me_address_in_mem ?       me_rd_aligned : me_rd_other; //LW
-       4: me_wb_val = { 24'h0,                  me_rd_aligned[ 7:0]};//LBU
-       5: me_wb_val = { 16'h0,                  me_rd_aligned[15:0]};//LHU
-       7: me_wb_val = me_address; // Bypass load
-       default:
-          me_wb_val = 32'h DEADBEEF /* X */;
-     endcase
-
+   yarvi_ld_align yarvi_ld_align1
+     (!me_re, me_address,
+      me_funct3, me_bi, me_address_in_mem ? me_rd : me_rd_other,
+      me_wb_val);
 
    /* Store path */
 
-   reg [31:0] wd_aligned;
-   always @(*)
-     case (address[1:0])
-/*
-       0: wd_aligned = {writedata[31:24], writedata[23:16], writedata[15: 8], writedata[ 7: 0]};
-       1: wd_aligned = {            8'hX,             8'hX, writedata[ 7: 0],             8'hX}; // must be byte
-       2: wd_aligned = {writedata[15: 8], writedata[ 7: 0],             8'hX,             8'hX}; // at most half
-       3: wd_aligned = {writedata[ 7: 0],             8'hX,             8'hX,             8'hX}; // must be byte
-*/
-       // An explicitly cheap aligner     v one-bit sel       v one-bit sel    v fixed
-       0: wd_aligned = {writedata[31:24], writedata[23:16], writedata[15:8], writedata[7:0]};
-       1: wd_aligned = {writedata[ 7: 0], writedata[23:16], writedata[ 7:0], writedata[7:0]}; // must be byte
-       2: wd_aligned = {writedata[15: 8], writedata[ 7: 0], writedata[15:8], writedata[7:0]}; // at most half
-       3: wd_aligned = {writedata[ 7: 0], writedata[ 7: 0], writedata[ 7:0], writedata[7:0]}; // must be byte
-     endcase
+   wire [`XMSB:0] st_data;
+   wire [    3:0] st_mask;
 
-   reg [3:0] wd_mask;
-   always @(*)
-     case (funct3[1:0])
-       0: wd_mask = 4'h1 << address[1:0];
-       1: wd_mask = address[1] ? 4'hC : 4'h3;
-       2: wd_mask = 4'hF;
-       3: wd_mask = 4'hX;
-     endcase
+   yarvi_st_align yarvi_st_align1
+     (funct3, address[1:0], writedata, st_mask, st_data);
 
-   wire                 we              = !reset && valid && writeenable & address_in_mem & !misaligned;
+   wire                 we              = valid && writeenable & address_in_mem & !misaligned;
    wire [`PMSB-2:0]     wi              = address[`PMSB:2];
-   always @(posedge clock) if (we & wd_mask[0]) mem0[wi] <= wd_aligned[ 7: 0];
-   always @(posedge clock) if (we & wd_mask[1]) mem1[wi] <= wd_aligned[15: 8];
-   always @(posedge clock) if (we & wd_mask[2]) mem2[wi] <= wd_aligned[23:16];
-   always @(posedge clock) if (we & wd_mask[3]) mem3[wi] <= wd_aligned[31:24];
+   always @(posedge clock) if (we & st_mask[0]) mem0[wi] <= st_data[ 7: 0];
+   always @(posedge clock) if (we & st_mask[1]) mem1[wi] <= st_data[15: 8];
+   always @(posedge clock) if (we & st_mask[2]) mem2[wi] <= st_data[23:16];
+   always @(posedge clock) if (we & st_mask[3]) mem3[wi] <= st_data[31:24];
 
    /* Memory mapped io devices (only word-wide accesses are allowed) */
    always @(posedge clock) if (reset) begin
@@ -180,8 +143,8 @@ module yarvi_me( input  wire             clock
 
    always @(posedge clock) begin
       code_address   <= address[`VMSB:2];
-      code_writedata <= wd_aligned;
-      code_writemask <= we ? wd_mask : 0;
+      code_writedata <= st_data;
+      code_writemask <= we ? st_mask : 0;
    end
 
 `ifdef TOHOST
@@ -190,12 +153,12 @@ module yarvi_me( input  wire             clock
    always @(posedge clock)
      if (!reset && valid && writeenable & !misaligned) begin
         if (!address_in_mem)
-          $display("store %x -> [%x]/%x", wd_aligned, address, wd_mask);
+          $display("store %x -> [%x]/%x", st_data, address, st_mask);
 
 `ifdef TOHOST
-        if (wd_mask == 15 & address == 'h`TOHOST) begin
+        if (st_mask == 15 & address == 'h`TOHOST) begin
            /* XXX Hack for riscv-tests */
-           $display("TOHOST = %d", wd_aligned);
+           $display("TOHOST = %d", st_data);
 
 `ifdef BEGIN_SIGNATURE
            $display("Signature Begin");
