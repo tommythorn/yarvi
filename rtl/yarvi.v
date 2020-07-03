@@ -36,6 +36,8 @@ module yarvi
   , output reg     [31:0]   me_insn
   , output wire    [ 4:0]   me_wb_rd
   , output wire [`XMSB:0]   me_wb_val
+
+  , output reg  [`XMSB:0]   debug
   );
 
    wire             fe_valid;
@@ -114,6 +116,8 @@ module yarvi
 
    always @(posedge clock) me_priv <= ex_priv;
    always @(posedge clock) me_insn <= ex_insn;
+   always @(posedge clock) debug <= fe_pc ^ fe_insn;
+
 
 /*
    always @(posedge clock)

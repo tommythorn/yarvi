@@ -18,8 +18,8 @@ module top
    rs232out #(115200, 48000000) tx_inst(clk48, tx, tx_data_valid, tx_data_ready, tx_data);
    rs232in  #(115200, 48000000) rx_inst(clk48, rx, rx_data_valid, rx_data);
 
-   wire [31:0]      me_pc;
-   always @(posedge clk48) led <= led + ^me_pc;
+   wire [31:0]      debug;
+   always @(posedge clk48) led <= led + ^debug;
 
    yarvi_soc yarvi_soc
      ( .clock           (clk48)
@@ -33,7 +33,7 @@ module top
      , .tx_valid        (tx_data_valid)
      , .tx_data         (tx_data)
 
-     , .me_pc           (me_pc)
+     , .debug           (debug)
      );
 
 endmodule

@@ -30,7 +30,7 @@ module yarvi_soc
 
             // debug
             , output wire  [3:0] htif_state
-            , output wire  [`VMSB:0] me_pc
+            , output wire [`VMSB:0] debug
             );
 
    wire        bus_req_ready;
@@ -44,7 +44,7 @@ module yarvi_soc
 
    wire             me_valid;
    wire    [ 1:0]   me_priv;
-// wire [`VMSB:0]   me_pc;
+   wire [`VMSB:0]   me_pc;
    wire    [31:0]   me_insn;
    wire    [ 4:0]   me_wb_rd;
    wire [`XMSB:0]   me_wb_val;
@@ -77,11 +77,13 @@ module yarvi_soc
      ( .clock           (clock)
      , .reset           (reset)
 
-     , .me_valid	(me_valid)
-     , .me_priv		(me_priv)
-     , .me_pc		(me_pc)
-     , .me_insn		(me_insn)
-     , .me_wb_rd	(me_wb_rd)
-     , .me_wb_val	(me_wb_val)
+     , .me_valid        (me_valid)
+     , .me_priv         (me_priv)
+     , .me_pc           (me_pc)
+     , .me_insn         (me_insn)
+     , .me_wb_rd        (me_wb_rd)
+     , .me_wb_val       (me_wb_val)
+
+     , .debug           (debug)
      );
 endmodule
