@@ -76,5 +76,12 @@ module yarvi
      , .code_writedata          (code_writedata)
      , .code_writemask          (code_writemask)
 
+     , .retire_valid            ()
+     , .retire_priv             ()
+     , .retire_pc               ()
+     , .retire_insn             ()
+     , .retire_rd               ()
+     , .retire_wb_val           ()
+
      , .debug                   (debug));
 endmodule

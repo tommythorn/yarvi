@@ -21,29 +21,38 @@ module yarvi_dec_reg_usage
   ( input  wire           valid
   , input  wire [   31:0] insn
   , output reg            use_rs1
-  , output reg            use_rs2);
+  , output reg            use_rs2
+  , output reg  [    4:0] rd);
 
-   always @(*)
-     if (!valid)
-       {use_rs2,use_rs1}                = 0;
-     else begin
-        {use_rs2,use_rs1}               = 0;
+   wire [4:0] no_dest = 5'd0;
+   wire [4:0] dest    = insn`rd;
+   wire       unused  = 0;
+   wire       used    = 1;
+
+   always @(*) begin
+      {rd,use_rs2,use_rs1}                 = {no_dest, unused, unused};
+      if (valid)
         case (insn`opcode)
-          `BRANCH: {use_rs2,use_rs1}    = 3;
-          `OP:     {use_rs2,use_rs1}    = 3;
-          `STORE:  {use_rs2,use_rs1}    = 3;
+          `BRANCH:    {rd,use_rs2,use_rs1} = {no_dest,   used,   used};
+          `STORE:     {rd,use_rs2,use_rs1} = {no_dest,   used,   used};
+          `OP, `OP_32:{rd,use_rs2,use_rs1} = {   dest,   used,   used};
 
-          `OP_IMM: {use_rs2,use_rs1}    = 1;
-          `LOAD:   {use_rs2,use_rs1}    = 1;
-          `JALR:   {use_rs2,use_rs1}    = 1;
+          `OP_IMM:    {rd,use_rs2,use_rs1} = {   dest, unused,   used};
+          `OP_IMM_32: {rd,use_rs2,use_rs1} = {   dest, unused,   used};
+          `JALR:      {rd,use_rs2,use_rs1} = {   dest, unused,   used};
+          `LOAD:      {rd,use_rs2,use_rs1} = {   dest,   used,   used};
           `SYSTEM:
             case (insn`funct3)
-              `CSRRS:  {use_rs2,use_rs1}= 1;
-              `CSRRC:  {use_rs2,use_rs1}= 1;
-              `CSRRW:  {use_rs2,use_rs1}= 1;
+              `CSRRS, `CSRRC, `CSRRW:
+                      {rd,use_rs2,use_rs1} = {   dest, unused,   used};
+              `CSRRSI, `CSRRCI, `CSRRWI:
+                      {rd,use_rs2,use_rs1} = {   dest, unused, unused};
             endcase
+
+          `AUIPC, `LUI, `JAL:
+                      {rd,use_rs2,use_rs1} = {   dest, unused, unused};
         endcase
-        if (insn`rs1 == 0) use_rs1      = 0;
-        if (insn`rs2 == 0) use_rs2      = 0;
+        if (insn`rs1 == 0) use_rs1 = 0;
+        if (insn`rs2 == 0) use_rs2 = 0;
      end
 endmodule
