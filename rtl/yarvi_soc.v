@@ -76,7 +76,6 @@ module yarvi_soc
    yarvi yarvi
      ( .clock           (clock)
      , .reset           (reset)
-     , .freeze          (1'b0)
 
      , .me_valid	(me_valid)
      , .me_priv		(me_priv)

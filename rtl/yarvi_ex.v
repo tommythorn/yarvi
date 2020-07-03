@@ -24,19 +24,7 @@ module yarvi_ex( input  wire             clock
                , input  wire [`VMSB:0]   pc
                , input  wire [31:0]      insn
 
-               , input  wire             wb_valid
-               , input  wire [ 4:0]      wb_rd
-               , input  wire [`XMSB:0]   wb_val
-
-               , input  wire [`XMSB:0]   me_pc
-               , input  wire [ 4:0]      me_wb_rd  // != 0 => WE. !valid => 0
-               , input  wire [`XMSB:0]   me_wb_val
-               , input  wire             me_exc_misaligned
-               , input  wire [`XMSB:0]   me_exc_mtval
-               , input  wire             me_load_hit_store
-               , input  wire             me_timer_interrupt
-
-/* ex_valid is a qualifier on PC/INSN and WB_RD/VAL.  Note, all four
+/* valid is a qualifier on PC/INSN and WB_RD/VAL.  Note, all four
    combinations of valid and restart can occur. */
 
                , output reg              ex_valid
@@ -54,6 +42,10 @@ module yarvi_ex( input  wire             clock
                , output reg              ex_writeenable
                , output reg  [ 2:0]      ex_funct3
                , output reg  [`XMSB:0]   ex_writedata
+
+               , output reg [`VMSB:2]    code_address
+               , output reg [   31:0]    code_writedata
+               , output reg [    3:0]    code_writemask
                );
 
    /* Processor architectual state (excluding pc) */
@@ -82,6 +74,15 @@ module yarvi_ex( input  wire             clock
    reg  [`XMSB:0] csr_stval;
 // reg  [`XMSB:0] csr_satp;
 
+   reg              me_valid = 0;
+   reg  [31:0]      me_pc;
+   reg  [ 4:0]      me_wb_rd = 0;
+   wire[`XMSB:0]    me_wb_val;
+   reg              me_exc_misaligned;
+   reg [`XMSB:0]    me_exc_mtval;
+   reg              me_load_hit_store;
+   reg              me_timer_interrupt;
+
    /* Instruction decoding */
    reg              de_valid = 0;
    reg  [`XMSB:0]   de_pc;
@@ -94,8 +95,8 @@ module yarvi_ex( input  wire             clock
       de_insn  <= insn;
       de_rs1   <= insn`rs1;
       de_rs2   <= insn`rs2;
-      if (wb_valid & |wb_rd)
-         regs[wb_rd] <= wb_val;
+      if (me_valid & |me_wb_rd)
+         regs[me_wb_rd] <= me_wb_val;
    end
 
    wire [`XMSB:0]   de_rs1_val = regs[de_rs1];
@@ -624,4 +625,178 @@ module yarvi_ex( input  wire             clock
          endcase
       end
    end
+
+   /* Data memory */
+   reg [ 7:0] mem0[(1 << (`PMSB-1)) - 1:0];
+   reg [ 7:0] mem1[(1 << (`PMSB-1)) - 1:0];
+   reg [ 7:0] mem2[(1 << (`PMSB-1)) - 1:0];
+   reg [ 7:0] mem3[(1 << (`PMSB-1)) - 1:0];
+
+   reg [63:0] mtime;
+   reg [63:0] mtimecmp;
+
+   wire [31:0] ex_address = ex_wb_val;
+   wire        ex_address_in_mem  = (ex_address & (-1 << (`PMSB+1))) == 32'h80000000;
+
+   /*
+    * Reads come in with full addresses which we split into
+    *
+    *    | high | word index | byte index |
+    *
+    * read the full word, align it, and sign extended it
+    */
+
+   reg                  me_re;
+   reg  [      1:0]     me_bi;
+   reg  [`PMSB-2:0]     me_wi;
+   reg  [     31:0]     me_address;
+   reg  [      2:0]     me_funct3;
+   reg                  me_address_in_mem;
+   always @(posedge clock) me_re         <= ex_valid & ex_readenable;
+   always @(posedge clock) {me_wi,me_bi} <= ex_address[`PMSB:0];
+   always @(posedge clock) me_address    <= ex_address;
+   always @(posedge clock) me_funct3     <= ex_funct3;
+   always @(posedge clock) me_address_in_mem <= ex_address_in_mem;
+
+   reg                  ex_misaligned;
+   always @(*)
+     case (ex_funct3[1:0])
+       0: ex_misaligned =  0;            // Byte
+       1: ex_misaligned =  ex_address[  0]; // Half
+       2: ex_misaligned = |ex_address[1:0]; // Word
+       3: ex_misaligned =  1'hX;
+     endcase
+
+   /* Load path */
+
+   wire [31:0] me_rd = {mem3[me_wi],mem2[me_wi],mem1[me_wi],mem0[me_wi]};
+// SOON, we just need to move the ex_address calculation up
+// reg [31:0]           me_rd = 0;
+// always @(posedge clock) me_rd <= {mem3[me_wi],mem2[me_wi],mem1[me_wi],mem0[me_wi]};
+
+
+   /* Memory mapped io devices (only word-wide accesses are allowed) */
+   // XXX me_rd_other should be folded into the bypass load register
+   // to avoid the late mux in the load path
+   reg [31:0]  me_rd_other;
+   always @(*)
+     case (me_wi)
+       0: me_rd_other = mtime[31:0]; // XXX  or uart
+       1: me_rd_other = mtime[63:32];
+       2: me_rd_other = mtimecmp[31:0];
+       3: me_rd_other = mtimecmp[63:32];
+       default:
+          me_rd_other = 0;
+     endcase
+
+   yarvi_ld_align yarvi_ld_align1
+     (!me_re, me_address,
+      me_funct3, me_bi, me_address_in_mem ? me_rd : me_rd_other,
+      me_wb_val);
+
+   /* Store path */
+
+   wire [`XMSB:0] ex_st_data;
+   wire [    3:0] ex_st_mask;
+
+   yarvi_st_align yarvi_st_align1
+     (ex_funct3, ex_address[1:0], ex_writedata, ex_st_mask, ex_st_data);
+
+   wire                 ex_we = ex_valid && ex_writeenable & ex_address_in_mem & !ex_misaligned;
+   wire [`PMSB-2:0]     ex_wi = ex_address[`PMSB:2];
+   always @(posedge clock) if (ex_we & ex_st_mask[0]) mem0[ex_wi] <= ex_st_data[ 7: 0];
+   always @(posedge clock) if (ex_we & ex_st_mask[1]) mem1[ex_wi] <= ex_st_data[15: 8];
+   always @(posedge clock) if (ex_we & ex_st_mask[2]) mem2[ex_wi] <= ex_st_data[23:16];
+   always @(posedge clock) if (ex_we & ex_st_mask[3]) mem3[ex_wi] <= ex_st_data[31:24];
+
+   /* Memory mapped io devices (only word-wide accesses are allowed) */
+   always @(posedge clock) if (reset) begin
+      mtime 				<= 0;
+      mtimecmp 				<= 0;
+   end else begin
+      mtime 				<= mtime + 1; // XXX Yes, this is terrible
+      me_timer_interrupt 		<= mtime > mtimecmp;
+
+      if (ex_valid && ex_writeenable && (ex_address & 32'h4FFFFFF3) == 32'h40000000)
+        case (ex_address[3:2])
+          0: mtime[31:0]		<= ex_writedata;
+          1: mtime[63:32]		<= ex_writedata;
+          2: mtimecmp[31:0]		<= ex_writedata;
+          3: mtimecmp[63:32]		<= ex_writedata;
+        endcase
+   end
+
+   always @(posedge clock) begin
+      code_address   <= ex_address[`VMSB:2];
+      code_writedata <= ex_st_data;
+      code_writemask <= ex_we ? ex_st_mask : 0;
+   end
+
+`ifdef TOHOST
+   reg  [`VMSB  :0] dump_addr;
+`endif
+   always @(posedge clock)
+     if (!reset && ex_valid && ex_writeenable & !ex_misaligned) begin
+        if (!ex_address_in_mem)
+          $display("store %x -> [%x]/%x", ex_st_data, ex_address, ex_st_mask);
+
+`ifdef TOHOST
+        if (ex_st_mask == 15 & ex_address == 'h`TOHOST) begin
+           /* XXX Hack for riscv-tests */
+           $display("TOHOST = %d", ex_st_data);
+
+`ifdef BEGIN_SIGNATURE
+           $display("Signature Begin");
+           for (dump_addr = 'h`BEGIN_SIGNATURE; dump_addr < 'h`END_SIGNATURE; dump_addr=dump_addr+4)
+              $display("%x", {mem3[dump_addr[`PMSB:2]], mem2[dump_addr[`PMSB:2]], mem1[dump_addr[`PMSB:2]], mem0[dump_addr[`PMSB:2]]});
+`endif
+           $finish;
+        end
+`endif
+     end
+
+   /* Hazard detection */
+
+   reg me_we;
+   always @(posedge clock) begin
+      if (me_exc_misaligned | me_load_hit_store) begin
+         me_valid 		<= 0;
+         me_wb_rd		<= 0;
+      end else begin
+         me_valid		<= ex_valid;
+         me_wb_rd		<= ex_wb_rd;
+      end
+      me_pc 			<= ex_pc;
+      me_we 			<= ex_we;
+      me_load_hit_store 	<= 0;
+      me_exc_misaligned 	<= 0;
+      me_exc_mtval              <= ex_address;
+
+      if (ex_valid & ex_misaligned & (ex_readenable | ex_writeenable)) begin
+         me_exc_misaligned 	<= 1;
+         me_valid 		<= 0;
+         me_wb_rd 		<= 0;
+         $display("%5d  ME: %x misaligned load/store ex_address %x", $time/10, ex_pc, ex_address);
+      end else if (ex_valid && ex_readenable && me_we && ex_address[31:2] == me_address[31:2]) begin
+         me_load_hit_store 	<= 1;
+         me_valid 		<= 0;
+         me_wb_rd 		<= 0;
+         $display("%5d  ME: %x load-hit-store: load from address %x hit the store to ex_address %x",
+                  $time/10, ex_pc, ex_address, me_address);
+      end
+   end
+
+`ifdef SIMULATION
+   /* Simulation-only */
+   reg [31:0] data[(1<<(`PMSB - 1))-1:0];
+   initial begin
+      $readmemh(`INIT_MEM, data);
+      for (i = 0; i < (1<<(`PMSB - 1)); i = i + 1) begin
+         mem0[i] = data[i][7:0];
+         mem1[i] = data[i][15:8];
+         mem2[i] = data[i][23:16];
+         mem3[i] = data[i][31:24];
+      end
+   end
+`endif
 endmodule

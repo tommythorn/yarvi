@@ -30,8 +30,6 @@ module yarvi
   ( input  wire             clock
   , input  wire             reset
 
-  , input  wire             freeze
-
   , output wire             me_valid
   , output reg     [ 1:0]   me_priv
   , output wire [`VMSB:0]   me_pc
@@ -91,18 +89,6 @@ module yarvi
      , .pc                      (fe_pc)
      , .insn                    (fe_insn)
 
-     , .wb_valid                (me_valid)
-     , .wb_rd                   (me_wb_rd)
-     , .wb_val                  (me_wb_val)
-
-     , .me_pc                   (me_pc)
-     , .me_wb_rd                (me_wb_rd)
-     , .me_wb_val               (me_wb_val)
-     , .me_exc_misaligned       (me_exc_misaligned)
-     , .me_exc_mtval            (me_exc_mtval)
-     , .me_load_hit_store       (me_load_hit_store | freeze)
-     , .me_timer_interrupt      (me_timer_interrupt)
-
      , .ex_valid                (ex_valid)
      , .ex_pc                   (ex_pc)
      , .ex_insn                 (ex_insn)
@@ -118,34 +104,10 @@ module yarvi
      , .ex_writeenable          (ex_writeenable)
      , .ex_funct3               (ex_funct3)
      , .ex_writedata            (ex_writedata)
-     );
-
-   yarvi_me me
-     ( .clock                   (clock)
-     , .reset                   (reset)
-
-     , .valid                   (ex_valid)
-     , .pc                      (ex_pc)
-     , .wb_rd                   (ex_wb_rd)
-     , .wb_val                  (ex_wb_val)
-
-     , .readenable              (ex_readenable)
-     , .writeenable             (ex_writeenable)
-     , .funct3                  (ex_funct3)
-     , .writedata               (ex_writedata)
 
      , .code_address            (code_address)
      , .code_writedata          (code_writedata)
      , .code_writemask          (code_writemask)
-
-     , .me_valid                (me_valid)
-     , .me_pc                   (me_pc)
-     , .me_wb_rd                (me_wb_rd)
-     , .me_wb_val               (me_wb_val)
-     , .me_exc_misaligned       (me_exc_misaligned)
-     , .me_exc_mtval            (me_exc_mtval)
-     , .me_load_hit_store       (me_load_hit_store)
-     , .me_timer_interrupt      (me_timer_interrupt)
      );
 
    /* XXX Writeback/Commit */
