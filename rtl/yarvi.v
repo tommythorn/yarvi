@@ -27,43 +27,16 @@ two CSR instructions.
 `include "yarvi.h"
 
 module yarvi
-  ( input  wire             clock
-  , input  wire             reset
-
-  , output wire             me_valid
-  , output reg     [ 1:0]   me_priv
-  , output wire [`VMSB:0]   me_pc
-  , output reg     [31:0]   me_insn
-  , output wire    [ 4:0]   me_wb_rd
-  , output wire [`XMSB:0]   me_wb_val
-
-  , output reg  [`XMSB:0]   debug
-  );
+  ( input            clock
+  , input            reset
+  , output [`XMSB:0] debug);
 
    wire             fe_valid;
    wire [`VMSB:0]   fe_pc;
    wire [31:0]      fe_insn;
 
-   wire             ex_valid;
-   wire [`VMSB:0]   ex_pc;
-   wire [31:0]      ex_insn;
-   wire [ 1:0]      ex_priv;
-
-   wire             ex_restart;
-   wire [`VMSB:0]   ex_restart_pc;
-
-   wire [ 4:0]      ex_wb_rd;
-   wire [`VMSB:0]   ex_wb_val;
-
-   wire             ex_readenable;
-   wire             ex_writeenable;
-   wire [ 2:0]      ex_funct3;
-   wire [`XMSB:0]   ex_writedata;
-
-   wire             me_exc_misaligned;
-   wire [`XMSB:0]   me_exc_mtval;
-   wire             me_load_hit_store;
-   wire             me_timer_interrupt;
+   wire             restart;
+   wire [`VMSB:0]   restart_pc;
 
    wire [`VMSB:2]   code_address;
    wire [   31:0]   code_writedata;
@@ -72,12 +45,15 @@ module yarvi
    yarvi_fe fe
      ( .clock                   (clock)
      , .reset                   (reset)
-     , .restart                 (ex_restart)
-     , .restart_pc              (ex_restart_pc)
+
+     , .restart                 (restart)
+     , .restart_pc              (restart_pc)
 
      , .address                 (code_address)
      , .writedata               (code_writedata)
      , .writemask               (code_writemask)
+
+     /* outputs */
 
      , .fe_valid                (fe_valid)
      , .fe_pc                   (fe_pc)
@@ -87,54 +63,18 @@ module yarvi
      ( .clock                   (clock)
      , .reset                   (reset)
 
-     , .valid                   (fe_valid & !ex_restart)
+     , .valid                   (fe_valid & !restart)
      , .pc                      (fe_pc)
      , .insn                    (fe_insn)
 
-     , .ex_valid                (ex_valid)
-     , .ex_pc                   (ex_pc)
-     , .ex_insn                 (ex_insn)
-     , .ex_priv                 (ex_priv)
+     /* outputs */
 
-     , .ex_restart              (ex_restart)
-     , .ex_restart_pc           (ex_restart_pc)
-
-     , .ex_wb_rd                (ex_wb_rd)
-     , .ex_wb_val               (ex_wb_val)
-
-     , .ex_readenable           (ex_readenable)
-     , .ex_writeenable          (ex_writeenable)
-     , .ex_funct3               (ex_funct3)
-     , .ex_writedata            (ex_writedata)
+     , .restart                 (restart)
+     , .restart_pc              (restart_pc)
 
      , .code_address            (code_address)
      , .code_writedata          (code_writedata)
      , .code_writemask          (code_writemask)
-     );
 
-   /* XXX Writeback/Commit */
-
-   always @(posedge clock) me_priv <= ex_priv;
-   always @(posedge clock) me_insn <= ex_insn;
-   always @(posedge clock) debug <= fe_pc ^ fe_insn;
-
-
-/*
-   always @(posedge clock)
-     $display("%5d  EX WBV %x:r%1d<-%x  ME WBV %x:r%1d<-%x", $time/10,
-              ex_pc, ex_wb_rd, ex_wb_val,
-              me_pc, me_wb_rd, me_wb_val);
-*/
-
-`ifdef DISASSEMBLE_disabled_for_now
-   yarvi_disass disass
-     ( .clock                   (clock)
-     , .info                    ({ex_restart,rf_valid, ex_valid, me_valid})
-     , .valid                   (me_valid)
-     , .prv                     (me_priv)
-     , .pc                      (me_pc)
-     , .insn                    (me_insn)
-     , .wb_rd                   (me_wb_rd)
-     , .wb_val                  (me_wb_val));
-`endif
+     , .debug                   (debug));
 endmodule

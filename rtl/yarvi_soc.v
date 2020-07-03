@@ -13,76 +13,30 @@
 `default_nettype none
 `timescale 1ns / 1ps
 module yarvi_soc
-            ( input  wire        clock
-            , input  wire        reset
+  ( input  wire        clock
+  , input  wire        reset
 
-            // from host
+  // from host
 
-            , output wire        rx_ready
-            , input  wire        rx_valid
-            , input  wire  [7:0] rx_data
+  , output wire        rx_ready
+  , input  wire        rx_valid
+  , input  wire  [7:0] rx_data
 
-            // to host
+  // to host
 
-            , input  wire        tx_ready
-            , output wire        tx_valid
-            , output wire  [7:0] tx_data
+  , input  wire        tx_ready
+  , output wire        tx_valid
+  , output wire  [7:0] tx_data
 
-            // debug
-            , output wire  [3:0] htif_state
-            , output wire [`VMSB:0] debug
-            );
+  // debug
+  , output wire [`VMSB:0] debug);
 
-   wire        bus_req_ready;
-   wire        bus_req_read;
-   wire [31:0] bus_req_address;
-   wire        bus_req_write;
-   wire [31:0] bus_req_data;
-
-   wire        bus_res_valid;
-   wire [31:0] bus_res_data;
-
-   wire             me_valid;
-   wire    [ 1:0]   me_priv;
-   wire [`VMSB:0]   me_pc;
-   wire    [31:0]   me_insn;
-   wire    [ 4:0]   me_wb_rd;
-   wire [`XMSB:0]   me_wb_val;
-
-   htif htif
-     ( .clock           (clock)
-
-     , .rx_ready        (rx_ready)
-     , .rx_valid        (rx_valid)
-     , .rx_data         (rx_data)
-
-     , .bus_req_ready   (bus_req_ready)
-     , .bus_req_read    (bus_req_read)
-     , .bus_req_write   (bus_req_write)
-     , .bus_req_address (bus_req_address)
-     , .bus_req_data    (bus_req_data)
-
-     , .bus_res_valid   (bus_res_valid)
-     , .bus_res_data    (bus_res_data)
-
-     , .tx_ready        (tx_ready)
-     , .tx_valid        (tx_valid)
-     , .tx_data         (tx_data)
-
-     // debug
-     , .s               (htif_state)
-     );
+   assign rx_ready = 1;
+   assign {tx_valid, tx_data} = debug[8:0];
 
    yarvi yarvi
      ( .clock           (clock)
      , .reset           (reset)
-
-     , .me_valid        (me_valid)
-     , .me_priv         (me_priv)
-     , .me_pc           (me_pc)
-     , .me_insn         (me_insn)
-     , .me_wb_rd        (me_wb_rd)
-     , .me_wb_val       (me_wb_val)
 
      , .debug           (debug)
      );

@@ -17,36 +17,32 @@ register fetch, execution, memory access, and writeback.
 `include "yarvi.h"
 `default_nettype none
 
-module yarvi_ex( input  wire             clock
-               , input  wire             reset
+module yarvi_ex
+  ( input  wire             clock
+  , input  wire             reset
 
-               , input  wire             valid
-               , input  wire [`VMSB:0]   pc
-               , input  wire [31:0]      insn
+  , input  wire             valid
+  , input  wire [`VMSB:0]   pc
+  , input  wire [31:0]      insn
 
-/* valid is a qualifier on PC/INSN and WB_RD/VAL.  Note, all four
-   combinations of valid and restart can occur. */
+  /* valid is a qualifier on PC/INSN and WB_RD/VAL.  Note, all four
+     combinations of valid and restart can occur. */
 
-               , output reg              ex_valid
-               , output reg  [`XMSB:0]   ex_pc
-               , output reg  [31:0]      ex_insn
-               , output reg  [ 1:0]      ex_priv
+  , output                  restart
+  , output [`VMSB:0]        restart_pc
 
-               , output reg              ex_restart
-               , output reg  [`XMSB:0]   ex_restart_pc
+  , output                  retire_valid
+  , output [ 1:0]           retire_priv
+  , output [`VMSB:0]        retire_pc
+  , output [31:0]           retire_insn
+  , output [ 4:0]           retire_wb_rd
+  , output [`XMSB:0]        retire_wb_val
 
-               , output reg  [ 4:0]      ex_wb_rd  // != 0 => WE. !valid => 0
-               , output wire [`XMSB:0]   ex_wb_val
+  , output reg [`VMSB:2]    code_address
+  , output reg [   31:0]    code_writedata
+  , output reg [    3:0]    code_writemask
 
-               , output reg              ex_readenable
-               , output reg              ex_writeenable
-               , output reg  [ 2:0]      ex_funct3
-               , output reg  [`XMSB:0]   ex_writedata
-
-               , output reg [`VMSB:2]    code_address
-               , output reg [   31:0]    code_writedata
-               , output reg [    3:0]    code_writemask
-               );
+  , output     [   31:0]    debug);
 
    /* Processor architectual state (excluding pc) */
    reg  [`XMSB:0] regs[0:31];
@@ -74,20 +70,50 @@ module yarvi_ex( input  wire             clock
    reg  [`XMSB:0] csr_stval;
 // reg  [`XMSB:0] csr_satp;
 
-   reg              me_valid = 0;
-   reg  [31:0]      me_pc;
-   reg  [ 4:0]      me_wb_rd = 0;
-   wire[`XMSB:0]    me_wb_val;
-   reg              me_exc_misaligned;
-   reg [`XMSB:0]    me_exc_mtval;
-   reg              me_load_hit_store;
-   reg              me_timer_interrupt;
-
    /* Instruction decoding */
    reg              de_valid = 0;
    reg  [`XMSB:0]   de_pc;
    reg  [31:0]      de_insn;
    reg  [    4:0]   de_rs1, de_rs2;
+
+   reg              ex_valid = 0;
+   reg  [`XMSB:0]   ex_pc;
+   reg  [31:0]      ex_insn;
+   reg  [ 1:0]      ex_priv;
+
+   reg              ex_restart;
+   reg  [`XMSB:0]   ex_restart_pc;
+
+   reg  [ 4:0]      ex_wb_rd = 0;  // != 0 => WE. !valid => 0
+   wire [`XMSB:0]   ex_wb_val;
+
+   reg              ex_readenable;
+   reg              ex_writeenable;
+   reg  [ 2:0]      ex_funct3;
+   reg  [`XMSB:0]   ex_writedata;
+
+   reg              me_valid = 0;
+   reg  [1:0]       me_priv;
+   reg  [`VMSB:0]   me_pc;
+   reg  [31:0]      me_insn;
+   reg  [ 4:0]      me_wb_rd = 0;
+   wire [`XMSB:0]   me_wb_val;
+   reg              me_exc_misaligned;
+   reg  [`XMSB:0]   me_exc_mtval;
+   reg              me_load_hit_store;
+   reg              me_timer_interrupt;
+
+   assign           restart       = ex_restart;
+   assign           restart_pc    = ex_restart_pc;
+
+   assign           retire_valid  = me_valid;
+   assign           retire_priv   = me_priv;
+   assign           retire_pc     = me_pc;
+   assign           retire_insn   = me_insn;
+   assign           retire_wb_rd  = me_wb_rd;
+   assign           retire_wb_val = me_wb_val;
+
+   assign           debug         = retire_wb_val;
 
    always @(posedge clock) begin
       de_valid <= valid;
@@ -766,7 +792,9 @@ module yarvi_ex( input  wire             clock
          me_valid		<= ex_valid;
          me_wb_rd		<= ex_wb_rd;
       end
+      me_priv                   <= ex_priv;
       me_pc 			<= ex_pc;
+      me_insn                   <= ex_insn;
       me_we 			<= ex_we;
       me_load_hit_store 	<= 0;
       me_exc_misaligned 	<= 0;
@@ -798,5 +826,17 @@ module yarvi_ex( input  wire             clock
          mem3[i] = data[i][31:24];
       end
    end
+`endif
+
+`ifdef DISASSEMBLE
+   yarvi_disass disass
+     ( .clock  (clock)
+     , .info   ({ex_restart, de_valid, ex_valid, me_valid})
+     , .valid  (me_valid)
+     , .prv    (me_priv)
+     , .pc     (me_pc)
+     , .insn   (me_insn)
+     , .wb_rd  (me_wb_rd)
+     , .wb_val (me_wb_val));
 `endif
 endmodule
