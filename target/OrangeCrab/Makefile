@@ -17,15 +17,18 @@ SRC=top.v $(patsubst %,$(CORE)/%,$(YARVISRC)) rs232out.v rs232in.v
 HDR=$(patsubst %,$(CORE)/%,$(YARVIHDR))
 CONFIG=$(YARVICONFIG) -DINIT_MEM=\"I-ECALL-01.hex\"
 
-all: $(PROJ).prog
+OPTS=abc2 abc9 abc9_nowidelut
+#OPTS=abc9_noflatten # this option didn't work for me
 
-top.json: $(SRC) Makefile
-	time yosys -p "synth_ecp5 -json $@" $(CONFIG) $(SRC) > yosys.out
+all: $(patsubst %,%.config,$(OPTS))
 
-%_out.config: %.json
-	time nextpnr-ecp5 --json $< --lpf $(CONSTR) --textcfg $@ --85k --package CSFBGA285 --speed 6 2> nextpnr-ecp5.out
+%.json: $(SRC) Makefile
+	@yosys -p "synth_ecp5 -$(shell echo $(basename $@)|sed 's/_/ -/g') -json $@" $(CONFIG) $(SRC) > $@.yosys.out
 
-%.bit: %_out.config
+%.config: %.json
+	@-nextpnr-ecp5 --json $< --lpf $(CONSTR) --textcfg $@ --85k --package CSFBGA285 --speed 6 2> $@.out
+	@egrep -Ho ': [0-9\.]+ MHz' $@.out | tail -1
+%.bit: %.config
 	ecppack --svf-rowsize 100000  --spimode $(FLASH_MODE) --freq $(FLASH_FREQ) \
 		--svf $(PROJ).svf --input $< --bit $@
 
@@ -37,8 +40,8 @@ $(PROJ).svf: $(PROJ).bit
 	$(JLINK) $<
 
 clean:
-	rm -f $(PROJ).json $(PROJ).svf $(PROJ).bit $(PROJ)_out.config
+	rm -f $(PROJ).json $(PROJ).svf $(PROJ).bit $(PROJ).config
 
 .PHONY: prog clean
-.PRECIOUS: ${PROJ}.json ${PROJ}_out.config
+.PRECIOUS: ${PROJ}.json ${PROJ}.config
 

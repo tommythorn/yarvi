@@ -11,4 +11,4 @@ run-tests:
 #	$(MAKE) -s -C sw/hello_world
 
 check-speed:
-	-$(MAKE) -C target/OrangeCrab top_out.config
+	-$(MAKE) -C target/OrangeCrab
