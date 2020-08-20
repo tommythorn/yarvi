@@ -160,7 +160,7 @@ multisim: $(patsubst %,$(TESTDIR)%.multisim,$(TESTS))
 %.hex: %.bin
 	$(QUIET)cat $^ /dev/zero|dd iflag=fullblock bs=1k count=$(MEMSIZEK) 2>/dev/null|hexdump -ve '"%08x\n"' > $@
 
-%.dump: %
+%.dis: %
 	$(RVPREFIX)objdump -d -M numeric,no-aliases $^ > $@
 
 %.spike: %
