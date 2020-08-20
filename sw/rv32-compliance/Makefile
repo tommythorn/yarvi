@@ -92,7 +92,7 @@ newtest: $(patsubst %,$(TESTDIR)%.trace,$(TESTS))
 %.hex: %.bin
 	cat $^ /dev/zero|dd iflag=fullblock bs=1k count=$(MEMSIZEK)|hexdump -ve '"%08x\n"' > $@
 
-%.dump: %
+%.dis: %.elf
 	riscv32-unknown-elf-objdump -d -M numeric,no-aliases $^ > $@
 
 %.spike: %
