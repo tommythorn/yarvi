@@ -10,6 +10,7 @@ FLASH_MODE=qspi
 FLASH_FREQ=38.8 #MHz
 JLINK=JTAGLoadExe
 #JLINK=JTAGLoad
+SILENT=@
 
 CORE=../../rtl/
 include $(CORE)/Makefile.common
@@ -23,11 +24,11 @@ OPTS=abc2 abc9 abc9_nowidelut
 all: $(patsubst %,%.config,$(OPTS))
 
 %.json: $(SRC) Makefile
-	@yosys -p "synth_ecp5 -$(shell echo $(basename $@)|sed 's/_/ -/g') -json $@" $(CONFIG) $(SRC) > $@.yosys.out
+	$(SILENT)yosys -p "synth_ecp5 -$(shell echo $(basename $@)|sed 's/_/ -/g') -json $@" $(CONFIG) $(SRC) > $@.yosys.out
 
 %.config: %.json
-	@-nextpnr-ecp5 --json $< --lpf $(CONSTR) --textcfg $@ --85k --package CSFBGA285 --speed 6 2> $@.out
-	@egrep -Ho ': [0-9\.]+ MHz' $@.out | tail -1
+	$(SILENT)-nextpnr-ecp5 --json $< --lpf $(CONSTR) --textcfg $@ --85k --package CSFBGA285 --speed 6 2> $@.out
+	$(SILENT)egrep -Ho ': [0-9\.]+ MHz' $@.out | tail -1
 %.bit: %.config
 	ecppack --svf-rowsize 100000  --spimode $(FLASH_MODE) --freq $(FLASH_FREQ) \
 		--svf $(PROJ).svf --input $< --bit $@
