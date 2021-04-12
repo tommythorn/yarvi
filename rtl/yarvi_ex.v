@@ -267,6 +267,8 @@ module yarvi_ex
    reg            ex_alu_insn30 = 0;
    always @(posedge clock)
      ex_alu_insn30 <= (de_opcode == `OP && de_insn`funct3 == `ADDSUB ||
+                       de_opcode == `OP && de_insn`funct3 == `SLT ||
+                       de_opcode == `OP && de_insn`funct3 == `SLTU ||
                          ((de_opcode == `OP ||
                            de_opcode == `OP_IMM    ||
                            de_opcode == `OP_IMM_32) && de_insn`funct3 == `SR_) ?
