@@ -48,7 +48,7 @@ module alu(sub, ashr, funct3, w, op1, op2, result);
    output reg  [XMSB:0]  result;
 
    // sum = op1 + op2 or op1 - op2
-   wire [XLEN:0]         sum = op1 + ({XLEN{sub}} ^ op2) + sub;
+   wire [XLEN:0]         sum = op1 + ({(XLEN+1){sub}} ^ op2) + sub;
 
 always @(*) begin
    case (funct3)
@@ -60,7 +60,7 @@ always @(*) begin
 
 
      `SLT:    result = {{XMSB{1'd0}}, $signed(op1) < $signed(op2)};
-     `SLTU:   result = {{XMSB{1'd0}}, op1 < op2};
+     `SLTU:   result = {{XMSB{1'd0}}, sum[XLEN]}; // op1 < op2
 
 //`define NO_SHIFTS 1
 `ifndef NO_SHIFTS
