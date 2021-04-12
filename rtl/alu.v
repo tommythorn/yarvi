@@ -34,23 +34,21 @@ This is the purely combinatorial ALU of YARVI
 
 `default_nettype none
 
-module alu(insn30_, funct3, w, op1, op2, result);
+module alu(sub, ashr, funct3, w, op1, op2, result);
    parameter XLEN = 64;
    parameter XMSB = XLEN-1;
    parameter X2MSB = ($clog2(XLEN)-1);
 
-   input  wire           insn30_; // True for SLT,SLTU,SUB,and SRA
+   input  wire           sub;
+   input  wire           ashr;
    input  wire [    2:0] funct3;
    input  wire           w;
    input  wire [XMSB:0]  op1;
    input  wire [XMSB:0]  op2;
    output reg  [XMSB:0]  result;
 
-   // XXX Hack to remove soon.  Just to be absolutely sure ...
-   wire                  insn30 = funct3 == `SLTU || insn30_;
-
    // sum = op1 + op2 or op1 - op2
-   wire [XLEN:0]         sum = op1 + ({XLEN{insn30}} ^ op2) + insn30;
+   wire [XLEN:0]         sum = op1 + ({XLEN{sub}} ^ op2) + sub;
 
 always @(*) begin
    case (funct3)
@@ -67,9 +65,9 @@ always @(*) begin
 //`define NO_SHIFTS 1
 `ifndef NO_SHIFTS
      `SR_:    if (XLEN != 32 && w)
-                result = $signed({op1[31] & insn30, op1[31:0]}) >>> op2[4:0];
+                result = $signed({op1[31] & ashr, op1[31:0]}) >>> op2[4:0];
               else
-                result = $signed({op1[XMSB] & insn30, op1}) >>> op2[X2MSB:0];
+                result = $signed({op1[XMSB] & ashr, op1}) >>> op2[X2MSB:0];
      `SLL:    result = op1 << op2[X2MSB:0];
 `else
      default: result = 'hX;

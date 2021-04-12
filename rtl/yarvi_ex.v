@@ -264,15 +264,18 @@ module yarvi_ex
                                        0;
 
    /* ALU, produces ex_wb_val */
-   reg            ex_alu_insn30 = 0;
+   reg            ex_alu_sub = 0;
    always @(posedge clock)
-     ex_alu_insn30 <= (de_opcode == `OP && de_insn`funct3 == `ADDSUB ||
-                       de_opcode == `OP && de_insn`funct3 == `SLT ||
-                       de_opcode == `OP && de_insn`funct3 == `SLTU ||
-                         ((de_opcode == `OP ||
-                           de_opcode == `OP_IMM    ||
-                           de_opcode == `OP_IMM_32) && de_insn`funct3 == `SR_) ?
-                         de_insn[30] : 0);
+     ex_alu_sub <= (de_opcode == `OP     && de_insn`funct3 == `ADDSUB && de_insn[30] ||
+                    de_opcode == `OP     && de_insn`funct3 == `SLT                   ||
+                    de_opcode == `OP     && de_insn`funct3 == `SLTU                  ||
+                    de_opcode == `OP_IMM && de_insn`funct3 == `SLTU                  ||
+                    de_opcode == `OP_IMM && de_insn`funct3 == `SLTU);
+
+   reg            ex_alu_ashr = 0;
+   always @(posedge clock)
+     ex_alu_ashr <= de_insn[30];
+
    reg [2:0]      ex_alu_funct3 = 0;
    always @(posedge clock)
      ex_alu_funct3 <= (de_opcode == `OP        ||
@@ -292,7 +295,8 @@ module yarvi_ex
    always @(posedge clock)
      ex_alu_op2 <= de_op2_imm_use ? de_op2_imm : de_rs2;
 
-   alu #(`XMSB+1) alu(ex_alu_insn30, ex_alu_funct3, 1'd0, ex_alu_op1, ex_alu_op2, ex_wb_val);
+   alu #(`XMSB+1) alu(ex_alu_sub, ex_alu_ashr, ex_alu_funct3,
+                      1'd0, ex_alu_op1, ex_alu_op2, ex_wb_val);
 
    /* Pipeline restart controls */
    always @(posedge clock) begin

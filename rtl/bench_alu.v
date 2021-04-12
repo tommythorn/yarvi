@@ -4,19 +4,19 @@ module top
   ,input  wire [20:0] td
   ,output reg         tx = 0);
 
-   reg        rd, fwd1, fwd2, rd, insn30;
+   reg        rd, fwd1, fwd2, rd, sub, ashr;
    reg [2:0]  funct3;
    reg [`XLEN-1:0] rs1, rs2;
    reg [`XLEN-1:0] op1, op2;
    reg             w;
 
    reg [20:0] td_r, result_r;
-   always @(posedge clock) {fwd1, fwd2, rd, w, insn30, funct3} <= td;
+   always @(posedge clock) {fwd1, fwd2, rd, w, sub, ashr, funct3} <= td;
 
    wire [`XLEN-1:0] result;
 
 
-   alu #(`XLEN) alu(insn30, funct3, w, op1, op2, result);
+   alu #(`XLEN) alu(sub, ashr, funct3, w, op1, op2, result);
 
 `define traditional 1
 `ifdef traditional
