@@ -15,14 +15,15 @@ This is a silly execution stage without forwarding (WB immediately)
 
 `default_nettype none
 
-module ex(clock, insn30, funct3, w, fwd1, fwd2, imm1, imm2, imm1val, imm2val,
+module ex(clock, sub, ashr, funct3, w, fwd1, fwd2, imm1, imm2, imm1val, imm2val,
           rs1, rs2, rd, result);
    parameter XLEN = 64;
    parameter XMSB = XLEN-1;
    parameter X2MSB = $clog2(XLEN) - 1;
 
    input  wire           clock;
-   input  wire           insn30;
+   input  wire           sub;
+   input  wire           ashr;
    input  wire [    2:0] funct3;
    input  wire           w;
    input  wire           fwd1;
@@ -40,7 +41,7 @@ module ex(clock, insn30, funct3, w, fwd1, fwd2, imm1, imm2, imm1val, imm2val,
    reg [XMSB:0]  op2;
    reg [X2MSB:0] rd_r;
 
-   alu #(XLEN) alu(insn30, funct3, w, 1?op1:rf[rs1], 1?op2:rf[rs2], result);
+   alu #(XLEN) alu(sub, ashr, funct3, w, 1?op1:rf[rs1], 1?op2:rf[rs2], result);
 
    always @(posedge clock) begin
       rd_r <= rd;

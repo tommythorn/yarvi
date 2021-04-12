@@ -7,7 +7,8 @@ module top
    parameter XMSB  = `XLEN - 1;
    parameter X2MSB = $clog2(`XLEN) - 1;
 
-   reg             insn30 = 0;
+   reg             sub = 0;
+   reg             ashr = 0;
    reg  [2:0]      funct3 = 0;
    reg             w = 0;
    reg             fwd1 = 0;
@@ -22,11 +23,11 @@ module top
    wire [XMSB:0]   result;
    reg  [31:0]     td_r = 0;
 
-   ex #(`XLEN) ex(clock, insn30, funct3, w, fwd1, fwd2, imm1, imm2, imm1val, imm2val, rs1, rs2, rd, result);
+   ex #(`XLEN) ex(clock, sub, ashr, funct3, w, fwd1, fwd2, imm1, imm2, imm1val, imm2val, rs1, rs2, rd, result);
 
    always @(posedge clock) begin
       td_r <= {td_r, td};
-      {insn30, funct3, w, fwd1, fwd2, imm1, imm2, rs1, rs2, rd} <= td_r;
+      {sub, ashr, funct3, w, fwd1, fwd2, imm1, imm2, rs1, rs2, rd} <= td_r;
       imm1 <= result ^ td_r;
       imm2 <= imm1 ^ result;
       tx <= result;
