@@ -13,7 +13,7 @@ CC=$(RVPREFIX)gcc -std=gnu99 -O
 MEMSIZEK=128
 
 YARVISRC=htif.v yarvi_soc.v yarvi_disass.v yarvi.v yarvi_fe.v yarvi_ex.v \
-         yarvi_alu.v yarvi_dec_reg_usage.v yarvi_ld_align.v \
+         alu.v yarvi_dec_reg_usage.v yarvi_ld_align.v \
          yarvi_st_align.v
 YARVIHDR=riscv.h
 YARVICONFIG=-DXMSB=31 -DVMSB=31 -DPMSB=13 -DTIMEOUT=16000 $(VERB$(V))

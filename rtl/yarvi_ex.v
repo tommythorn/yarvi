@@ -290,7 +290,7 @@ module yarvi_ex
    always @(posedge clock)
      ex_alu_op2 <= de_op2_imm_use ? de_op2_imm : de_rs2;
 
-   yarvi_alu alu(ex_alu_insn30, ex_alu_funct3, ex_alu_op1, ex_alu_op2, ex_wb_val);
+   alu #(`XMSB+1) alu(ex_alu_insn30, ex_alu_funct3, 1'd0, ex_alu_op1, ex_alu_op2, ex_wb_val);
 
    /* Pipeline restart controls */
    always @(posedge clock) begin
