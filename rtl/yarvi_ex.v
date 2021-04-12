@@ -269,7 +269,7 @@ module yarvi_ex
      ex_alu_sub <= (de_opcode == `OP     && de_insn`funct3 == `ADDSUB && de_insn[30] ||
                     de_opcode == `OP     && de_insn`funct3 == `SLT                   ||
                     de_opcode == `OP     && de_insn`funct3 == `SLTU                  ||
-                    de_opcode == `OP_IMM && de_insn`funct3 == `SLTU                  ||
+                    de_opcode == `OP_IMM && de_insn`funct3 == `SLT                   ||
                     de_opcode == `OP_IMM && de_insn`funct3 == `SLTU);
 
    reg            ex_alu_ashr = 0;
