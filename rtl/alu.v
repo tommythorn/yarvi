@@ -27,9 +27,8 @@ This is the purely combinatorial ALU of YARVI
    the ALU appropriate ones and feed the ALU with the relevant operands.
 
    Further improvement possible:
-   - merge compares by toggling MSB for signed compare
-   - converting [both] compare to subtraction
-   - multi-cycle shifter
+   - multi-cycle shifter (eg. migrate shifter out of this ALU)
+   - restructure the mux tree to move sum to the top (crit. path)
 */
 
 `default_nettype none
@@ -48,19 +47,16 @@ module alu(sub, ashr, funct3, w, op1, op2, result);
    output reg  [XMSB:0]  result;
 
    // sum = op1 + op2 or op1 - op2
-   wire [XLEN:0]         sum = op1 + ({(XLEN+1){sub}} ^ op2) + sub;
+   wire [XLEN:0]         sum = op1 + ({XLEN{sub}} ^ op2) + sub;
+   wire                  s   = sum[XMSB];
+   wire                  c   = sum[XLEN];
+   wire                  v   = op1[XMSB] == !op2[XMSB] && op1[XMSB] != s;
 
 always @(*) begin
    case (funct3)
      `ADDSUB: result = sum[XMSB:0];
-
-// This is faster, but apparently doesn't work.  XXX Investigate
-//     `SLT:    result = {{XMSB{1'd0}}, sum[XMSB]};
-//     `SLTU:   result = {{XMSB{1'd0}}, sum[XLEN]};
-
-
-     `SLT:    result = {{XMSB{1'd0}}, $signed(op1) < $signed(op2)};
-     `SLTU:   result = {{XMSB{1'd0}}, sum[XLEN]}; // op1 < op2
+     `SLT:    result = {{XMSB{1'd0}}, s ^ v}; // $signed(op1) < $signed(op2)
+     `SLTU:   result = {{XMSB{1'd0}}, !c}; // op1 < op2
 
 //`define NO_SHIFTS 1
 `ifndef NO_SHIFTS

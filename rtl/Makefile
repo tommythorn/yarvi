@@ -30,7 +30,7 @@ bench_%_$(XLEN).$(SEED).config: bench_%_$(XLEN).json Makefile OrangeCrab.lpf
 	$(SILENT)printf "%-20s %s\n" $@ "`egrep -o ': [0-9\.]+ MHz' $@.rpt | tail -1`"
 
 bench_ex_$(XLEN).json: bench_ex.v ex.v alu.v
-	$(SILENT)yosys -DXLEN=$(XLEN) -p "synth_ecp5 -json $@" $(CONFIG) $^ > $@.rpt
+	$(SILENT)yosys -DXLEN=$(XLEN) -DNO_SHIFTS=1 -p "synth_ecp5 -json $@" $(CONFIG) $^ > $@.rpt
 
 bench_%_$(XLEN).json: bench_%.v %.v
 	$(SILENT)yosys -DXLEN=$(XLEN) -p "synth_ecp5 -json $@" $(CONFIG) $^
