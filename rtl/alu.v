@@ -28,7 +28,6 @@ This is the purely combinatorial ALU of YARVI
 
    Further improvement possible:
    - multi-cycle shifter (eg. migrate shifter out of this ALU)
-   - restructure the mux tree to move sum to the top (crit. path)
 */
 
 `default_nettype none
@@ -54,25 +53,26 @@ module alu(sub, ashr, funct3, w, op1, op2, result);
 
 always @(*) begin
    case (funct3)
-     `ADDSUB: result = sum[XMSB:0];
      `SLT:    result = {{XMSB{1'd0}}, s ^ v}; // $signed(op1) < $signed(op2)
      `SLTU:   result = {{XMSB{1'd0}}, !c}; // op1 < op2
 
-//`define NO_SHIFTS 1
 `ifndef NO_SHIFTS
      `SR_:    if (XLEN != 32 && w)
                 result = $signed({op1[31] & ashr, op1[31:0]}) >>> op2[4:0];
               else
                 result = $signed({op1[XMSB] & ashr, op1}) >>> op2[X2MSB:0];
      `SLL:    result = op1 << op2[X2MSB:0];
-`else
-     default: result = 'hX;
 `endif
 
      `AND:    result = op1 & op2;
      `OR:     result = op1 | op2;
      `XOR:    result = op1 ^ op2;
+     default: result = 'hX;
    endcase
+
+   if (funct3 == `ADDSUB)
+     result = sum[XMSB:0];
+
    if (XLEN != 32 && w) result = {{XLEN/2{result[XLEN/2-1]}}, result[XLEN/2-1:0]};
    end
 endmodule
