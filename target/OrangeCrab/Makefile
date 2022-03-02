@@ -4,6 +4,7 @@
 
 PROJ=top
 CONSTR=OrangeCrab.lpf
+SPEEDGRADE=6 # My OC is -6. 8 is the fastest available (85G?)
 #Image read mode: qspi, dual-spi, fast-read
 FLASH_MODE=qspi
 #Image read freq, in MHz: 2.4, 4.8, 9.7, 19.4, 38.8, 62.0
@@ -27,7 +28,7 @@ all: $(patsubst %,%.config,$(OPTS))
 	$(SILENT)yosys -p "synth_ecp5 -$(shell echo $(basename $@)|sed 's/_/ -/g') -json $@" $(CONFIG) $(SRC) > $@.yosys.out
 
 %.config: %.json
-	$(SILENT)-nextpnr-ecp5 --json $< --lpf $(CONSTR) --textcfg $@ --85k --package CSFBGA285 --speed 6 2> $@.out
+	$(SILENT)-nextpnr-ecp5 --json $< --lpf $(CONSTR) --textcfg $@ --85k --package CSFBGA285 --speed $(SPEEDGRADE) 2> $@.out
 	$(SILENT)egrep -Ho ': [0-9\.]+ MHz' $@.out | tail -1
 %.bit: %.config
 	ecppack --svf-rowsize 100000  --spimode $(FLASH_MODE) --freq $(FLASH_FREQ) \
