@@ -395,6 +395,10 @@ module yarvi_ex
        `CSR_SCAUSE:       csr_val = csr_scause;
        `CSR_STVAL:        csr_val = csr_stval;
        `CSR_STVEC:        csr_val = csr_stvec;
+
+       `CSR_CYCLE:        csr_val = csr_mcycle;
+       `CSR_INSTRET:      csr_val = csr_minstret;
+
         default:          csr_val = 0;
      endcase
 
@@ -642,6 +646,7 @@ module yarvi_ex
 
          csr_mideleg                    <= ex_csr_mideleg;
          csr_medeleg                    <= ex_csr_medeleg;
+         csr_minstret                   <= csr_minstret + me_valid;
       end
 
       /* CSR write port (notice, this happens in EX) */
