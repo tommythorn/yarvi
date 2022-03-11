@@ -796,8 +796,10 @@ module yarvi_ex
 `endif
    always @(posedge clock)
      if (!reset && ex_valid && ex_opcode == `STORE & !ex_misaligned) begin
+`ifndef QUIET
         if (!ex_address_in_mem)
           $display("store %x -> [%x]/%x", ex_st_data, ex_address, ex_st_mask);
+`endif
 
 `ifdef TOHOST
         if (ex_st_mask == 15 & ex_address == 'h`TOHOST) begin
@@ -868,6 +870,7 @@ module yarvi_ex
       end
       for (i = 0; i < 32; i = i + 1)
         regs[i[4:0]] = {26'd0,i[5:0]};
+      regs[2] = 'h80000000 + (1 << (`PMSB + 1)); // XXX Total hack
    end
 `endif
 
