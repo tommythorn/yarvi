@@ -9,6 +9,7 @@ run-tests:
 	$(MAKE) -s -C sw/rv32-tests
 	@echo "Expect 46 passing"
 #	$(MAKE) -s -C sw/hello_world
+	$(MAKE) -s -C sw/dhrystone
 
 check-speed:
 	-$(MAKE) -C target/OrangeCrab

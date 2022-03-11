@@ -803,15 +803,21 @@ module yarvi_ex
 
 `ifdef TOHOST
         if (ex_st_mask == 15 & ex_address == 'h`TOHOST) begin
-           /* XXX Hack for riscv-tests */
+`ifndef QUIET
            $display("TOHOST = %d", ex_st_data);
+`else
+           $write("%c", ex_st_data);
+`endif
+
 
 `ifdef BEGIN_SIGNATURE
            $display("Signature Begin");
            for (dump_addr = 'h`BEGIN_SIGNATURE; dump_addr < 'h`END_SIGNATURE; dump_addr=dump_addr+4)
               $display("%x", {mem3[dump_addr[`PMSB:2]], mem2[dump_addr[`PMSB:2]], mem1[dump_addr[`PMSB:2]], mem0[dump_addr[`PMSB:2]]});
 `endif
+`ifndef KEEP_GOING
            $finish;
+`endif
         end
 `endif
      end
