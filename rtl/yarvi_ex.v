@@ -1,64 +1,42 @@
 // -----------------------------------------------------------------------
 //
-//   Copyright 2016,2018,2020 Tommy Thorn - All Rights Reserved
+//   Copyright 2016,2018,2020,2022 Tommy Thorn - All Rights Reserved
 //
 // -----------------------------------------------------------------------
 
 /*************************************************************************
 
-This is the backend of the pipeline and encompasses decodeing,
-register fetch, execution, memory access, and writeback.
+This is the backend of the YARVI2 pipeline which takes in instructions
+from the frontend (valid, pc, insn), decodes, fetches registers,
+executes (including loads and stores), and write back results to the
+register file.
 
-Probably the most erroneous, confusion, and potentially cycle-time
-stealing concept is pipeline hazards.  When pipeline is steady state
-without bubbles, we can compare sources with the destination of
-instructions in the pipeline and life is simple.
+Currently we have have stages FE -> DE -> EX -> ME -> WB.  Names
+prefixed with de_, ex_, or me_ are the registered outputs of the
+corresponding stages (otherwise they values from the fetch domain, the
+inputs to DE).
 
-Alas, instructions might have to be invalidated or restarted for many
-reason:
- - fetch had mispredicted a branch and fed the wrong instructions.
+Currently the pipeline can be restarted (and flushed) only from EX and
+causes the clear of all valid bits.
 
-   We need to ensure the RF isn't updated.  Do we need to worry about
-   bypass?
+The pipeline might be invalidated or restarted for several reasons:
+ - fetch mispredicted a branch and fed us the wrong instructions.
+ - a load that accesses the memory from a preceeding unretired store
+   (we don't try to bypass this rare case)
+ - instruction traps, like misaligned loads/stores
+ - interrupts (which are taken in EX)
 
-     FE  DE  EX  ME
-     add add add BEQ
-
-   If somehow we could magically redirect in 0 cycles then we'd have
-
-     FE  DE  EX  ME
-     ADD add add add
-
-   and thus we could have a problem.  As long as all destination
-   registers are cleared before the bypass is calculated, we are fine.
-
- - We could be executing a load that accesses the memory from a
-   preceeding store (we don't try to bypass this rare case).
-
-     FE  DE  EX  ME
-     .   .   LD  ST
-
-   This load must be restarted.  Same bypass story as above.
-
- - Misaligned loads (and stores) trap, but from an invalidation POV is
-   the same.
-
- - We we try to share the exception logic with interrupts they are
-   taken in EX.
-
+Much of the tricky bits comes from minimizing the cost of the restart
+logic by ignoring it wherever it is of no consequence (eg. if the
+stage is invalidated, the outputs doesn't matter as long as no
+architectual state is committed).
 
 TODO:
- - The current critical path goes from
-     insn30
-     -> ex_wb_val       (             12.3 ns) ALU
-     -> de_rs1          (15.1 - 12.3 = 2.8 ns) Bypass
-     -> de_branch_taken (20.0 - 15.1 = 4.9 ns) cond-branch logic
-     -> ex_restart      (22.2 - 20.0 = 2.2 ns) CTF logic
+ - add more stages and move hazards to WB to improve timing, IPC be dammed.
 
-   ALU is hard to improve, but the critial path clearly say that
-   taking cond branches in EX is bad.
+ - add more accounting to enable "IPC stacks", that is, counting of
+   cycles wasted due to all the reasons above.
 
- - Optimize bypass by calculating mux steering earlier
 *************************************************************************/
 
 /* The width comparisons in Verilator are completely broken. */
@@ -361,9 +339,11 @@ module yarvi_ex
       // XXX Misaligned exceptions should be detected like all other exceptions
       if (me_exc_misaligned || ex_trap || (csr_mip_and_mie != 0 && csr_mstatus`MIE)) begin
          ex_valid <= 0;
+`ifndef QUIET
          $display("%5d  %x:%x EXCEPTION %d %d(%d) %d", $time/10, ex_pc, ex_insn,
                   me_exc_misaligned, ex_trap, ex_trap_cause,
                   (csr_mip_and_mie != 0 && csr_mstatus`MIE));
+`endif
          ex_rd <= 0;
          ex_restart <= 1;
          ex_restart_pc <= csr_mtvec;
@@ -666,8 +646,10 @@ module yarvi_ex
 
       /* CSR write port (notice, this happens in EX) */
       if (ex_csr_we) begin
+`ifndef QUIET
          $display(
 "                                                 CSR %x <- %x", ex_insn`imm11_0, ex_csr_d);
+`endif
          case (ex_insn`imm11_0)
            `CSR_FCSR:      {csr_frm,csr_fflags} <= ex_csr_d[7:0];
            `CSR_FFLAGS:    csr_fflags   <= ex_csr_d[4:0];
@@ -692,8 +674,10 @@ module yarvi_ex
 
            `CSR_PMPCFG0: ;
            `CSR_PMPADDR0: ;
+`ifndef QUIET
            default:
              $display("                                                 Warning: writing an unimplemented CSR %x", ex_insn`imm11_0);
+`endif
          endcase
       end
    end
@@ -848,13 +832,17 @@ module yarvi_ex
          me_exc_misaligned      <= 1;
          me_valid               <= 0;
          me_rd                  <= 0;
+`ifndef QUIET
          $display("%5d  ME: %x misaligned load/store ex_address %x", $time/10, ex_pc, ex_address);
+`endif
       end else if (ex_valid && ex_opcode == `LOAD && me_we && ex_address[31:2] == me_address[31:2]) begin
          me_load_hit_store      <= 1;
          me_valid               <= 0;
          me_rd                  <= 0;
+`ifndef QUIET
          $display("%5d  ME: %x load-hit-store: load from address %x hit the store to ex_address %x",
                   $time/10, ex_pc, ex_address, me_address);
+`endif
       end
    end
 
@@ -863,6 +851,9 @@ module yarvi_ex
    reg [31:0] i;
    reg [31:0] data[(1<<(`PMSB - 1))-1:0];
    initial begin
+`ifndef QUIET
+      $display("Initializing the %d B data memory", 1 << (`PMSB + 1));
+`endif
       $readmemh(`INIT_MEM, data);
       for (i = 0; i < (1<<(`PMSB - 1)); i = i + 1) begin
          mem0[i] = data[i][7:0];
