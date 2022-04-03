@@ -1,13 +1,13 @@
 CORE=../../rtl/
 include $(CORE)/Makefile.common
 
-TIMEOUT=2300000 # Not sure why it doesn't hit the ecall
+TIMEOUT=3500000 # Not sure why it doesn't hit the ecall
 PMSB=16 # 128 KiB
 
 SRC=../../target/sim/toplevel.v $(patsubst %,$(CORE)/%,$(YARVISRC))
 HDR=$(patsubst %,$(CORE)/%,$(YARVIHDR))
-DISASS=# -DDISASSEMBLE
-CONFIG=$(YARVICONFIG) -DSIMULATION -DTIMEOUT=$(TIMEOUT) $(DISASS) -DINIT_MEM=\"$<\" -DPMSB=$(PMSB) -DKEEP_GOING=1 -DQUIET=1
+DISASS=
+CONFIG=$(YARVICONFIG) -DSIMULATION -DTIMEOUT=$(TIMEOUT) $(DISASS) -DINIT_MEM=\"$<\" -DPMSB=$(PMSB) -DKEEP_GOING=1
 
 USE_MYSTDLIB = 0
 OBJS = dhry_1.o dhry_2.o stdlib.o
@@ -25,6 +25,10 @@ endif
 
 all: dhry.run
 
+trace: dhry.hex $(SRC) $(HDR) Makefile
+	$(QUIET)iverilog -I$(CORE)/ $(CONFIG) -DTOHOST=10000000 -DDISASSEMBLE -o dhry.tracing $(SRC)
+	./dhry.tracing
+
 %.bin: %
 	$(QUIET)$(RVPREFIX)objcopy -O binary $^ $@
 
@@ -38,14 +42,7 @@ all: dhry.run
 	spike $< > $@ 2>&1
 
 %.yarvi: %.hex $(SRC) $(HDR) Makefile
-	$(QUIET)iverilog -I$(CORE)/ $(CONFIG) -DTOHOST=$(shell nm $(patsubst %.hex,%,$<) | (egrep ' tohost$$' || echo 10000000) | cut -d' ' -f1) -o $@ $(SRC)
-
-%.trace: %.yarvi %.hex
-	$(QUIET)./$^ > $@
-	$(QUIET)if grep -q 'TOHOST =          1' $@;then \
-		printf "%-20s PASSED\n" $(basename $@); touch $@.pass; \
-	else\
-		printf "%-20s FAILED\n" $(basename $@); ln -fs $@ $@.fail; fi
+	$(QUIET)iverilog -I$(CORE)/ $(CONFIG) -DQUIET=1 -DTOHOST=$(shell nm $(patsubst %.hex,%,$<) | (egrep ' tohost$$' || echo 10000000) | cut -d' ' -f1) -o $@ $(SRC)
 
 %.run: %.yarvi %.hex
 	./$^

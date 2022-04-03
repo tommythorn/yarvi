@@ -12,11 +12,11 @@ RVPREFIX=$(RVPATH)riscv64-linux-gnu-
 CC=$(RVPREFIX)gcc -std=gnu99 -O
 MEMSIZEK=128
 
-YARVISRC=htif.v yarvi_soc.v yarvi_disass.v yarvi.v yarvi_fe.v yarvi_ex.v \
+YARVISRC=htif.v yarvi_soc.v yarvi_disass.v yarvi.v \
          alu.v yarvi_dec_reg_usage.v yarvi_ld_align.v \
          yarvi_st_align.v
 YARVIHDR=riscv.h
-YARVICONFIG=-DXMSB=31 -DVMSB=31 -DPMSB=13 -DTIMEOUT=16000 $(VERB$(V))
+YARVICONFIG=-DXMSB=31 -DVMSB=31 -DPMSB=16 -DTIMEOUT=16000 $(VERB$(V))
 
 %.txt: %.bin
 	(cat $^;cat /dev/zero)|dd iflag=fullblock bs=1k count=$(MEMSIZEK)|hexdump -ve '"%08x\n"' > $@

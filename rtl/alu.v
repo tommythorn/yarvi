@@ -32,7 +32,7 @@ This is the purely combinatorial ALU of YARVI
 
 `default_nettype none
 
-module alu(sub, ashr, funct3, w, op1, op2, result);
+module alu(sub, ashr, funct3, w, op1, op2, result, eq, lt, ltu);
    parameter XLEN = 64;
    parameter XMSB = XLEN-1;
    parameter X2MSB = ($clog2(XLEN)-1);
@@ -44,6 +44,9 @@ module alu(sub, ashr, funct3, w, op1, op2, result);
    input  wire [XMSB:0]  op1;
    input  wire [XMSB:0]  op2;
    output reg  [XMSB:0]  result;
+   output wire           eq;
+   output wire           lt;
+   output wire           ltu;
 
    // sum = op1 + op2 or op1 - op2
    wire [XLEN:0]         sum = op1 + ({XLEN{sub}} ^ op2) + sub;
@@ -51,10 +54,14 @@ module alu(sub, ashr, funct3, w, op1, op2, result);
    wire                  c   = sum[XLEN];
    wire                  v   = op1[XMSB] == !op2[XMSB] && op1[XMSB] != s;
 
+   assign                eq  = op1 == op2;
+   assign                lt  = s ^ v;
+   assign                ltu = !c;
+
 always @(*) begin
    case (funct3)
-     `SLT:    result = {{XMSB{1'd0}}, s ^ v}; // $signed(op1) < $signed(op2)
-     `SLTU:   result = {{XMSB{1'd0}}, !c}; // op1 < op2
+     `SLT:    result = {{XMSB{1'd0}}, lt}; // $signed(op1) < $signed(op2)
+     `SLTU:   result = {{XMSB{1'd0}}, ltu}; // op1 < op2
 
 `ifndef NO_SHIFTS
      `SR_:    if (XLEN != 32 && w)

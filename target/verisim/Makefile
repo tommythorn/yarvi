@@ -1,13 +1,23 @@
+CORE=../../rtl
+include $(CORE)/Makefile.common
+
+SRC=	../../rtl/yarvi.v \
+	../../rtl/yarvi_disass.v \
+	../../rtl/alu.v \
+	../../rtl/yarvi_dec_reg_usage.v \
+	../../rtl/yarvi_ld_align.v \
+	../../rtl/yarvi_st_align.v \
+	altsyncram.v lpm_add_sub.v
+
+CONFIG=-I$(CORE) $(YARVICONFIG) -DINIT_MEM=\"dhry.hex\" -DQUIET -DTOHOST=10000000 -DKEEP_GOING
+
 #TRACE=--trace
 TRACE=
-obj_dir/Vyarvi_soc: ../core/yarvi_soc.v sim_main.cpp
-	verilator -Wall $(TRACE) -DINIT_MEM=\"rv32ui-p-simple.hex\" -I../core --cc yarvi_soc.v --exe sim_main.cpp
-	make -C obj_dir -f Vyarvi_soc.mk Vyarvi_soc
-	obj_dir/Vyarvi_soc
-
-SRC=toplevel.v \
-    ../../../red-lava/simulation/altsyncram.v \
-    ../../../red-lava/simulation/lpm_add_sub.v
+obj_dir/Vyarvi: $(SRC)  sim_main.cpp Makefile
+	verilator -Wall --top-module yarvi \
+	    $(CONFIG) --cc $(SRC) --exe sim_main.cpp
+	make -C obj_dir -f Vyarvi.mk Vyarvi
+	obj_dir/Vyarvi
 
 sim: obj_dir/Vtoplevel
 	@for x in *.mif;do grep : < $$x|sed -e "s,^.*:,," -e "s,;,," > $$x.txt;done

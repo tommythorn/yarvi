@@ -12,7 +12,7 @@ include $(CORE)/Makefile.common
 ICARUS_SRC=../../target/sim/toplevel.v
 SRC=$(patsubst %,$(CORE)/%,$(YARVISRC))
 HDR=$(patsubst %,$(CORE)/%,$(YARVIHDR))
-CONFIG=$(YARVICONFIG) -DSIMULATION -DDISASSEMBLE -DINIT_MEM=\"$<\"
+CONFIG=$(YARVICONFIG) -DSIMULATION -DQUIET -DDISASSEMBLE -DINIT_MEM=\"$<\"
 
 # Pick your favorite simulator, Icarus Verilog (icarus) or Verilator (verilator)
 SIM=icarus
@@ -130,7 +130,9 @@ newtest: $(patsubst %,$(TESTDIR)%.trace,$(TESTS))
 	./$^
 
 %.comply: %.$(SIM)
-	$(QUIET)./$^ | grep ^Signature -A999999|tail -n +2 | \
+	$(QUIET)./$^ | \
+	tee $(basename $<).catch | \
+	grep ^Signature -A999999|egrep '^[0-9a-f]+$$' | \
 	if diff - $(basename $<).ref; then \
 		printf "%-20s PASSED\n" $(basename $@); touch $@.pass; \
 	else\

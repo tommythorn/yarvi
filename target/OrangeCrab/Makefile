@@ -19,17 +19,26 @@ SRC=top.v $(patsubst %,$(CORE)/%,$(YARVISRC)) rs232out.v rs232in.v
 HDR=$(patsubst %,$(CORE)/%,$(YARVIHDR))
 CONFIG=$(YARVICONFIG) -DINIT_MEM=\"I-ECALL-01.hex\"
 
-OPTS=abc2 abc9 abc9_nowidelut
+#OPTS=abc2 abc9 abc9_nowidelut
 #OPTS=abc9_noflatten # this option didn't work for me
+#OPTS=abc9
 
-all: $(patsubst %,%.config,$(OPTS))
+SEEDS=1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+
+all: 1.config
+
+sweep: $(patsubst %,%.config,$(SEEDS))
+	grep ERROR.*MHz *.config.out|sed 's/.*: //g'|sort -n
 
 %.json: $(SRC) Makefile
 	$(SILENT)yosys -p "synth_ecp5 -$(shell echo $(basename $@)|sed 's/_/ -/g') -json $@" $(CONFIG) $(SRC) > $@.yosys.out
 
-%.config: %.json
-	$(SILENT)-nextpnr-ecp5 --json $< --lpf $(CONSTR) --textcfg $@ --85k --package CSFBGA285 --speed $(SPEEDGRADE) 2> $@.out
-	$(SILENT)egrep -Ho ': [0-9\.]+ MHz' $@.out | tail -1
+%.config: abc9.json
+	$(SILENT)-nextpnr-ecp5 --json $< --lpf $(CONSTR) --textcfg $@ --85k --package CSFBGA285 --speed $(SPEEDGRADE) \
+		--seed=$(basename $@) 2> $@.out
+
+#	$(SILENT)egrep -Ho ': [0-9\.]+ MHz' $@.out | tail -1
+
 %.bit: %.config
 	ecppack --svf-rowsize 100000  --spimode $(FLASH_MODE) --freq $(FLASH_FREQ) \
 		--svf $(PROJ).svf --input $< --bit $@

@@ -10,7 +10,6 @@
 //
 // -----------------------------------------------------------------------
 
-`timescale 1ns / 1ps
 //**********************************************************************
 // Bridge a simple serial protocol with an Avalon bus
 //**********************************************************************
@@ -36,6 +35,8 @@
 `define S_CMD_READ_3    4'd9
 `define S_CMD_READ_4    4'd10
 
+`default_nettype none
+`timescale 1ns / 1ps
 module htif ( input  wire        clock
 
             // from host

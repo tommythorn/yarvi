@@ -19,6 +19,7 @@ module yarvi_soc
   // from host
 
   , output wire        rx_ready
+/* verilator lint_off UNUSED */
   , input  wire        rx_valid
   , input  wire  [7:0] rx_data
 
@@ -27,6 +28,7 @@ module yarvi_soc
   , input  wire        tx_ready
   , output wire        tx_valid
   , output wire  [7:0] tx_data
+/* verilator lint_on UNUSED */
 
   // debug
   , output wire [`VMSB:0] debug);
@@ -38,6 +40,13 @@ module yarvi_soc
      ( .clock           (clock)
      , .reset           (reset)
 
+/* verilator lint_off PINCONNECTEMPTY */
+     , .retire_valid    ()
+     , .retire_priv     ()
+     , .retire_pc       ()
+     , .retire_insn     ()
+     , .retire_rd       ()
+     , .retire_wb_val   ()
      , .debug           (debug)
      );
 endmodule

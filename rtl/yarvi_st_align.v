@@ -17,7 +17,10 @@ Store alignment
 `default_nettype none
 
 module yarvi_st_align
+/* Bits of signal are not used: 'funct3'[2] */
+/* verilator lint_off UNUSED */
   (input  wire [    2:0] funct3
+/* verilator lint_on UNUSED */
   ,input  wire [    1:0] address
   ,input  wire [`XMSB:0] writedata
   ,output reg  [    3:0] st_mask

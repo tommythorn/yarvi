@@ -1,4 +1,4 @@
-#include "Vour.h"
+#include "Vyarvi.h"
 #include "verilated.h"
 
 #if VM_TRACE
@@ -12,7 +12,7 @@ int main(int argc, char** argv, char** env) {
     Verilated::commandArgs(argc, argv);
     Verilated::debug(0);
     Verilated::randReset(2);
-    Vour* top = new Vour;
+    Vyarvi* top = new Vyarvi;
 
 #if VM_TRACE
     VerilatedVcdC* tfp = NULL;
@@ -37,8 +37,11 @@ int main(int argc, char** argv, char** env) {
       if (main_time > 10)
         top->reset = 0;
 
-      VL_PRINTF("[%" VL_PRI64 "d] clk=%x rstl=%x  -> counter=%d\n",
-                main_time, top->clock, top->reset, top->counter);
+      //      if (top->clock & top->retire_valid)
+      //  VL_PRINTF("%x\n", top->retire_pc);
+
+      //      VL_PRINTF("[%" VL_PRI64 "d] clk=%x rstl=%x  -> counter=%d\n",
+      //                main_time, top->clock, top->reset, top->counter);
       top->eval();
 
 #if VM_TRACE

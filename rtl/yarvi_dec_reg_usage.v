@@ -19,7 +19,10 @@ This is the purely combinatorial usage decoder
 
 module yarvi_dec_reg_usage
   ( input  wire           valid
+/* Bits of signal are not used: 'insn'[31:25,1:0] */
+/* verilator lint_off UNUSED */
   , input  wire [   31:0] insn
+/* verilator lint_on UNUSED */
   , output reg            use_rs1
   , output reg            use_rs2
   , output reg  [    4:0] rd);
@@ -40,7 +43,7 @@ module yarvi_dec_reg_usage
           `OP_IMM:    {rd,use_rs2,use_rs1} = {   dest, unused,   used};
           `OP_IMM_32: {rd,use_rs2,use_rs1} = {   dest, unused,   used};
           `JALR:      {rd,use_rs2,use_rs1} = {   dest, unused,   used};
-          `LOAD:      {rd,use_rs2,use_rs1} = {   dest,   used,   used};
+          `LOAD:      {rd,use_rs2,use_rs1} = {   dest, unused,   used};
           `SYSTEM:
             case (insn`funct3)
               `CSRRS, `CSRRC, `CSRRW:

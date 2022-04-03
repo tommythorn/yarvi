@@ -1,5 +1,12 @@
 `timescale 1ns/10ps
 
+`define assert(signal) \
+   always @(posedge clock) \
+     if ((signal) !== 1) begin \
+       $display("ASSERTION FAILED in %m: signal de-asserted"); \
+       $finish; \
+     end
+
 `include "riscv.h"
 
 `define INIT_PC    32'h8000_0000

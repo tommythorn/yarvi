@@ -7,7 +7,7 @@
 `include "yarvi.h"
 
 module yarvi_disass( input             clock
-                   , input [ 3:0]      info
+                   , input [ 6:0]      info
                    , input             valid
                    , input [ 1:0]      prv
                    , input [`VMSB:0]   pc

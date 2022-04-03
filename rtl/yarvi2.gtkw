@@ -1,0 +1,94 @@
+[*]
+[*] GTKWave Analyzer v3.3.107 (w)1999-2020 BSI
+[*] Fri Apr  1 17:05:11 2022
+[*]
+[dumpfile] "(null)"
+[savefile] "/Volumes/tommy/projects/obsceneipc/yarvi2/rtl/yarvi2.gtkw"
+[timestart] 64900
+[size] 1229 747
+[pos] -1 -1
+*-14.835214 2400000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] toplevel.
+[treeopen] toplevel.yarvi_soc.
+[treeopen] toplevel.yarvi_soc.yarvi.
+[sst_width] 237
+[signals_width] 202
+[sst_expanded] 1
+[sst_vpaned_height] 181
+@28
+toplevel.yarvi_soc.yarvi.clock
+toplevel.yarvi_soc.yarvi.restart
+@200
+-
+@28
+toplevel.yarvi_soc.yarvi.s1_valid
+@22
+toplevel.yarvi_soc.yarvi.s1_pc[31:0]
+toplevel.yarvi_soc.yarvi.s1_insn[31:0]
+@2025
+^1 /Volumes/tommy/projects/obsceneipc/yarvi2/rtl/Gtkwave.opcode.txt
+toplevel.yarvi_soc.yarvi.s1_opcode[4:0]
+@28
+toplevel.yarvi_soc.yarvi.stall
+toplevel.yarvi_soc.yarvi.s1_use_rs1
+toplevel.yarvi_soc.yarvi.s1_use_rs2
+@22
+toplevel.yarvi_soc.yarvi.s2_rd[4:0]
+toplevel.yarvi_soc.yarvi.s3_rd[4:0]
+toplevel.yarvi_soc.yarvi.s4_rd[4:0]
+@200
+-
+@28
+toplevel.yarvi_soc.yarvi.s2_valid
+@22
+toplevel.yarvi_soc.yarvi.s2_pc[31:0]
+toplevel.yarvi_soc.yarvi.s2_insn[31:0]
+@200
+-
+@28
+toplevel.yarvi_soc.yarvi.s3_valid
+@22
+toplevel.yarvi_soc.yarvi.s3_pc[31:0]
+toplevel.yarvi_soc.yarvi.s3_insn[31:0]
+@200
+-
+@28
+toplevel.yarvi_soc.yarvi.s4_valid
+@22
+toplevel.yarvi_soc.yarvi.s4_pc[31:0]
+toplevel.yarvi_soc.yarvi.s4_wb_val[31:0]
+@200
+-
+@28
+toplevel.yarvi_soc.yarvi.s5_valid
+@22
+toplevel.yarvi_soc.yarvi.s5_pc[31:0]
+toplevel.yarvi_soc.yarvi.m3_insn[31:0]
+toplevel.yarvi_soc.yarvi.s5_rd[4:0]
+toplevel.yarvi_soc.yarvi.s5_wb_val[31:0]
+@200
+-
+@28
+toplevel.yarvi_soc.yarvi.same
+@200
+-
+@22
+toplevel.yarvi_soc.yarvi.m2_memory_data[31:0]
+@200
+-
+@28
+toplevel.yarvi_soc.yarvi.m3_load_addr[1:0]
+toplevel.yarvi_soc.yarvi.m3_load_addr_in_mem
+@22
+toplevel.yarvi_soc.yarvi.m3_memory_data[31:0]
+toplevel.yarvi_soc.yarvi.m3_wb_val[31:0]
+@200
+-
+@28
+toplevel.yarvi_soc.yarvi.yarvi_load_align_m.bypass
+@22
+toplevel.yarvi_soc.yarvi.yarvi_load_align_m.bypass_val[31:0]
+toplevel.yarvi_soc.yarvi.yarvi_load_align_m.aligned[31:0]
+toplevel.yarvi_soc.yarvi.m3_wb_val[31:0]
+[pattern_trace] 1
+[pattern_trace] 0
