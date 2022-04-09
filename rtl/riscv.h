@@ -170,7 +170,7 @@
 `define CSR_MIP                 'h 344
 
 // uppercase are writeable: meip 0 SEIP ueip mtip 0 STIP utip msip 0 SSIP usip
-`define CSR_MIP_WMASK           'b 001000100010
+`define CSR_MIP_WMASK           12'b 001000100010
 
 `define CSR_PMPCFG0             'h 3A0
 `define CSR_PMPADDR0            'h 3B0

@@ -13,6 +13,8 @@ USE_MYSTDLIB = 0
 OBJS = dhry_1.o dhry_2.o stdlib.o
 CFLAGS = -MD -O3 -mabi=ilp32 -march=rv32i -DTIME -DRISCV
 TOOLCHAIN_PREFIX = /opt/riscv32i/bin/riscv32-unknown-elf-
+#EXTRA=-DQUIET
+EXTRA=
 
 ifeq ($(USE_MYSTDLIB),1)
 CFLAGS += -DUSE_MYSTDLIB -ffreestanding -nostdlib
@@ -26,7 +28,7 @@ endif
 all: dhry.run
 
 trace: dhry.hex $(SRC) $(HDR) Makefile
-	$(QUIET)iverilog -I$(CORE)/ $(CONFIG) -DTOHOST=10000000 -DDISASSEMBLE -o dhry.tracing $(SRC)
+	$(QUIET)iverilog -I$(CORE)/ $(CONFIG) -DTOHOST=10000000 -DDISASSEMBLE $(EXTRA) -o dhry.tracing $(SRC)
 	./dhry.tracing
 
 %.bin: %

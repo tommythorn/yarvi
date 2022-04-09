@@ -36,12 +36,14 @@ module yarvi_disass( input             clock
    wire           disass_en = 1;
 
    always @(posedge clock) begin
-      $write("%5d %b %d", $time/10, info, prv);
+      $write("%5d", $time/10);
 
       if (valid && we)
-        $write(" %x %x %x", pc, insn, wb_val);
+        $write(" %x %x", pc, wb_val);
       else if (valid && disass_en)
-        $write(" %x %x         ", pc, insn);
+        $write(" %x         ", pc);
+      else
+        $write("                   -"); // XXX Add bubble reason
 
       if (valid && disass_en) begin
          case (insn`opcode)

@@ -4,30 +4,64 @@
 //
 // -----------------------------------------------------------------------
 
+// Urgent TO-DOs:
+//
+//  * Tag every fetched instruction with seqno in program order (which
+//    implies restoring it on restart).  Emit along with PC in traces.
+//    Propagate even on stall/flush.  Idea is to correctly associate
+//    bubbless with causes.
+//
+//  * Load-hit-store: investigate forwarding
+//
+//  * Load-use: investigate forwarding for lw
+//
+//  * Improve timing
+//    - looks like exception handling is slowing us down.
+//      We probably need to insert a stage between EX and CM.
+//    - The CSR update is a bottleneck => split CM into two stages
+//    - The NPC mux could probably be slimmed
+//    - reinvestigate the alternative restart handling
+//    - jalr misses can be made cheaper by precomputing pc-jr.imm
+//      and checking the forwarded rs1 against that.
+//
+//  * Add a YAGS corrector
+//
+//  * Radical: store to RF speculatively and undo on restart!
+
 /*************************************************************************
 
-This is the backend of the YARVI2 pipeline which takes in instructions
-from the frontend (valid, pc, insn), decodes, fetches registers,
-executes (including loads and stores), and write back results to the
-register file.
+This is the YARVI2 pipeline.
 
-We have five stages:
+We have nine stages:
 
- s1   s2   s3      s4      s5
- IF | DE | EX/M1 | CM/M2 | M3/WB
+                          result forwarding
+                        v---+----+----+----+
 
-IF: load instruction
-DE: read registers and decode instruction and forward registers from EX, CM, WB
-M1: calculate the load address
-M2: access arrays
-M3: way selection and data alignment/sign-extension
-CM: restart, or flush
-WB: write rf & /store to memory
+ s0   s1    s2    s3   s4   s5   s6   s7   s8
+ PC | IF1 | IF2 | RF | DE | EX | CM | WB | -
 
-Names prefixed with s2_, s1_, s3_, s4_, ... are the *outputs of the
-corresponding stages*..
+  ^--- stall -----/
+  ^----- pipeline restarts ------/
 
-Currently the pipeline can be restarted (and flushed) only from CM and
+Showing the data loop and the two control loops.  There is a 7 cycle
+mispredict penalty, same for load-hit-store.  Load has a 2 cycle
+latency and can incur up to 2 stall cycles.
+
+PC: PC generation/branch prediction
+IF1: start instruction fetch
+IF2: register fetched instruction
+RF: read registers (and pre-decode)
+DE: decode instruction and forward registers from later stages
+EX: execute ALU instruction, compute branch conditions, load/store address
+CM: Commit to the instruction or restart, start memory load
+WB: write rf, store to memory,
+    load way selection and data alignment/sign-extension
+
+S8 isn't really a stage, but as we read registers in s3 any writes
+happening in s7 wouldn't be visible yet so we'll have to forward from
+s8.
+
+Currently the pipeline can be restarted (and flushed) only from s6 and
 causes the clear of all valid bits.
 
 The pipeline might be invalidated or restarted for several reasons:
@@ -47,6 +81,13 @@ TODO:
 
 `include "yarvi.h"
 `default_nettype none
+
+/*
+typedef enum { NO_BUBL, BUBL_RESET, BUBL_LOAD_USE,
+               BUBL_LOAD_HIT_STORE, BUBL_BR_MISPREDICT,
+               BUBL_JARL_MISPREDICT, BUBL_JAL_MISPREDICT, BUBL_ECALL,
+               BUBL_MRET, BUBL_SYSTEM, BUBL_FENCE_I, BUBL_EXCP } e_bubble;
+*/
 
 module yarvi
   ( input  wire             clock
@@ -115,469 +156,783 @@ module yarvi
    //     if the stage is valid (XXX This might not be necessary nor
    //     desirable, but currently it would be a bug otherwise)
    //
+
+
+   // Branch prediction:
+   //
+   // BTB caches instruction that are CTL (Control Transfer Logic)
+   // which can be
+   // 0. conditional branches ({BEQ,BNE,BLT,BGE,BLTU,BGEU),
+   // 1. calls (JAL with rd in {r1,r5}),
+   // 2. returns (JALR with rs1 in {r1,r5} and rd=r0},
+   // 3. jumps (JAL with rd not in {r1,r5}), or
+   // 4. indirect jumps (JALR otherwise).
+   //
+   // We use embed the bimodal predictor in the BTB and use a clever
+   // encoding to make the critical mux path cheaper:
+   //
+   //       000 branch-strongly-not-taken
+   //       001 branch-weakly-not-taken
+   //       010 branch-weakly-taken
+   //       011 branch-strongly-taken
+   //       10x return
+   //       110 jump
+   //       111 call
+   //
+   //       case (s0_btb_type[2:1] & {2{btb_hit))
+   //       0:    npc = pc_sequential
+   //       1, 3: npc = btb-target;
+   //       2:    npc = ras0;
+   //       endcase
+   //
+   //    That is, the lsb is not relevant for the mux but only for the
+   //    RAS update and branch weight.
+
+`define BTB_TYPE_BR_S_N 0
+`define BTB_TYPE_BR_W_N 1
+`define BTB_TYPE_BR_W_T 2
+`define BTB_TYPE_BR_S_T 3
+`define BTB_TYPE_RETURN 4
+`define BTB_TYPE_JUMP   6
+`define BTB_TYPE_CALL   7
+
+   // The BTB stores the type and part of the target address (except
+   // for 4 which uses the RAS).  The remaining bits are copied from
+   // the PC (we could do better (say use a delta) if timing allows).
+   //
+   // The BTB also stores a partial tag.  For timing, the BTB is
+   // directly mapped.
+   //
+   // Parameters:
+   // - entries in the BTB (thus, the width of the index)
+   // - width of target information
+   // - width of tag
+
+`define BTB_INDEX_MSB   9 // 1,024 entries
+`define BTB_TAG_MSB     4 // 5 bit tag, 5 + 10 = 15, 32 Kinsn coverage
+`define BTB_TARGET_MSB 14 // 2¹⁵ insn = 128 KiB coverage
+   // 1K * (15 + 5 + 2) = 22 Kib
+
+   reg [              2:0] btb_type[(2 << `BTB_INDEX_MSB) - 1:0];
+   reg [`BTB_TAG_MSB   :0] btb_tag[(2 << `BTB_INDEX_MSB) - 1:0];
+   reg [`BTB_TARGET_MSB:0] btb_target[(2 << `BTB_INDEX_MSB) - 1:0];
+   reg [`VMSB          :0] ras0 = 'h110, ras1 = 'h220, ras2 = 'h440;
+
    wire             restart;
    wire [`VMSB:0]   restart_pc;
-   wire             stall;
+   wire             s3_stall;
+
+   reg                     btb_update = 0;
+   reg [`BTB_INDEX_MSB :0] btb_update_idx;
+   reg [              2:0] btb_update_type;
+   reg [`BTB_TAG_MSB   :0] btb_update_tag;
+   reg [`BTB_TARGET_MSB:0] btb_update_target;
+
+   reg  [`VMSB         :0] s0_pc;
+   reg  [`VMSB         :0] s0_npc;
+   wire                    s0_btb_hit = s0_tag == s0_pc[`BTB_TAG_MSB+`BTB_INDEX_MSB+3:`BTB_INDEX_MSB+3];
+   reg [              2:0] s0_btb_type;
+   reg [`BTB_TAG_MSB   :0] s0_tag;
+   reg [`BTB_TARGET_MSB:0] s0_target;
 
 
 
+   // S0 - Branch Predition
+   always @(*) begin
 
-   reg  [`VMSB:0]   s0_pc;
-   reg  [31:0]      s0_insn;
+      // I'm hoping the tools can see that lsb is not used
+      case (s0_btb_type & {3{s0_btb_hit}})
+        `BTB_TYPE_BR_S_N, `BTB_TYPE_BR_W_N:
+          s0_npc = s0_pc + 4;
+        `BTB_TYPE_BR_S_T, `BTB_TYPE_BR_W_T, `BTB_TYPE_JUMP, `BTB_TYPE_CALL:
+            s0_npc = {s0_pc[`XMSB:`BTB_TARGET_MSB+3],s0_target,2'd0};
+        `BTB_TYPE_RETURN:
+          s0_npc = ras0;
+        default:
+          s0_npc = 'hX;
+      endcase
+
+
+      // XXX It should be possible to fold the reset case into the ras0 case
+      // and also stall if using skid buffers
+      if (s3_stall)
+        s0_npc = s0_pc;
+
+      if (restart)
+        s0_npc = restart_pc;
+   end
+
+   reg s0_restart = 1;
    always @(posedge clock) begin
-      last_s0_valid <= !restart;
-      s0_pc         <= restart ? restart_pc :
-                       stall ? s0_pc :
-                       s0_pc + 4;
-      s0_insn       <= code[restart ? restart_pc[`PMSB:2] :
-                            stall ? s0_pc[`PMSB:2] :
-                            s0_pc[`PMSB:2] + 1];
+      s0_restart    <= restart;
+      s0_pc         <= s0_npc;
+      s0_tag        <= btb_tag[s0_npc[`BTB_INDEX_MSB+2:2]];
+      s0_target     <= btb_target[s0_npc[`BTB_INDEX_MSB+2:2]];
+      s0_btb_type   <= btb_type[s0_npc[`BTB_INDEX_MSB+2:2]];
+
+      if (restart) begin
+         ras0 <= rras0;
+         ras1 <= rras1;
+         ras2 <= rras2;
+`ifndef QUIET
+         $display("           RAS now: %x %x %x", rras0, rras1, rras2);
+`endif
+      end
+
+      if (!s3_stall & !restart & s0_btb_hit)
+         case (s0_btb_type)
+           `BTB_TYPE_CALL: begin
+`ifndef QUIET
+              $display("PREDICT: %x (%d) CALL to %x (RAS: %x %x %x)", s0_pc, s0_pc[`BTB_INDEX_MSB+2:2], s0_npc,
+                       s0_pc + 4, ras0, ras1);
+`endif
+              // Old ras2 lost
+              ras2 <= ras1;
+              ras1 <= ras0;
+              ras0 <= s0_pc + 4;
+           end
+           `BTB_TYPE_RETURN: begin
+`ifndef QUIET
+              $display("PREDICT: %x (%d) RETURN to %x (RAS: %x %x)", s0_pc, s0_pc[`BTB_INDEX_MSB+2:2], s0_npc, ras1, ras2);
+`endif
+              ras0 <= ras1;
+              ras1 <= ras2;
+              // keep ras2
+              ras2 <= 0; // XXX just to make debugging easier
+           end
+           `BTB_TYPE_JUMP: begin
+`ifndef QUIET
+              $display("PREDICT: %x (%d) JUMP to %x", s0_pc, s0_pc[`BTB_INDEX_MSB+2:2], s0_npc);
+`endif
+           end
+           `BTB_TYPE_BR_S_T, `BTB_TYPE_BR_W_T: begin
+`ifndef QUIET
+              $display("PREDICT: %x (%d) %s TAKEN BRANCH to %x", s0_pc, s0_pc[`BTB_INDEX_MSB+2:2],
+                       s0_btb_type == `BTB_TYPE_BR_S_T ? "STRONGLY" : "WEAKLY", s0_npc);
+`endif
+           end
+         endcase
+
+      if (!reset & !s3_stall & btb_update) begin
+         btb_type[btb_update_idx] <= btb_update_type;
+         btb_tag[btb_update_idx] <= btb_update_tag;
+         btb_target[btb_update_idx] <= btb_update_target;
+
+`ifndef QUIET
+         if (btb_update_type == `BTB_TYPE_RETURN)
+           $display("UPDATE_: %x (%d) RETURN",
+                    {s7_pc[`XMSB:`BTB_TAG_MSB+`BTB_INDEX_MSB+4],btb_update_tag,btb_update_idx,2'd0},
+                    btb_update_idx);
+         else
+           $display("UPDATE_: %x (%d) %-s to %x",
+                    {s7_pc[`XMSB:`BTB_TAG_MSB+`BTB_INDEX_MSB+4],btb_update_tag,btb_update_idx,2'd0},
+                    btb_update_idx,
+                    btb_update_type == `BTB_TYPE_CALL ? "CALL" :
+                    btb_update_type == `BTB_TYPE_JUMP ? "JUMP" :
+                    btb_update_type == `BTB_TYPE_BR_S_T ? "BR-strong-taken" :
+                    btb_update_type == `BTB_TYPE_BR_S_N ? "BR-strong-nontaken" :
+                    btb_update_type == `BTB_TYPE_BR_W_T ? "BR-weak-taken" :
+                    btb_update_type == `BTB_TYPE_BR_W_N ? "BR-weak-nontaken" : "???",
+                    {s7_pc[`XMSB:`BTB_TARGET_MSB+3],btb_update_target,2'd0});
+`endif
+      end
    end
 
 
 
-
-   reg              last_s0_valid = 0;
-   wire             s05_valid = last_s0_valid & !restart;
-   reg  [`VMSB:0]   s05_pc;
-   reg  [31:0]      s05_insn;
-   always @(posedge clock) if (!stall | restart) begin
-      last_s05_valid <= s05_valid;
-      s05_pc         <= s0_pc;
-      s05_insn       <= s0_insn;
+   // S1 - Start instruction fetch
+   wire                    s1_valid = !s0_restart & !restart;
+   reg [`VMSB          :0] s1_pc;
+   reg [`VMSB          :0] s1_npc;
+   reg [31             :0] s1_insn;
+   reg [              2:0] s1_btb_type;
+   reg                     s1_btb_hit;
+   always @(posedge clock) if (!s3_stall | restart) begin
+      s1_pc         <= s0_pc;
+      s1_npc        <= s0_npc;
+      s1_insn       <= code[s0_pc[`PMSB:2]];
+      s1_btb_type   <= s0_btb_type;
+      s1_btb_hit    <= s0_btb_hit;
    end
 
 
 
-
-   reg  [`XMSB:0]   s1_pc;
-   reg  [   31:0]   s1_insn;
-   always @(posedge clock)
-     last_s1_valid <= s1_valid;
-   always @(posedge clock) if (!stall | restart) begin
-      s1_pc         <= s05_pc;
-      s1_insn       <= s05_insn;
+   // S2 - Register fetched instruction
+   reg                     s2_valid_r = 0;
+   wire                    s2_valid = s2_valid_r & !restart;
+   reg [`VMSB          :0] s2_pc;
+   reg [`VMSB          :0] s2_npc;
+   reg [31             :0] s2_insn;
+   reg [              2:0] s2_btb_type;
+   reg                     s2_btb_hit;
+   always @(posedge clock) if (!s3_stall | restart) begin
+      s2_valid_r    <= s1_valid;
+      s2_pc         <= s1_pc;
+      s2_npc        <= s1_npc;
+      s2_insn       <= s1_insn;
+      s2_btb_type   <= s1_btb_type;
+      s2_btb_hit    <= s1_btb_hit;
    end
 
-   wire [`XMSB-12:0] s1_sext12    = {(`XMSB-11){s1_insn[31]}};
-   wire [`XMSB   :0] s1_i_imm     = {s1_sext12, s1_insn`funct7, s1_insn`rs2};
-   wire [`XMSB   :0] s1_s_imm     = {s1_sext12, s1_insn`funct7, s1_insn`rd};
 
-   reg              last_s05_valid = 0;
-   wire             s1_valid = last_s05_valid & !restart;
-   wire             s1_use_rs1, s1_use_rs2;
-   wire [    4:0]   s1_rd;
+
+   // S3 - RF, stall if needed, read registers
+   reg                     s3_valid_r = 0;
+   wire                    s3_valid = s3_valid_r & !restart;
+   reg [`XMSB          :0] s3_pc;
+   reg [`XMSB          :0] s3_npc;
+   reg [   31:          0] s3_insn;
+   reg [              2:0] s3_btb_type;
+   reg                     s3_btb_hit;
+   always @(posedge clock) begin
+      s3_valid_r     <= s2_valid;
+   end
+   always @(posedge clock) if (!s3_stall | restart) begin
+      s3_pc          <= s2_pc;
+      s3_npc         <= s2_npc;
+      s3_insn        <= s2_insn;
+      s3_btb_type    <= s2_btb_type;
+      s3_btb_hit     <= s2_btb_hit;
+   end
+
+   wire [`XMSB-12:0] s3_sext12 = {(`XMSB-11){s3_insn[31]}};
+   wire [`XMSB-20:0] s3_sext20 = {(`XMSB-19){s3_insn[31]}};
+   wire [`XMSB   :0] s3_i_imm  = {s3_sext12, s3_insn`funct7, s3_insn`rs2};
+   wire [`XMSB   :0] s3_sb_imm = {s3_sext12, s3_insn[7], s3_insn[30:25], s3_insn[11:8], 1'd0};
+   wire [`XMSB   :0] s3_s_imm  = {s3_sext12, s3_insn`funct7, s3_insn`rd};
+   wire [`XMSB   :0] s3_uj_imm = {s3_sext20, s3_insn[19:12], s3_insn[20], s3_insn[30:21], 1'd0};
+
+
+
+   wire             s3_use_rs1, s3_use_rs2;
+   wire [    4:0]   s3_rd;
 
    /* NB: r0 is not considered used */
-   yarvi_dec_reg_usage yarvi_dec_reg_usage_inst0(s1_valid, s1_insn,
-                                                 s1_use_rs1, s1_use_rs2, s1_rd);
+   yarvi_dec_reg_usage yarvi_dec_reg_usage_inst0(s3_valid, s3_insn,
+                                                 s3_use_rs1, s3_use_rs2, s3_rd);
 
-   wire [    4:0]   s1_opcode = s1_insn`opcode;
-   reg              s1_op2_imm_use;
-   reg  [`XMSB:0]   s1_op2_imm;
+   wire [    4:0]   s3_opcode = s3_insn`opcode;
+   reg              s3_op2_imm_use;
+   reg  [`XMSB:0]   s3_op2_imm;
    always @(*)
-     {s1_op2_imm_use, s1_op2_imm}
-                 = s1_insn`opcode == `AUIPC ||
-                   s1_insn`opcode == `LUI    ? {1'd1, s1_insn[31:12], 12'd 0} :
-                   s1_insn`opcode == `JALR  ||
-                   s1_insn`opcode == `JAL    ? {1'd1, 32'd 4}              :
-                   s1_insn`opcode == `SYSTEM ? {1'd1, 32'd 0}              :
-                   s1_insn`opcode == `OP_IMM ||
-                   s1_insn`opcode == `OP_IMM_32 ||
-                   s1_insn`opcode == `LOAD   ? {1'd1, s1_i_imm}            :
-                   s1_insn`opcode == `STORE  ? {1'd1, s1_s_imm}            :
+     {s3_op2_imm_use, s3_op2_imm}
+                 = s3_insn`opcode == `AUIPC ||
+                   s3_insn`opcode == `LUI    ? {1'd1, s3_insn[31:12], 12'd 0} :
+                   s3_insn`opcode == `JALR  ||
+                   s3_insn`opcode == `JAL    ? {1'd1, 32'd 4}              :
+                   s3_insn`opcode == `SYSTEM ? {1'd1, 32'd 0}              :
+                   s3_insn`opcode == `OP_IMM ||
+                   s3_insn`opcode == `OP_IMM_32 ||
+                   s3_insn`opcode == `LOAD   ? {1'd1, s3_i_imm}            :
+                   s3_insn`opcode == `STORE  ? {1'd1, s3_s_imm}            :
                                        0;
+   assign s3_stall
+     = s3_use_rs1 && s3_insn`rs1 == s4_rd && s4_insn`opcode == `LOAD ||
+       s3_use_rs2 && s3_insn`rs2 == s4_rd && s4_insn`opcode == `LOAD ||
+       s3_use_rs1 && s3_insn`rs1 == s5_rd && s5_insn`opcode == `LOAD ||
+       s3_use_rs2 && s3_insn`rs2 == s5_rd && s5_insn`opcode == `LOAD;
 
 
-assign stall =
- s1_use_rs1 && s1_insn`rs1 == s2_rd && s2_insn`opcode == `LOAD ||
- s1_use_rs2 && s1_insn`rs2 == s2_rd && s2_insn`opcode == `LOAD ||
- s1_use_rs1 && s1_insn`rs1 == s3_rd && s3_insn`opcode == `LOAD ||
- s1_use_rs2 && s1_insn`rs2 == s3_rd && s3_insn`opcode == `LOAD;
 
-   reg              stall_p = 0;
-   always @(posedge clock) stall_p <= stall;
+   // S4 - Decode and forward operands
+   reg                     s4_valid_r = 0;
+   wire                    s4_valid = s4_valid_r & !restart & !s4_stall;
+   reg                     s4_stall = 0;
+   reg [`XMSB          :0] s4_pc;
+   reg [`XMSB          :0] s4_npc;
+   reg [   31          :0] s4_insn;
+   reg [    4          :0] s4_rd;
+   reg [`XMSB          :0] s4_rs1_rf;
+   reg [`XMSB          :0] s4_rs2_rf;
+   reg [`XMSB          :0] s4_op2_imm;
+   reg [              2:0] s4_btb_type;
+   reg                     s4_btb_hit;
 
-   reg              last_s1_valid = 0;
-   wire             s2_valid = last_s1_valid & !restart & !stall_p;
-   reg  [`XMSB:0]   s2_pc;
-   reg  [   31:0]   s2_insn;
-   reg  [    4:0]   s2_rd;
-   reg  [`XMSB  :0] s2_rs1_rf;
-   reg  [`XMSB  :0] s2_rs2_rf;
-   reg  [`XMSB:0]   s2_op2_imm;
-
-   always @(posedge clock)
-     last_s2_valid  <= s2_valid;
-
+   // Possible targets for normal execution:
+   // - statically determined (+4 or jump target)
+   // - semi-static (conditional branch)
+   // - dynamic (indirect)
+   reg  [`XMSB:0] s4_insn_target;
+   reg  [`XMSB:0] s4_br_target;
    always @(posedge clock) begin
-      s2_pc          <= s1_pc;
-      s2_insn        <= s1_insn;
-      s2_rd          <= stall ? 0 : s1_rd;
-      s2_rs1_rf      <= regs[s1_insn`rs1];
-      s2_rs2_rf      <= regs[s1_insn`rs2];
-      s2_op2_imm     <= s1_op2_imm;
+      s4_valid_r     <= s3_valid;
+      s4_stall       <= s3_stall;
+      s4_pc          <= s3_pc;
+      s4_npc         <= s3_npc;
+      s4_insn        <= s3_insn;
+      s4_rd          <= s3_stall ? 0 : s3_rd;
+      s4_rs1_rf      <= regs[s3_insn`rs1];
+      s4_rs2_rf      <= regs[s3_insn`rs2];
+      s4_op2_imm     <= s3_op2_imm;
+      s4_btb_type    <= s3_btb_type;
+      s4_btb_hit     <= s3_btb_hit;
+
+      s4_br_target   <= s3_pc + s3_sb_imm;
+      s4_insn_target <= s3_pc + 4;
+      case (s3_insn`opcode)
+        `JAL: s4_insn_target <= s3_pc + s3_uj_imm;
+      endcase
    end
 
-   wire [`XMSB-12:0] s2_sext12 = {(`XMSB-11){s2_insn[31]}};
-   wire [`XMSB-20:0] s2_sext20 = {(`XMSB-19){s2_insn[31]}};
-   wire [`XMSB   :0] s2_i_imm  = {s2_sext12, s2_insn`funct7, s2_insn`rs2};
-   wire [`XMSB   :0] s2_sb_imm = {s2_sext12, s2_insn[7], s2_insn[30:25], s2_insn[11:8], 1'd0};
-   wire [`XMSB   :0] s2_s_imm  = {s2_sext12, s2_insn`funct7, s2_insn`rd};
-   wire [`XMSB   :0] s2_uj_imm = {s2_sext20, s2_insn[19:12], s2_insn[20], s2_insn[30:21], 1'd0};
-   wire [       4:0] s2_opcode = s2_insn`opcode;
-   reg  [`XMSB   :0] s2_csr_val;
+   wire [`XMSB-12:0] s4_sext12 = {(`XMSB-11){s4_insn[31]}};
+   wire [`XMSB   :0] s4_i_imm  = {s4_sext12, s4_insn`funct7, s4_insn`rs2};
+   wire [`XMSB   :0] s4_s_imm  = {s4_sext12, s4_insn`funct7, s4_insn`rd};
+   wire [       4:0] s4_opcode = s4_insn`opcode;
+   reg  [`XMSB   :0] s4_csr_val;
    always @(posedge clock)
-     case (s1_insn`imm11_0)
+     case (s3_insn`imm11_0)
        // Standard User R/W
-       `CSR_FFLAGS:       s2_csr_val <= {27'd0, csr_fflags};
-       `CSR_FRM:          s2_csr_val <= {29'd0, csr_frm};
-       `CSR_FCSR:         s2_csr_val <= {24'd0, csr_frm, csr_fflags};
+       `CSR_FFLAGS:       s4_csr_val <= {27'd0, csr_fflags};
+       `CSR_FRM:          s4_csr_val <= {29'd0, csr_frm};
+       `CSR_FCSR:         s4_csr_val <= {24'd0, csr_frm, csr_fflags};
 
-       `CSR_MSTATUS:      s2_csr_val <= csr_mstatus;
-       `CSR_MISA:         s2_csr_val <= (32'd 2 << 30) | (32'd 1 << ("I"-"A"));
-       `CSR_MIE:          s2_csr_val <= csr_mie;
-       `CSR_MTVEC:        s2_csr_val <= csr_mtvec;
+       `CSR_MSTATUS:      s4_csr_val <= csr_mstatus;
+       `CSR_MISA:         s4_csr_val <= (32'd 2 << 30) | (32'd 1 << ("I"-"A"));
+       `CSR_MIE:          s4_csr_val <= {{(`XMSB-11){1'd0}}, csr_mie};
+       `CSR_MTVEC:        s4_csr_val <= csr_mtvec;
 
-       `CSR_MSCRATCH:     s2_csr_val <= csr_mscratch;
-       `CSR_MEPC:         s2_csr_val <= csr_mepc;
-       `CSR_MCAUSE:       s2_csr_val <= csr_mcause;
-       `CSR_MTVAL:        s2_csr_val <= csr_mtval;
-       `CSR_MIP:          s2_csr_val <= csr_mip;
-       `CSR_MIDELEG:      s2_csr_val <= csr_mideleg;
-       `CSR_MEDELEG:      s2_csr_val <= csr_medeleg;
+       `CSR_MSCRATCH:     s4_csr_val <= csr_mscratch;
+       `CSR_MEPC:         s4_csr_val <= csr_mepc;
+       `CSR_MCAUSE:       s4_csr_val <= csr_mcause;
+       `CSR_MTVAL:        s4_csr_val <= csr_mtval;
+       `CSR_MIP:          s4_csr_val <= {{(`XMSB-11){1'd0}}, csr_mip};
+       `CSR_MIDELEG:      s4_csr_val <= {{(`XMSB-11){1'd0}}, csr_mideleg};
+       `CSR_MEDELEG:      s4_csr_val <= {{(`XMSB-11){1'd0}}, csr_medeleg};
 
-       `CSR_MCYCLE:       s2_csr_val <= csr_mcycle;
-       `CSR_MINSTRET:     s2_csr_val <= csr_minstret;
+       `CSR_MCYCLE:       s4_csr_val <= csr_mcycle;
+       `CSR_MINSTRET:     s4_csr_val <= csr_minstret;
 
-       `CSR_PMPCFG0:      s2_csr_val <= 0;
-       `CSR_PMPADDR0:     s2_csr_val <= 0;
+       `CSR_PMPCFG0:      s4_csr_val <= 0;
+       `CSR_PMPADDR0:     s4_csr_val <= 0;
 
        // Standard Machine RO
-       `CSR_MVENDORID:    s2_csr_val <= `VENDORID_YARVI;
-       `CSR_MARCHID:      s2_csr_val <= 0;
-       `CSR_MIMPID:       s2_csr_val <= 0;
-       `CSR_MHARTID:      s2_csr_val <= 0;
+       `CSR_MVENDORID:    s4_csr_val <= `VENDORID_YARVI;
+       `CSR_MARCHID:      s4_csr_val <= 0;
+       `CSR_MIMPID:       s4_csr_val <= 0;
+       `CSR_MHARTID:      s4_csr_val <= 0;
 
-       `CSR_SEPC:         s2_csr_val <= csr_sepc;
-       `CSR_SCAUSE:       s2_csr_val <= csr_scause;
-       `CSR_STVAL:        s2_csr_val <= csr_stval;
-       `CSR_STVEC:        s2_csr_val <= csr_stvec;
+       `CSR_SEPC:         s4_csr_val <= csr_sepc;
+       `CSR_SCAUSE:       s4_csr_val <= csr_scause;
+       `CSR_STVAL:        s4_csr_val <= csr_stval;
+       `CSR_STVEC:        s4_csr_val <= csr_stvec;
 
-       `CSR_CYCLE:        s2_csr_val <= csr_mcycle;
-       `CSR_INSTRET:      s2_csr_val <= csr_minstret;
+       `CSR_CYCLE:        s4_csr_val <= csr_mcycle;
+       `CSR_INSTRET:      s4_csr_val <= csr_minstret;
 
-        default:          s2_csr_val <= 0;
+        default:          s4_csr_val <= 0;
      endcase
 
+   reg [2:0]     s4_alu_op1_src;
+   reg [2:0]     s4_alu_op2_src;
+
+   always @(posedge clock)
+     s4_alu_op1_src
+       <= s3_opcode == `LUI   ||
+          s3_opcode == `AUIPC ||
+          s3_opcode == `JALR  ||
+          s3_opcode == `JAL    ? 0 :
+          s3_opcode == `SYSTEM ? 7 :
+          !s3_use_rs1          ? 1 :
+          s3_insn`rs1 == s4_rd ? 2 :
+          s3_insn`rs1 == s5_rd ? 3 :
+          s3_insn`rs1 == s6_rd ? 4 :
+          s3_insn`rs1 == s7_rd ? 5 :
+          /*                  */ 1;
+
+   reg [`XMSB:0] s4_alu_op1_imm;
+   always @(posedge clock)
+     s4_alu_op1_imm
+       <= s3_opcode == `LUI    ? 0 :
+          s3_opcode == `AUIPC ||
+          s3_opcode == `JALR  ||
+          s3_opcode == `JAL    ? s3_pc : 'hX;
 
 
-   /* ALU, produces s3_wb_val */
 
+   // S5 - Execute all ALU
+   reg              s5_valid_r = 0;
+   wire             s5_valid = s5_valid_r & !restart;
+   reg  [`XMSB:0]   s5_pc;
+   reg  [`XMSB:0]   s5_npc;
+   reg  [   31:0]   s5_insn;
+   reg  [    4:0]   s5_rd;
+   wire [`XMSB:0]   s5_wb_val;
+   wire [    4:0]   s5_opcode = s5_insn`opcode;
+   reg  [`XMSB:0]   s5_s_imm;
+   reg  [`XMSB:0]   s5_i_imm;
+   reg  [`XMSB:0]   s5_rs1;
+   reg  [`XMSB:0]   s5_rs2;
+   reg  [`XMSB:0]   s5_csr_val;
+   reg  [`XMSB:0]   s5_insn_target = 0;
+   reg  [`XMSB:0]   s5_pc_insn_miss = 0;
+   reg  [`XMSB:0]   s5_br_target;
+   reg  [`XMSB:0]   s5_br_target_miss;
+   reg  [`XMSB:0]   s5_jalr_target;
+   reg  [`XMSB:0]   s5_jalr_target_miss;
+   reg  [`XMSB:0]   s5_alu_op1, s5_alu_op2;
+   reg [              2:0] s5_btb_type;
+   reg              s5_btb_hit;
 
-   reg              last_s2_valid = 0;
-   wire             s3_valid = last_s2_valid & !restart;
-   reg  [`XMSB:0]   s3_pc;
-   reg  [   31:0]   s3_insn;
-   reg  [    4:0]   s3_rd;
-   wire [`XMSB:0]   s3_wb_val;
-   wire [    4:0]   s3_opcode = s3_insn`opcode;
-   reg  [`XMSB:0]   s3_sb_imm;
-   reg  [`XMSB:0]   s3_s_imm;
-   reg  [`XMSB:0]   s3_i_imm;
-   reg  [`XMSB:0]   s3_uj_imm;
-   reg  [`XMSB:0]   s3_rs1;
-   reg  [`XMSB:0]   s3_rs2;
-   reg  [`XMSB:0]   s3_csr_val;
 
    always @(posedge clock) begin
-      last_s3_valid    <= s3_valid;
+      s5_valid_r          <= s4_valid;
+      s5_insn_target      <= s4_insn_target;
+      s5_pc_insn_miss     <= s4_insn_target != s4_npc;
+      s5_br_target        <= s4_br_target;
+      s5_br_target_miss   <= s4_br_target != s4_npc;
+      s5_btb_type         <= s4_btb_type;
+      s5_btb_hit          <= s4_btb_hit;
    end
 
-   reg s3_alu_sub = 0;
+   reg s5_alu_sub = 0;
    always @(posedge clock)
-     s3_alu_sub <= (s2_opcode == `OP     && s2_insn`funct3 == `ADDSUB && s2_insn[30] ||
-                    s2_opcode == `OP     && s2_insn`funct3 == `SLT                   ||
-                    s2_opcode == `OP     && s2_insn`funct3 == `SLTU                  ||
-                    s2_opcode == `OP_IMM && s2_insn`funct3 == `SLT                   ||
-                    s2_opcode == `OP_IMM && s2_insn`funct3 == `SLTU                  ||
-                    s2_opcode == `BRANCH);
+     s5_alu_sub <= (s4_opcode == `OP     && s4_insn`funct3 == `ADDSUB && s4_insn[30] ||
+                    s4_opcode == `OP     && s4_insn`funct3 == `SLT                   ||
+                    s4_opcode == `OP     && s4_insn`funct3 == `SLTU                  ||
+                    s4_opcode == `OP_IMM && s4_insn`funct3 == `SLT                   ||
+                    s4_opcode == `OP_IMM && s4_insn`funct3 == `SLTU                  ||
+                    s4_opcode == `BRANCH);
 
-   reg s3_alu_ashr = 0;
+   reg s5_alu_ashr = 0;
    always @(posedge clock)
-     s3_alu_ashr <= s2_insn[30];
+     s5_alu_ashr <= s4_insn[30];
 
-   reg [2:0] s3_alu_funct3 = 0;
+   reg [2:0] s5_alu_funct3 = 0;
    always @(posedge clock)
-     s3_alu_funct3 <= (s2_opcode == `OP        ||
-                       s2_opcode == `OP_IMM    ||
-                       s2_opcode == `OP_IMM_32 ? s2_insn`funct3 : `ADDSUB);
-
-   reg [`XMSB:0] s3_alu_op1, s3_alu_op2;
-
-   reg [2:0]     s2_alu_op1_src;
-   reg [2:0]     s2_alu_op2_src;
+     s5_alu_funct3 <= (s4_opcode == `OP        ||
+                       s4_opcode == `OP_IMM    ||
+                       s4_opcode == `OP_IMM_32 ? s4_insn`funct3 : `ADDSUB);
 
    always @(posedge clock)
-     s2_alu_op1_src
-       <= s1_opcode == `LUI   ||
-          s1_opcode == `AUIPC ||
-          s1_opcode == `JALR  ||
-          s1_opcode == `JAL    ? 0 :
-          s1_opcode == `SYSTEM ? 7 :
-          !s1_use_rs1          ? 1 :
-          s1_insn`rs1 == s2_rd ? 2 :
-          s1_insn`rs1 == s3_rd ? 3 :
-          s1_insn`rs1 == s4_rd ? 4 :
-          s1_insn`rs1 == s5_rd ? 5 :
-          /*                  */ 1;
-
-   reg [`XMSB:0] s2_alu_op1_imm;
-   always @(posedge clock)
-     s2_alu_op1_imm
-       <= s1_opcode == `LUI    ? 0 :
-          s1_opcode == `AUIPC ||
-          s1_opcode == `JALR  ||
-          s1_opcode == `JAL    ? s1_pc : 'hX;
-
-   always @(posedge clock)
-     case (s2_alu_op1_src)
-       0: s3_alu_op1 <= s2_alu_op1_imm;
-       1: s3_alu_op1 <= s2_rs1_rf;
-       2: s3_alu_op1 <= s3_wb_val;
-       3: s3_alu_op1 <= s4_wb_val;
-       4: s3_alu_op1 <= m3_wb_val;
-       5: s3_alu_op1 <= s6_wb_val;
-       7: s3_alu_op1 <= s2_csr_val;
-       default: s3_alu_op1 <= 'hX;
+     case (s4_alu_op1_src)
+       0: s5_alu_op1 <= s4_alu_op1_imm;
+       1: s5_alu_op1 <= s4_rs1_rf;
+       2: s5_alu_op1 <= s5_wb_val;
+       3: s5_alu_op1 <= s6_wb_val;
+       4: s5_alu_op1 <= m3_wb_val;
+       5: s5_alu_op1 <= s8_wb_val;
+       7: s5_alu_op1 <= s4_csr_val;
+       default: s5_alu_op1 <= 'hX;
      endcase
 
    always @(posedge clock)
-     s2_alu_op2_src
-       <= s1_op2_imm_use       ? 0 :
-          !s1_use_rs2          ? 1 :
-          s1_insn`rs2 == s2_rd ? 2 :
-          s1_insn`rs2 == s3_rd ? 3 :
-          s1_insn`rs2 == s4_rd ? 4 :
-          s1_insn`rs2 == s5_rd ? 5 :
+     s4_alu_op2_src
+       <= s3_op2_imm_use       ? 0 :
+          !s3_use_rs2          ? 1 :
+          s3_insn`rs2 == s4_rd ? 2 :
+          s3_insn`rs2 == s5_rd ? 3 :
+          s3_insn`rs2 == s6_rd ? 4 :
+          s3_insn`rs2 == s7_rd ? 5 :
           /*                  */ 1;
 
    always @(posedge clock)
-     case (s2_alu_op2_src)
-       0: s3_alu_op2 <= s2_op2_imm;
-       1: s3_alu_op2 <= s2_rs2_rf;
-       2: s3_alu_op2 <= s3_wb_val;
-       3: s3_alu_op2 <= s4_wb_val;
-       4: s3_alu_op2 <= m3_wb_val;
-       5: s3_alu_op2 <= s6_wb_val;
-       default: s3_alu_op2 <= 'hX;
+     case (s4_alu_op2_src)
+       0: s5_alu_op2 <= s4_op2_imm;
+       1: s5_alu_op2 <= s4_rs2_rf;
+       2: s5_alu_op2 <= s5_wb_val;
+       3: s5_alu_op2 <= s6_wb_val;
+       4: s5_alu_op2 <= m3_wb_val;
+       5: s5_alu_op2 <= s8_wb_val;
+       default: s5_alu_op2 <= 'hX;
      endcase
 
-   reg [2:0]     s2_rs1_src;
-   reg [2:0]     s2_rs2_src;
+   reg [2:0]     s4_rs1_src;
+   reg [2:0]     s4_rs2_src;
 
    always @(posedge clock)
-     s2_rs1_src
-       <= !s1_use_rs1          ? 1 :
-          s1_insn`rs1 == s2_rd ? 2 :
-          s1_insn`rs1 == s3_rd ? 3 :
-          s1_insn`rs1 == s4_rd ? 4 :
-          s1_insn`rs1 == s5_rd ? 5 :
+     s4_rs1_src
+       <= !s3_use_rs1          ? 1 :
+          s3_insn`rs1 == s4_rd ? 2 :
+          s3_insn`rs1 == s5_rd ? 3 :
+          s3_insn`rs1 == s6_rd ? 4 :
+          s3_insn`rs1 == s7_rd ? 5 :
           /*                  */ 1;
 
    always @(posedge clock)
-     case (s2_rs1_src)
-       1: s3_rs1 <= s2_rs1_rf;
-       2: s3_rs1 <= s3_wb_val;
-       3: s3_rs1 <= s4_wb_val;
-       4: s3_rs1 <= m3_wb_val;
-       5: s3_rs1 <= s6_wb_val;
-       default: s3_rs1 <= 'hX;
+     case (s4_rs1_src)
+       1: s5_rs1 <= s4_rs1_rf;
+       2: s5_rs1 <= s5_wb_val;
+       3: s5_rs1 <= s6_wb_val;
+       4: s5_rs1 <= m3_wb_val;
+       5: s5_rs1 <= s8_wb_val;
+       default: s5_rs1 <= 'hX;
      endcase
 
    always @(posedge clock)
-     s2_rs2_src
-       <= !s1_use_rs2          ? 1 :
-          s1_insn`rs2 == s2_rd ? 2 :
-          s1_insn`rs2 == s3_rd ? 3 :
-          s1_insn`rs2 == s4_rd ? 4 :
-          s1_insn`rs2 == s5_rd ? 5 :
+     s4_rs2_src
+       <= !s3_use_rs2          ? 1 :
+          s3_insn`rs2 == s4_rd ? 2 :
+          s3_insn`rs2 == s5_rd ? 3 :
+          s3_insn`rs2 == s6_rd ? 4 :
+          s3_insn`rs2 == s7_rd ? 5 :
           /*                  */ 1;
 
    always @(posedge clock)
-     case (s2_rs2_src)
-       1: s3_rs2 <= s2_rs2_rf;
-       2: s3_rs2 <= s3_wb_val;
-       3: s3_rs2 <= s4_wb_val;
-       4: s3_rs2 <= m3_wb_val;
-       5: s3_rs2 <= s6_wb_val;
-       default: s3_rs2 <= 'hX;
+     case (s4_rs2_src)
+       1: s5_rs2 <= s4_rs2_rf;
+       2: s5_rs2 <= s5_wb_val;
+       3: s5_rs2 <= s6_wb_val;
+       4: s5_rs2 <= m3_wb_val;
+       5: s5_rs2 <= s8_wb_val;
+       default: s5_rs2 <= 'hX;
      endcase
 
-   wire s3_alu_res_eq, s3_alu_res_lt, s3_alu_res_ltu;
-   alu #(`XMSB+1) alu(s3_alu_sub, s3_alu_ashr, s3_alu_funct3, 1'd0,
-                      s3_alu_op1, s3_alu_op2,
-                      s3_wb_val, s3_alu_res_eq, s3_alu_res_lt, s3_alu_res_ltu);
+   wire s5_alu_res_eq, s5_alu_res_lt, s5_alu_res_ltu;
+   alu #(`XMSB+1) alu(s5_alu_sub, s5_alu_ashr, s5_alu_funct3, 1'd0,
+                      s5_alu_op1, s5_alu_op2,
+                      s5_wb_val, s5_alu_res_eq, s5_alu_res_lt, s5_alu_res_ltu);
 
-   wire s3_cmp_lt = s3_insn`br_unsigned ? s3_alu_res_ltu : s3_alu_res_lt;
-   wire s3_branch_taken = (s3_insn`br_rela ? s3_cmp_lt : s3_alu_res_eq) ^ s3_insn`br_negate;
+   wire s5_cmp_lt = s5_insn`br_unsigned ? s5_alu_res_ltu : s5_alu_res_lt;
+   wire s5_branch_taken = (s5_insn`br_rela ? s5_cmp_lt : s5_alu_res_eq) ^ s5_insn`br_negate;
 
    always @(posedge clock) begin
-      s3_pc <= s2_pc;
-      s3_insn <= s2_insn;
-      s3_rd <= s2_valid ? s2_rd : 0;
-      s3_sb_imm <= s2_sb_imm;
-      s3_s_imm  <= s2_s_imm;
-      s3_i_imm  <= s2_i_imm;
-      s3_uj_imm <= s2_uj_imm;
-      s3_csr_val<= s2_csr_val;
+      s5_pc <= s4_pc;
+      s5_npc <= s4_npc;
+      s5_insn <= s4_insn;
+      s5_rd <= s4_valid ? s4_rd : 0;
+      s5_s_imm  <= s4_s_imm;
+      s5_i_imm  <= s4_i_imm;
+      s5_csr_val<= s4_csr_val;
+   end
+
+   always @(*) begin
+      s5_jalr_target      = (s5_rs1 + s5_i_imm) & ~32'd1;
+      s5_jalr_target_miss = ((s5_rs1 + s5_i_imm) & ~32'd1) != s5_npc;
    end
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-   /* Commit stage */
-
+   // S6 - Commit or restart, calculate where restart from if needed
    reg [   11:0] csr_mip_and_mie = 0;
    always @(posedge clock) csr_mip_and_mie <= csr_mip & csr_mie;
 
-   reg              last_s3_valid = 0;
-   reg              s4_flush = 0;
-   wire             s4_valid = last_s3_valid;
-   reg  [`XMSB:0]   s4_pc;
-   reg  [   31:0]   s4_insn;
-   reg  [    1:0]   s4_priv;
+   reg              s6_valid_r = 0;
+   reg              s6_flush = 0;
+   wire             s6_valid = s6_valid_r;
+   reg  [`XMSB:0]   s6_pc;
+   reg  [   31:0]   s6_insn;
+   reg  [    1:0]   s6_priv;
 
-   reg              s4_restart = 1;
-   reg  [`XMSB:0]   s4_restart_pc;
+   reg              s6_restart = 1;
+   reg  [`XMSB:0]   s6_restart_pc;
 
-   reg  [    4:0]   s4_rd = 0;  // != 0 => WE. !valid => 0
-   reg  [`XMSB:0]   s4_wb_val;
-   reg  [`XMSB:0]   s4_rs1, s4_rs2;
+   reg  [    4:0]   s6_rd = 0;  // != 0 => WE. !valid => 0
+   reg  [`XMSB:0]   s6_wb_val;
+   reg  [`XMSB:0]   s6_rs1, s6_rs2;
 
    /* Updates to CSR state */
-   reg  [`XMSB:0]   s4_csr_mcause;
-   reg  [`XMSB:0]   s4_csr_mepc;
-   reg  [`XMSB:0]   s4_csr_mstatus;
-   reg  [`XMSB:0]   s4_csr_mtval;
+   reg  [`XMSB:0]   s6_csr_mcause;
+   reg  [`XMSB:0]   s6_csr_mepc;
+   reg  [`XMSB:0]   s6_csr_mstatus;
+   reg  [`XMSB:0]   s6_csr_mtval;
 
-   reg  [`XMSB:0]   s4_csr_sepc;
-   reg  [`XMSB:0]   s4_csr_scause;
-   reg  [`XMSB:0]   s4_csr_stval;
-// reg  [`XMSB:0]   s4_csr_stvec;
+   reg  [`XMSB:0]   s6_csr_sepc;
+   reg  [`XMSB:0]   s6_csr_scause;
+   reg  [`XMSB:0]   s6_csr_stval;
+// reg  [`XMSB:0]   s6_csr_stvec;
 
-   reg  [   11:0]   s4_csr_mideleg;
-   reg  [   11:0]   s4_csr_medeleg;
-   reg              s4_branch_taken = 0;
-   reg              s4_csr_we;
-   reg [`XMSB:0]    s4_csr_val;
-   reg [`XMSB:0]    s4_csr_d;
+   reg  [   11:0]   s6_csr_mideleg;
+   reg  [   11:0]   s6_csr_medeleg;
+   reg              s6_branch_taken = 0;
+   reg              s6_csr_we;
+   reg [`XMSB:0]    s6_csr_val;
+   reg [`XMSB:0]    s6_csr_d;
 
-   reg              s4_trap;
-   reg [    3:0]    s4_trap_cause;
-   reg [`XMSB:0]    s4_trap_val;
-   reg              s4_intr;
-   reg [    3:0]    s4_cause;
-   reg              s4_deleg;
-   reg [`XMSB:0]    s4_addr;
+   reg              s6_trap;
+   reg [    3:0]    s6_trap_cause;
+   reg [`XMSB:0]    s6_trap_val;
+   reg              s6_intr;
+   reg [    3:0]    s6_cause;
+   reg              s6_deleg;
+   reg [`XMSB:0]    s6_addr;
 
-   reg [`PMSB:2]    s5_addr;
    wire [`XMSB:0]   m1_load_addr;
-   always @(posedge clock) begin
-      s4_branch_taken <= s3_branch_taken;
-      s4_wb_val       <= s3_wb_val;
-      s4_rd           <= s3_valid ? s3_rd : 0;
-      s4_flush        <= 0;
-      s4_restart      <= 0;
-      s4_restart_pc   <= s3_pc + 4;
-      s4_csr_val      <= s3_csr_val;
-      s4_addr         <= s3_opcode == `LOAD || s3_opcode == `STORE ?
-                         s3_rs1 + (s3_opcode == `LOAD ? s3_i_imm : s3_s_imm) : 0;
 
-      if (s3_valid)
-        case (s3_opcode)
+   // A precise retirement RAS (magic values for the benefit of debugging)
+   reg [`VMSB          :0] rras0 = 'h110, rras1 = 'h220, rras2 = 'h440;
+   always @(posedge clock) begin
+      s6_valid_r      <= s5_valid;
+      s6_branch_taken <= s5_branch_taken;
+      s6_wb_val       <= s5_wb_val;
+      s6_rd           <= s5_valid ? s5_rd : 0;
+      s6_flush        <= 0;
+      s6_csr_val      <= s5_csr_val;
+      s6_addr         <= s5_opcode == `LOAD || s5_opcode == `STORE ?
+                         s5_rs1 + (s5_opcode == `LOAD ? s5_i_imm : s5_s_imm) : 0;
+
+      s6_restart      <= s5_pc_insn_miss & s5_valid;
+      s6_restart_pc   <= s5_insn_target;
+      btb_update      <= s5_pc_insn_miss & s5_valid;
+      btb_update_idx  <= s5_pc[`BTB_INDEX_MSB+2:2];
+      btb_update_type <= `BTB_TYPE_BR_W_N;
+
+      if (s5_valid)
+        case (s5_opcode)
           `LOAD: begin
              // XXX This is conservative, but I just want it passing for now
-             // XXX Could be retimed by precomputing s4_addr - s3_s_imm and then just compare with s3_rs1
-             if (s4_valid && s4_insn`opcode == `STORE && s4_addr[`PMSB:2] == m1_load_addr[`PMSB:2] ||
-                 s5_valid && s5_insn`opcode == `STORE && s5_addr[`PMSB:2] == m1_load_addr[`PMSB:2]) begin
-                s4_flush <= 1;
-                s4_restart <= 1;
-                s4_restart_pc <= s3_pc;
+             // XXX Could be retimed by precomputing s6_addr - s5_s_imm and then just compare with s5_rs1
+             if (s6_valid && s6_insn`opcode == `STORE && s6_addr[`PMSB:2] == m1_load_addr[`PMSB:2] ||
+                 s7_valid && s7_insn`opcode == `STORE && s7_addr[`PMSB:2] == m1_load_addr[`PMSB:2]) begin
+                s6_flush <= 1;
+                s6_restart <= 1;
+                s6_restart_pc <= s5_pc;
 `ifndef QUIET
-                $display("RESTART REASON: load-hit-store");
+                $display("RESTART: %x  load-hit-store", s5_pc);
 `endif
              end
           end
 
           `BRANCH: begin
-             s4_restart <= s3_branch_taken;
-             s4_restart_pc <= s3_pc + s3_sb_imm;
+             if (s5_branch_taken)
+               if (s5_br_target_miss) begin
+                  s6_restart <= 1;
+                  s6_restart_pc <= s5_br_target;
+               end else begin
+                  btb_update <= 0; // The common path will presume a misprediction
+                  s6_restart <= 0; // The common path will presume a misprediction
+               end
+
+             btb_update_tag <= s5_pc[`BTB_TAG_MSB+`BTB_INDEX_MSB+3:`BTB_INDEX_MSB+3];
+             btb_update_target <= s5_br_target >> 2;
+
+             if (s5_branch_taken && (s5_btb_type != `BTB_TYPE_BR_S_T || !s5_btb_hit)) begin
+                btb_update <= 1;
+                btb_update_type <= s5_btb_type <= `BTB_TYPE_BR_S_T && s5_btb_hit ? s5_btb_type + 1 : `BTB_TYPE_BR_W_T;
+             end
+
+             if (!s5_branch_taken && (s5_btb_type != `BTB_TYPE_BR_S_N || !s5_btb_hit)) begin
+                btb_update <= 1;
+                btb_update_type <= s5_btb_type <= `BTB_TYPE_BR_S_T && s5_btb_hit ? s5_btb_type - 1 : `BTB_TYPE_BR_W_N;
+             end
+
 `ifndef QUIET
-             if (s3_branch_taken)
-               $display("RESTART REASON: conditional branch mispredicted");
+             if (s5_branch_taken ? s5_br_target_miss : s5_pc_insn_miss)
+               $display("RESTART: %x %1s BRANCH mispredicted as %x should be %x",
+                        s5_pc,
+                        s5_branch_taken ? "TAKEN" : "NOT-taken",
+                        s5_npc,
+                        s5_branch_taken ? s5_br_target : s5_pc + 4);
+             else if (s5_branch_taken) // Correctly predicted non-taken branches are boring
+               $display("WINNER_: %x %1s BRANCH predicted correctly!",
+                        s5_pc, s5_branch_taken ? "TAKEN" : "NOT-taken");
 `endif
           end
 
           `JALR: begin
-             s4_restart <= 1;
-             s4_restart_pc <= (s3_rs1 + s3_i_imm) & ~32'd1;
+             if (s5_jalr_target_miss) begin
+                s6_restart <= 1;
+                s6_restart_pc <= s5_jalr_target;
+                btb_update <= 1;
+                btb_update_tag <= s5_pc[`BTB_TAG_MSB+`BTB_INDEX_MSB+3:`BTB_INDEX_MSB+3];
+                //   rd	|  rs1		| rs1=rd	| Interpretation
+                // !r1/r5	| !r1/r5	| -		| indirect branch
+                // !r1/r5	|  r1/r5	| -		| return
+                // r1/r5	| !r1/r5	| -		| call
+                // r1/r5	| r1/r5		| rs1!=rd	| call
+                // r1/r5	| r1/r5		| rs1=rd	| Co-jump (XXX not handled)
+
+                // XXX do in decode
+                case ({s5_insn`rd == 1 || s5_insn`rd == 5,s5_insn`rs1 == 1 || s5_insn`rs1 == 5})
+                  0: btb_update_type <= `BTB_TYPE_JUMP;
+                  1: btb_update_type <= `BTB_TYPE_RETURN;
+                  2, 3: btb_update_type <= `BTB_TYPE_CALL;
+                endcase
+                btb_update_target <= s5_jalr_target >> 2;
 `ifndef QUIET
-             $display("RESTART REASON: jalr mispredicted");
+                $display("RESTART: %x JALR mispredicted as %x instead of %x", s5_pc, s5_npc, s5_jalr_target);
 `endif
+             end else begin
+`ifndef QUIET
+                $display("WINNER_: %x JALR predicted correctly!", s5_pc);
+`endif
+                btb_update <= 0; // The common path will presume a misprediction
+                s6_restart <= 0; // The common path will presume a misprediction
+             end
+
+             case ({s5_insn`rd == 1 || s5_insn`rd == 5,s5_insn`rs1 == 1 || s5_insn`rs1 == 5})
+               1: begin
+                  rras0 <= rras1;
+                  rras1 <= rras2;
+                  // keep ras2
+                  rras2 <= 0; // XXX just to make debugging easier
+               end
+               2, 3: begin
+                  // Old ras2 lost
+                  rras2 <= rras1;
+                  rras1 <= rras0;
+                  rras0 <= s5_pc + 4;
+               end
+             endcase
           end
 
           `JAL: begin
-             s4_restart <= 1;
-             s4_restart_pc <= s3_pc + s3_uj_imm;
+             if (s5_pc_insn_miss) begin
+                s6_restart <= 1;
+                s6_restart_pc <= s5_insn_target;
+
+                btb_update <= 1;
+                btb_update_tag <= s5_pc[`BTB_TAG_MSB+`BTB_INDEX_MSB+3:`BTB_INDEX_MSB+3];
+                //   rd	| Interpretation
+                // !r1/r5	| jump
+                // r1/r5	| call
+
+                // XXX do in decode
+                case ({s5_insn`rd == 1 || s5_insn`rd == 5})
+                  0: btb_update_type <= `BTB_TYPE_JUMP;
+                  1: btb_update_type <= `BTB_TYPE_CALL;
+                endcase
+                btb_update_target <= s5_insn_target >> 2;
 `ifndef QUIET
-             $display("RESTART REASON: jal mispredicted");
+                $display("RESTART: %x JAL mispredicted as %x instead of %x", s5_pc, s5_npc, s5_insn_target);
+             end else begin
+                $display("WINNER_: %x JAL predicted correctly!", s5_pc);
 `endif
+             end
+
+             // Update RRAS
+             case ({s5_insn`rd == 1 || s5_insn`rd == 5})
+               1: begin
+                  // Old ras2 lost
+                  rras2 <= rras1;
+                  rras1 <= rras0;
+                  rras0 <= s5_pc + 4;
+               end
+             endcase
           end
 
           `SYSTEM: begin
-             s4_restart <= 1;
-             case (s3_insn`funct3)
+             s6_restart <= 1;
+             case (s5_insn`funct3)
                `PRIV:
-                 case (s3_insn`imm11_0)
+                 case (s5_insn`imm11_0)
                    `ECALL, `EBREAK: begin
-                      s4_restart_pc <= csr_mtvec;
+                      s6_restart_pc <= csr_mtvec;
 `ifndef QUIET
-                      $display("RESTART REASON: ecall or ebreak");
+                      $display("RESTART: %x ECALL or EBREAK", s5_pc);
 `endif
                    end
                    `MRET: begin
-                      s4_restart_pc <= csr_mepc;
+                      s6_restart_pc <= csr_mepc;
 `ifndef QUIET
-                      $display("RESTART REASON: mret");
+                      $display("RESTART: %x MRET", s5_pc);
 `endif
                    end
                  endcase
                default: begin
 `ifndef QUIET
-                 $display("RESTART REASON: other system");
+                 $display("RESTART: %x other SYSTEM", s5_pc);
 `endif
                end
              endcase
           end
 
           `MISC_MEM:
-            case (s3_insn`funct3)
+            case (s5_insn`funct3)
               `FENCE_I:
                 begin
-                   s4_restart <= 1;
+                   s6_restart <= 1;
 `ifndef QUIET
-                   $display("RESTART REASON: fence_i");
+                   $display("RESTART: %x FENCE_I", s5_pc);
 `endif
                 end
             endcase
@@ -585,38 +940,38 @@ assign stall =
 
       /*
        * XXX This is awkward; with the exception below, everything for
-       * s4 restart depends on s3.  However we do this to get more
+       * s5 restart depends on s4.  However we do this to get more
        * time to determine the exceptions and we do want restarts as
-       * early as possible otherwise.  Thus, s4_trap must also be
-       * considered as having invalidated s4 for the next stage.
+       * early as possible otherwise.  Thus, s6_trap must also be
+       * considered as having invalidated s5 for the next stage.
        */
-      if (s4_trap || s4_intr) begin
+      if (s6_trap || s6_intr) begin
 `ifndef QUIET
-         if (s4_trap_cause)
+         if (s6_trap_cause)
            $display("%5d  %x %x EXCEPTION %d", $time/10,
-                    s4_pc, s4_insn, s4_trap_cause);
+                    s6_pc, s6_insn, s6_trap_cause);
 `endif
-         s4_flush <= 1;
-         s4_restart <= 1;
-         s4_restart_pc <= csr_mtvec;
+         s6_flush <= 1;
+         s6_restart <= 1;
+         s6_restart_pc <= csr_mtvec;
       end
 
       if (reset) begin
-         s4_restart <= 1;
-         s4_restart_pc <= `INIT_PC;
+         s6_restart <= 1;
+         s6_restart_pc <= `INIT_PC;
 `ifndef QUIET
-         $display("RESTART REASON: reset");
+         $display("RESTART: reset");
 `endif
       end
    end
 
    always @(posedge clock) begin
-      s4_pc    <= s3_pc;
-      s4_insn  <= s3_insn;
-      s4_rs1   <= s3_rs1;
-      s4_rs2   <= s3_rs2;
-      s4_branch_taken <= s3_branch_taken;
-      s4_intr  <= csr_mip_and_mie != 0 && csr_mstatus`MIE;
+      s6_pc    <= s5_pc;
+      s6_insn  <= s5_insn;
+      s6_rs1   <= s5_rs1;
+      s6_rs2   <= s5_rs2;
+      s6_branch_taken <= s5_branch_taken;
+      s6_intr  <= csr_mip_and_mie != 0 && csr_mstatus`MIE;
    end
 
    /* Trap handling falls into things that can be determined at decode
@@ -630,180 +985,180 @@ assign stall =
     * the misaligned load.
     */
    always @(*) begin
-      s4_csr_we                         = 0;
-      s4_priv                           = priv;
-      s4_csr_mcause                     = csr_mcause;
-      s4_csr_mepc                       = csr_mepc;
-      s4_csr_mstatus                    = csr_mstatus;
-      s4_csr_mtval                      = csr_mtval;
+      s6_csr_we                         = 0;
+      s6_priv                           = priv;
+      s6_csr_mcause                     = csr_mcause;
+      s6_csr_mepc                       = csr_mepc;
+      s6_csr_mstatus                    = csr_mstatus;
+      s6_csr_mtval                      = csr_mtval;
 
-      s4_csr_scause                     = csr_scause;
-      s4_csr_sepc                       = csr_sepc;
-      s4_csr_stval                      = csr_stval;
+      s6_csr_scause                     = csr_scause;
+      s6_csr_sepc                       = csr_sepc;
+      s6_csr_stval                      = csr_stval;
 
-      s4_csr_mideleg                    = csr_mideleg;
-      s4_csr_medeleg                    = csr_medeleg;
+      s6_csr_mideleg                    = csr_mideleg;
+      s6_csr_medeleg                    = csr_medeleg;
 
-      s4_trap                           = 0;
-      s4_trap_cause                     = 0;
-      s4_trap_val                       = 0;
-      s4_csr_d                          = 'h X;
+      s6_trap                           = 0;
+      s6_trap_cause                     = 0;
+      s6_trap_val                       = 0;
+      s6_csr_d                          = 'h X;
 
-      case (s4_insn`opcode)
+      case (s6_insn`opcode)
         `OP_IMM, `OP, `AUIPC, `LUI: ;
 
         // XXX Should compute ctl targets at end of decode and use that for misaligned fetch tests
         `BRANCH:
-           if (s4_restart_pc[1] && s4_branch_taken) begin
-              s4_trap                   = s4_valid;
-              s4_trap_cause             = `CAUSE_MISALIGNED_FETCH;
-              s4_trap_val               = s4_restart_pc;
+           if (s6_restart_pc[1] && s6_branch_taken) begin
+              s6_trap                   = s6_valid;
+              s6_trap_cause             = `CAUSE_MISALIGNED_FETCH;
+              s6_trap_val               = s6_restart_pc;
            end
 
         `JALR: begin
-           if (s4_restart_pc[1]) begin
-              s4_trap                   = s4_valid;
-              s4_trap_cause             = `CAUSE_MISALIGNED_FETCH;
-              s4_trap_val               = s4_restart_pc;
+           if (s6_restart_pc[1]) begin
+              s6_trap                   = s6_valid;
+              s6_trap_cause             = `CAUSE_MISALIGNED_FETCH;
+              s6_trap_val               = s6_restart_pc;
            end
         end
 
         `JAL: begin
-           if (s4_restart_pc[1]) begin
-              s4_trap                   = s4_valid;
-              s4_trap_cause             = `CAUSE_MISALIGNED_FETCH;
-              s4_trap_val               = s4_restart_pc;
+           if (s6_restart_pc[1]) begin
+              s6_trap                   = s6_valid;
+              s6_trap_cause             = `CAUSE_MISALIGNED_FETCH;
+              s6_trap_val               = s6_restart_pc;
            end
         end
 
-        // XXX Do we _need_ to write CSR in s5?  Don't we have enough time to delay it a stage
+        // XXX Do we _need_ to write CSR in s6?  Don't we have enough time to delay it a stage
         `SYSTEM: begin
-           s4_csr_we                    = s4_valid;
-           case (s4_insn`funct3)
-             `CSRRS:  begin s4_csr_d    = s4_csr_val |  s4_rs1; if (s4_insn`rs1 == 0) s4_csr_we = 0; end
-             `CSRRC:  begin s4_csr_d    = s4_csr_val &~ s4_rs1; if (s4_insn`rs1 == 0) s4_csr_we = 0; end
-             `CSRRW:  begin s4_csr_d    =               s4_rs1; end
-             `CSRRSI: begin s4_csr_d    = s4_csr_val |  {27'd0, s4_insn`rs1}; end
-             `CSRRCI: begin s4_csr_d    = s4_csr_val &~ {27'd0, s4_insn`rs1}; end
-             `CSRRWI: begin s4_csr_d    = $unsigned(s4_insn`rs1); end
+           s6_csr_we                    = s6_valid;
+           case (s6_insn`funct3)
+             `CSRRS:  begin s6_csr_d    = s6_csr_val |  s6_rs1; if (s6_insn`rs1 == 0) s6_csr_we = 0; end
+             `CSRRC:  begin s6_csr_d    = s6_csr_val &~ s6_rs1; if (s6_insn`rs1 == 0) s6_csr_we = 0; end
+             `CSRRW:  begin s6_csr_d    =               s6_rs1; end
+             `CSRRSI: begin s6_csr_d    = s6_csr_val |  {27'd0, s6_insn`rs1}; end
+             `CSRRCI: begin s6_csr_d    = s6_csr_val &~ {27'd0, s6_insn`rs1}; end
+             `CSRRWI: begin s6_csr_d    = {{(`XMSB-4){1'd0}}, s6_insn`rs1}; end
              `PRIV: begin
-                s4_csr_we               = 0;
-                case (s4_insn`imm11_0)
+                s6_csr_we               = 0;
+                case (s6_insn`imm11_0)
                   `ECALL, `EBREAK: begin
-                     s4_trap            = s4_valid;
-                     s4_trap_cause      = s4_insn`imm11_0 == `ECALL
-                                          ? `CAUSE_USER_ECALL | $unsigned(priv)
+                     s6_trap            = s6_valid;
+                     s6_trap_cause      = s6_insn`imm11_0 == `ECALL
+                                          ? `CAUSE_USER_ECALL | {2'd0,priv}
                                           : `CAUSE_BREAKPOINT;
                   end
 
-                  `MRET: if (s4_valid) begin
-                     s4_csr_mstatus`MIE = csr_mstatus`MPIE;
-                     s4_csr_mstatus`MPIE= 1;
-                     s4_priv            = csr_mstatus`MPP;
-                     s4_csr_mstatus`MPP = `PRV_U;
+                  `MRET: if (s6_valid) begin
+                     s6_csr_mstatus`MIE = csr_mstatus`MPIE;
+                     s6_csr_mstatus`MPIE= 1;
+                     s6_priv            = csr_mstatus`MPP;
+                     s6_csr_mstatus`MPP = `PRV_U;
                   end
 
                   `WFI: ; // XXX Should restart and block fetch until interrupt becomes pending
 
                   default: begin
-                     s4_trap            = s4_valid;
-                     s4_trap_cause      = `CAUSE_ILLEGAL_INSTRUCTION;
+                     s6_trap            = s6_valid;
+                     s6_trap_cause      = `CAUSE_ILLEGAL_INSTRUCTION;
                   end
                 endcase
              end
            endcase
 
            // Trap illegal CSRs accesses (ie. CSRs without permissions)
-           case (s4_insn`funct3)
+           case (s6_insn`funct3)
              `CSRRS, `CSRRC, `CSRRW, `CSRRSI, `CSRRCI, `CSRRWI:
-               if (((s4_insn`imm11_0 & 12'hC00) == 12'hC00) && s4_csr_we || priv < s4_insn[31:30]) begin
-                  s4_trap               = s4_valid;
-                  s4_trap_cause         = `CAUSE_ILLEGAL_INSTRUCTION;
+               if (((s6_insn`imm11_0 & 12'hC00) == 12'hC00) && s6_csr_we || priv < s6_insn[31:30]) begin
+                  s6_trap               = s6_valid;
+                  s6_trap_cause         = `CAUSE_ILLEGAL_INSTRUCTION;
                end
            endcase
         end
 
         `MISC_MEM:
-            case (s4_insn`funct3)
+            case (s6_insn`funct3)
               `FENCE, `FENCE_I: ;
               default: begin
-                 s4_trap                = s4_valid;
-                 s4_trap_cause          = `CAUSE_ILLEGAL_INSTRUCTION;
+                 s6_trap                = s6_valid;
+                 s6_trap_cause          = `CAUSE_ILLEGAL_INSTRUCTION;
               end
           endcase
 
         `LOAD: begin
-           if (s4_insn == 0) begin
-                s4_trap                 = s4_valid;
-                s4_trap_cause           = `CAUSE_ILLEGAL_INSTRUCTION;
+           if (s6_insn == 0) begin
+                s6_trap                 = s6_valid;
+                s6_trap_cause           = `CAUSE_ILLEGAL_INSTRUCTION;
            end
-           case (s4_insn`funct3)
+           case (s6_insn`funct3)
              3, 6, 7: begin
-                s4_trap                 = s4_valid;
-                s4_trap_cause           = `CAUSE_ILLEGAL_INSTRUCTION;
+                s6_trap                 = s6_valid;
+                s6_trap_cause           = `CAUSE_ILLEGAL_INSTRUCTION;
              end
              default: begin
-                s4_trap                 = s4_valid & s4_misaligned;
-                s4_trap_cause           = `CAUSE_MISALIGNED_LOAD;
-                s4_trap_val             = s4_addr;
+                s6_trap                 = s6_valid & s6_misaligned;
+                s6_trap_cause           = `CAUSE_MISALIGNED_LOAD;
+                s6_trap_val             = s6_addr;
              end
            endcase
         end
 
         `STORE: begin
-           //store_addr              = s4_rs1 + s4_s_imm;
-           case (s4_insn`funct3)
+           //store_addr              = s6_rs1 + s6_s_imm;
+           case (s6_insn`funct3)
              3, 4, 5, 6, 7: begin
-                s4_trap                 = s4_valid;
-                s4_trap_cause           = `CAUSE_ILLEGAL_INSTRUCTION;
+                s6_trap                 = s6_valid;
+                s6_trap_cause           = `CAUSE_ILLEGAL_INSTRUCTION;
              end
              default: begin
-                s4_trap                 = s4_valid & s4_misaligned;
-                s4_trap_cause           = `CAUSE_MISALIGNED_STORE;
-                s4_trap_val             = s4_addr;
+                s6_trap                 = s6_valid & s6_misaligned;
+                s6_trap_cause           = `CAUSE_MISALIGNED_STORE;
+                s6_trap_val             = s6_addr;
              end
            endcase
         end
 
         default: begin
-           s4_trap                      = s4_valid;
-           s4_trap_cause                = `CAUSE_ILLEGAL_INSTRUCTION;
+           s6_trap                      = s6_valid;
+           s6_trap_cause                = `CAUSE_ILLEGAL_INSTRUCTION;
         end
       endcase
 
-      if (s4_trap || s4_intr) begin
-         if (s4_intr) begin
+      if (s6_trap || s6_intr) begin
+         if (s6_intr) begin
             // Awkward priority scheme
-            s4_cause                    = (csr_mip_and_mie[1] ? 1 :
+            s6_cause                    = (csr_mip_and_mie[1] ? 1 :
                                            csr_mip_and_mie[3] ? 3 :
                                            csr_mip_and_mie[5] ? 5 :
                                            csr_mip_and_mie[7] ? 7 :
                                            csr_mip_and_mie[9] ? 9 :
                                            11);
-            s4_trap_val                 = 0;
+            s6_trap_val                 = 0;
          end else
-            s4_cause                    = s4_trap_cause;
+            s6_cause                    = s6_trap_cause;
 
-         s4_deleg = priv <= 1 && ((s4_intr ? csr_mideleg : csr_medeleg) >> s4_cause) & 1'd1;
+         s6_deleg = priv <= 1 && ((s6_intr ? csr_mideleg : csr_medeleg) >> s6_cause) & 1'd1;
 
-         if (s4_deleg) begin
-            s4_csr_scause[`XMSB]        = s4_intr;
-            s4_csr_scause[`XMSB-1:0]    = s4_cause;
-            s4_csr_sepc                 = s4_pc;
-            s4_csr_stval                = s4_trap_val;
-            s4_csr_mstatus`SPIE         = csr_mstatus`SIE;
-            s4_csr_mstatus`SIE          = 0;
-            s4_csr_mstatus`SPP          = priv; // XXX SPP is one bit whose two values are USER and SUPERVISOR?
-            s4_priv                     = `PRV_S;
+         if (s6_deleg) begin
+            s6_csr_scause[`XMSB]        = s6_intr;
+            s6_csr_scause[`XMSB-1:0]    = {{(`XMSB-4){1'd0}},s6_cause};
+            s6_csr_sepc                 = s6_pc;
+            s6_csr_stval                = s6_trap_val;
+            s6_csr_mstatus`SPIE         = csr_mstatus`SIE;
+            s6_csr_mstatus`SIE          = 0;
+            s6_csr_mstatus`SPP          = priv[0]; // XXX SPP is one bit whose two values are USER and SUPERVISOR?
+            s6_priv                     = `PRV_S;
          end else begin
-            s4_csr_mcause[`XMSB]        = s4_intr;
-            s4_csr_mcause[`XMSB-1:0]    = s4_cause;
-            s4_csr_mepc                 = s4_pc;
-            s4_csr_mtval                = s4_trap_val;
-            s4_csr_mstatus`MPIE         = csr_mstatus`MIE;
-            s4_csr_mstatus`MIE          = 0;
-            s4_csr_mstatus`MPP          = priv;
-            s4_priv                     = `PRV_M;
+            s6_csr_mcause[`XMSB]        = s6_intr;
+            s6_csr_mcause[`XMSB-1:0]    = {{(`XMSB-4){1'd0}}, s6_cause};
+            s6_csr_mepc                 = s6_pc;
+            s6_csr_mtval                = s6_trap_val;
+            s6_csr_mstatus`MPIE         = csr_mstatus`MIE;
+            s6_csr_mstatus`MIE          = 0;
+            s6_csr_mstatus`MPP          = priv;
+            s6_priv                     = `PRV_M;
          end
       end
    end
@@ -832,56 +1187,56 @@ assign stall =
 
    end else begin
       csr_mcycle                        <= csr_mcycle + 1;
-      csr_mip[7]                        <= s5_timer_interrupt;
+      csr_mip[7]                        <= s7_timer_interrupt;
 
-      priv                           <= s4_priv;
-      csr_mcause                     <= s4_csr_mcause;
-      csr_mepc                       <= s4_csr_mepc;
-      csr_mstatus                    <= s4_csr_mstatus;
-      csr_mtval                      <= s4_csr_mtval;
-      csr_scause                     <= s4_csr_scause;
-      csr_sepc                       <= s4_csr_sepc;
-      csr_stval                      <= s4_csr_stval;
+      priv                              <= s6_priv;
+      csr_mcause                        <= s6_csr_mcause;
+      csr_mepc                          <= s6_csr_mepc;
+      csr_mstatus                       <= s6_csr_mstatus;
+      csr_mtval                         <= s6_csr_mtval;
+      csr_scause                        <= s6_csr_scause;
+      csr_sepc                          <= s6_csr_sepc;
+      csr_stval                         <= s6_csr_stval;
 
-      csr_mideleg                    <= s4_csr_mideleg;
-      csr_medeleg                    <= s4_csr_medeleg;
-      csr_minstret                   <= csr_minstret + s5_valid;
+      csr_mideleg                       <= s6_csr_mideleg;
+      csr_medeleg                       <= s6_csr_medeleg;
+      csr_minstret                      <= csr_minstret + s7_valid;
 
       /* CSR write port (notice, this happens in EX) */
-      if (s4_csr_we) begin
-         case (s4_insn`imm11_0)
-           `CSR_FCSR:      {csr_frm,csr_fflags} <= s4_csr_d[7:0];
-           `CSR_FFLAGS:    csr_fflags   <= s4_csr_d[4:0];
-           `CSR_FRM:       csr_frm      <= s4_csr_d[2:0];
-           `CSR_MCAUSE:    csr_mcause   <= s4_csr_d;
-//         `CSR_MCYCLE:    csr_mcycle   <= s4_csr_d;
-           `CSR_MEPC:      csr_mepc     <= s4_csr_d & ~3;
-           `CSR_MIE:       csr_mie      <= s4_csr_d;
-//         `CSR_MINSTRET:  csr_instret  <= s4_csr_d;
-           `CSR_MIP:       csr_mip      <= s4_csr_d & `CSR_MIP_WMASK | csr_mip & ~`CSR_MIP_WMASK;
-           `CSR_MIDELEG:   csr_mideleg  <= s4_csr_d;
-           `CSR_MEDELEG:   csr_medeleg  <= s4_csr_d;
-           `CSR_MSCRATCH:  csr_mscratch <= s4_csr_d;
-           `CSR_MSTATUS:   csr_mstatus  <= s4_csr_d & ~(15 << 13); // No FP or XS;
-           `CSR_MTVEC:     csr_mtvec    <= s4_csr_d & ~1; // We don't support vectored interrupts
-           `CSR_MTVAL:     csr_mtvec    <= s4_csr_d;
+      if (s6_csr_we) begin
+         case (s6_insn`imm11_0)
+           `CSR_FCSR:      {csr_frm,csr_fflags} <= s6_csr_d[7:0];
+           `CSR_FFLAGS:    csr_fflags   <= s6_csr_d[4:0];
+           `CSR_FRM:       csr_frm      <= s6_csr_d[2:0];
+           `CSR_MCAUSE:    csr_mcause   <= s6_csr_d;
+//         `CSR_MCYCLE:    csr_mcycle   <= s6_csr_d;
+           `CSR_MEPC:      csr_mepc     <= s6_csr_d & ~3;
+           `CSR_MIE:       csr_mie      <= s6_csr_d[11:0];
+//         `CSR_MINSTRET:  csr_minstret <= s6_csr_d;
+           `CSR_MIP:       csr_mip      <= s6_csr_d & `CSR_MIP_WMASK | csr_mip & ~`CSR_MIP_WMASK;
+           `CSR_MIDELEG:   csr_mideleg  <= s6_csr_d[11:0];
+           `CSR_MEDELEG:   csr_medeleg  <= s6_csr_d[11:0];
+           `CSR_MSCRATCH:  csr_mscratch <= s6_csr_d;
+           `CSR_MSTATUS:   csr_mstatus  <= s6_csr_d & ~(15 << 13); // No FP or XS;
+           `CSR_MTVEC:     csr_mtvec    <= s6_csr_d & ~1; // We don't support vectored interrupts
+           `CSR_MTVAL:     csr_mtvec    <= s6_csr_d;
 
-           `CSR_SCAUSE:    csr_scause   <= s4_csr_d;
-           `CSR_SEPC:      csr_sepc     <= s4_csr_d;
-           `CSR_STVEC:     csr_stvec    <= s4_csr_d & ~1; // We don't support vectored interrupts
-           `CSR_STVAL:     csr_stvec    <= s4_csr_d;
+           `CSR_SCAUSE:    csr_scause   <= s6_csr_d;
+           `CSR_SEPC:      csr_sepc     <= s6_csr_d;
+           `CSR_STVEC:     csr_stvec    <= s6_csr_d & ~1; // We don't support vectored interrupts
+           `CSR_STVAL:     csr_stvec    <= s6_csr_d;
 
            `CSR_PMPCFG0: ;
            `CSR_PMPADDR0: ;
 `ifndef QUIET
            default:
              $display("                                            warning: unimplemented csr%x",
-                      s4_insn`imm11_0);
+                      s6_insn`imm11_0);
 `endif
          endcase
 `ifndef QUIET
          $display("                                            csr%x <- %x",
-                  s4_insn`imm11_0, s4_csr_d);
+                  s6_insn`imm11_0, s6_csr_d);
 `endif
       end
    end
@@ -889,95 +1244,104 @@ assign stall =
 
 
 
-   reg s4_misaligned;
+   reg s6_misaligned;
    always @(*)
-     case (s4_insn`funct3 & 3)
-       0: s4_misaligned =  0;               // Byte
-       1: s4_misaligned =  s4_addr[  0]; // Half
-       2: s4_misaligned = |s4_addr[1:0]; // Word
-       3: s4_misaligned =  1'hX;
+     case (s6_insn`funct3 & 3)
+       0: s6_misaligned =  0;            // Byte
+       1: s6_misaligned =  s6_addr[  0]; // Half
+       2: s6_misaligned = |s6_addr[1:0]; // Word
+       3: s6_misaligned =  1'hX;
      endcase
 
    /* Load path */
 
    /* Store path */
 
-   wire [`XMSB:0] s4_st_data;
-   wire [    3:0] s4_st_mask;
+   wire [`XMSB:0] s6_st_data;
+   wire [    3:0] s6_st_mask;
 
    yarvi_st_align yarvi_st_align1
-     (s4_insn`funct3, s4_addr[1:0], s4_rs2, s4_st_mask, s4_st_data);
+     (s6_insn`funct3, s6_addr[1:0], s6_rs2, s6_st_mask, s6_st_data);
 
-   wire             s4_addr_in_mem = (s4_addr & (-1 << (`PMSB+1))) == 32'h80000000;
-   wire [`PMSB-2:0] s4_wi = s4_addr[`PMSB:2];
-   wire             s4_we = (s4_valid &&
-                             !s4_flush &&
-                             !s4_trap &&
-                             !s4_intr &&
-                             s4_insn`opcode == `STORE &&
-                             s4_addr_in_mem);
+   wire             s6_addr_in_mem = (s6_addr & (-1 << (`PMSB+1))) == 32'h80000000;
+   wire [`PMSB-2:0] s6_wi = s6_addr[`PMSB:2];
+   wire             s6_we = (s6_valid &&
+                             !s6_flush &&
+                             !s6_trap &&
+                             !s6_intr &&
+                             s6_insn`opcode == `STORE &&
+                             s6_addr_in_mem);
 
+
+
+   // S7 - Write back committed results, store to memory
+   reg              s7_valid = 0;
+   reg  [`XMSB:0]   s7_wb_val;
+   reg  [`PMSB:2]   s7_addr;
+   reg              s7_timer_interrupt_future;
+   reg  [`VMSB:0]   s7_pc;
+   reg  [   31:0]   s7_insn;
+   reg  [    4:0]   s7_rd = 0;
+   reg              s7_timer_interrupt;
+   reg  [   63:0]   mtime_future;
    always @(posedge clock) begin
-      if (s4_we & s4_st_mask[0]) data[s4_wi][ 7: 0] <= s4_st_data[ 7: 0];
-      if (s4_we & s4_st_mask[1]) data[s4_wi][15: 8] <= s4_st_data[15: 8];
-      if (s4_we & s4_st_mask[2]) data[s4_wi][23:16] <= s4_st_data[23:16];
-      if (s4_we & s4_st_mask[3]) data[s4_wi][31:24] <= s4_st_data[31:24];
-      if (s4_we & s4_st_mask[0]) code[s4_wi][ 7: 0] <= s4_st_data[ 7: 0];
-      if (s4_we & s4_st_mask[1]) code[s4_wi][15: 8] <= s4_st_data[15: 8];
-      if (s4_we & s4_st_mask[2]) code[s4_wi][23:16] <= s4_st_data[23:16];
-      if (s4_we & s4_st_mask[3]) code[s4_wi][31:24] <= s4_st_data[31:24];
-   end
+      s7_valid		<= s6_valid & !s6_flush && !s6_trap && !s6_intr;
+      s7_pc		<= s6_pc;
+      s7_insn		<= s6_insn;
+      s7_rd		<= s6_valid ? s6_rd : 0;
+      s7_addr[`PMSB:2]	<= s6_addr[`PMSB:2];
+      s7_wb_val		<= s6_wb_val;
+      if (|s7_rd & s7_valid) begin
+         regs[s7_rd]	<= m3_wb_val;
+         //$display("%x %x r%1d %x", priv, s7_pc, s7_rd, m3_wb_val);
+      end
 
-   reg  [   63:0  ] mtime_future;
-   reg              s5_timer_interrupt_future;
-   reg              s5_valid = 0;
-   reg  [`VMSB:0]   s5_pc;
-   reg  [   31:0]   s5_insn;
-   reg  [    4:0]   s5_rd = 0;
-   reg  [`XMSB:0]   s5_wb_val;
-   reg              s5_timer_interrupt;
-
-
-   always @(posedge clock) begin
-      s5_valid <= s4_valid & !s4_flush && !s4_trap && !s4_intr;
-      s5_wb_val <= s4_wb_val;
-   end
-
-   /* Memory mapped io devices (only word-wide accesses are allowed) */
-   always @(posedge clock) if (reset) begin
-      mtime_future                      <= 0;
-      mtimecmp                          <= 0;
-   end else begin
+      /* Memory mapped io devices (only word-wide accesses are allowed) */
       mtime_future                      <= mtime_future + 1; // XXX Yes, this is terrible
-      s5_timer_interrupt_future         <= mtime > mtimecmp;
+      s7_timer_interrupt_future         <= mtime > mtimecmp;
       mtime                             <= mtime_future;
-      s5_timer_interrupt                <= s5_timer_interrupt_future;
+      s7_timer_interrupt                <= s7_timer_interrupt_future;
 
-      if (s4_valid && s4_insn`opcode == `STORE && (s4_addr & 32'h4FFFFFF3) == 32'h40000000)
-        case (s4_addr[3:2])
-          0: mtime[31:0]                <= s4_rs2;
-          1: mtime[63:32]               <= s4_rs2;
-          2: mtimecmp[31:0]             <= s4_rs2;
-          3: mtimecmp[63:32]            <= s4_rs2;
+      if (s6_valid && s6_insn`opcode == `STORE && (s6_addr & 32'h4FFFFFF3) == 32'h40000000)
+        case (s6_addr[3:2])
+          0: mtime[31:0]                <= s6_rs2;
+          1: mtime[63:32]               <= s6_rs2;
+          2: mtimecmp[31:0]             <= s6_rs2;
+          3: mtimecmp[63:32]            <= s6_rs2;
         endcase
+
+      if (s6_we & s6_st_mask[0]) data[s6_wi][ 7: 0] <= s6_st_data[ 7: 0];
+      if (s6_we & s6_st_mask[1]) data[s6_wi][15: 8] <= s6_st_data[15: 8];
+      if (s6_we & s6_st_mask[2]) data[s6_wi][23:16] <= s6_st_data[23:16];
+      if (s6_we & s6_st_mask[3]) data[s6_wi][31:24] <= s6_st_data[31:24];
+      if (s6_we & s6_st_mask[0]) code[s6_wi][ 7: 0] <= s6_st_data[ 7: 0];
+      if (s6_we & s6_st_mask[1]) code[s6_wi][15: 8] <= s6_st_data[15: 8];
+      if (s6_we & s6_st_mask[2]) code[s6_wi][23:16] <= s6_st_data[23:16];
+      if (s6_we & s6_st_mask[3]) code[s6_wi][31:24] <= s6_st_data[31:24];
+
+      if (reset) begin
+         mtime_future                      <= 0;
+         mtimecmp                          <= 0;
+      end
    end
+
 
 `ifdef BEGIN_SIGNATURE
    reg  [`VMSB  :0] dump_addr;
 `endif
    always @(posedge clock)
-     if (!restart && s4_valid && s4_insn`opcode == `STORE && !s4_misaligned) begin
+     if (!restart && s6_valid && s6_insn`opcode == `STORE && !s6_misaligned) begin
 `ifndef QUIET
-        if (!s4_addr_in_mem)
-          $display("store %x -> [%x]/%x", s4_st_data, s4_addr, s4_st_mask);
+        if (!s6_addr_in_mem)
+          $display("store %x -> [%x]/%x", s6_st_data, s6_addr, s6_st_mask);
 `endif
 
 `ifdef TOHOST
-        if (s4_st_mask == 15 & s4_addr == 'h`TOHOST) begin
+        if (s6_st_mask == 15 & s6_addr == 'h`TOHOST) begin
 `ifndef QUIET
-           $display("TOHOST = %d", s4_st_data);
+           $display("TOHOST = %d", s6_st_data);
 `else
-           $write("%c", s4_st_data);
+           $write("%c", s6_st_data[7:0]);
 `endif
 
 
@@ -995,36 +1359,30 @@ assign stall =
      end
 
 
+
+   // S8 - hold register file result for forwarding
+   // XXX the retire_XXX / debug registers should just taken from s6.
+   reg  [`XMSB:0]   s8_wb_val;
    always @(posedge clock) begin
-      s5_rd   <= s4_valid ? s4_rd : 0;
-      s5_pc   <= s4_pc;
-      s5_insn <= s4_insn;
-      s5_addr[`PMSB:2] <= s4_addr[`PMSB:2];
-      if (|s5_rd & s5_valid) begin
-         regs[s5_rd] <= m3_wb_val;
-         //$display("%x %x r%1d %x", priv, s5_pc, s5_rd, m3_wb_val);
-      end
-   end
+      s8_wb_val     <= m3_wb_val;
 
-
-   // XXX going away soon
-   reg  [`XMSB:0]   s6_wb_val;
-
-   always @(posedge clock) begin
-      s6_wb_val     <= m3_wb_val;
-
-      retire_valid  <= s5_valid;
+      retire_valid  <= s7_valid;
       retire_priv   <= priv;
-      retire_pc     <= s5_pc;
-      retire_insn   <= s5_insn;
-      retire_rd     <= s5_rd;
+      retire_pc     <= s7_pc;
+      retire_insn   <= s7_insn;
+      retire_rd     <= s7_rd;
       retire_wb_val <= m3_wb_val;
       debug         <= retire_wb_val;
    end
 
+
+
+
+
+
    // Module outputs
-   assign           restart    = s4_restart;
-   assign           restart_pc = s4_restart_pc;
+   assign           restart    = s6_restart;
+   assign           restart_pc = s6_restart_pc;
 
 
 
@@ -1040,24 +1398,29 @@ assign stall =
       for (i = 0; i < 32; i = i + 1)
         regs[i[4:0]] = {26'd0,i[5:0]};
       regs[2] = 'h80000000 + (1 << (`PMSB + 1)); // XXX Total hack
+      for (i = 0; i < 2 << `BTB_INDEX_MSB; i = i + 1) begin
+         btb_target[i] = 0;
+         btb_type[i] = 0;
+         btb_tag[i] = ~0;
+      end
    end
 //`endif
 
 `ifdef DISASSEMBLE
    yarvi_disass disass
      ( .clock  (clock)
-     , .info   ({restart, 1'b1, s1_valid, s2_valid, s3_valid, s4_valid, s5_valid})
-     , .valid  (s5_valid)
+     , .info   ({restart, 1'b1, s3_valid, s4_valid, s5_valid, s6_valid, s7_valid})
+     , .valid  (s7_valid)
      , .prv    (priv)
-     , .pc     (s5_pc)
-     , .insn   (s5_insn)
-     , .wb_rd  (s5_rd)
+     , .pc     (s7_pc)
+     , .insn   (s7_insn)
+     , .wb_rd  (s7_rd)
      , .wb_val (m3_wb_val));
 `endif
 
 
    // Alternative memory pipeline
-   assign         m1_load_addr = s3_rs1 + s3_i_imm; // Need full address
+   assign         m1_load_addr = s5_rs1 + s5_i_imm; // Need full address
    reg  [`XMSB:0] m2_load_addr;
    reg  [    1:0] m3_load_addr;
    reg  [`XMSB:0] m2_memory_data;
@@ -1071,7 +1434,7 @@ assign stall =
       m2_load_addr      <= m1_load_addr;
       m3_load_addr[1:0] <= m2_load_addr[1:0];
       m2_memory_data    <= data[m1_load_addr[`PMSB:2]];
-      m3_insn           <= s4_insn;
+      m3_insn           <= s6_insn;
       m3_memory_data    <= m2_memory_data;
 
       /* Memory mapped io devices (only word-wide accesses are allowed) */
@@ -1087,12 +1450,12 @@ assign stall =
    end
    reg [`XMSB:0] m3_mmio_data = 0;
    yarvi_ld_align yarvi_load_align_m
-     (m3_insn`opcode != `LOAD, s5_wb_val,
+     (m3_insn`opcode != `LOAD, s7_wb_val,
       m3_insn`funct3, m3_load_addr[1:0],
       m3_load_addr_in_mem ? m3_memory_data : m3_mmio_data,
       m3_wb_val);
 
 /* verilator lint_off UNUSED */
-   wire same = m3_wb_val == s5_wb_val;
+   wire same = m3_wb_val == s7_wb_val;
 
 endmodule
