@@ -14,9 +14,9 @@ TIMEOUT=16000
 
 SRC=../../target/sim/toplevel.v $(patsubst %,$(CORE)/%,$(YARVISRC))
 HDR=$(patsubst %,$(CORE)/%,$(YARVIHDR))
-CONFIG=$(YARVICONFIG) -DSIMULATION -DDISASSEMBLE -DINIT_MEM=\"$<\"
+CONFIG=$(YARVICONFIG) -DSIMULATION -DDISASSEMBLE
 
-.PRECIOUS: %.hex %.yarvi %.bin
+.PRECIOUS: %.hex %.hex.0 %.hex.1 %.hex.2 %.hex.3 %.yarvi %.bin
 
 all: newtest
 
@@ -160,21 +160,33 @@ multisim: $(patsubst %,$(TESTDIR)%.multisim,$(TESTS))
 %.hex: %.bin
 	$(QUIET)cat $^ /dev/zero|dd iflag=fullblock bs=1k count=$(MEMSIZEK) 2>/dev/null|hexdump -ve '"%08x\n"' > $@
 
+%.hex.3: %.hex
+	$(QUIET)cut -c1-2 < $< > $@
+
+%.hex.2: %.hex
+	$(QUIET)cut -c3-4 < $< > $@
+
+%.hex.1: %.hex
+	$(QUIET)cut -c5-6 < $< > $@
+
+%.hex.0: %.hex
+	$(QUIET)cut -c7-8 < $< > $@
+
 %.dis: %
 	$(RVPREFIX)objdump -d -M numeric,no-aliases $^ > $@
 
 %.spike: %
 	spike $< > $@ 2>&1
 
-%.yarvi: %.hex $(SRC) $(HDR)
-	$(QUIET)iverilog -I$(CORE)/ $(CONFIG) -DTOHOST=$(shell nm $(patsubst %.hex,%,$<) | egrep ' tohost$$' | cut -d' ' -f1) -o $@ $(SRC)
+%.yarvi: %.hex %.hex.0 %.hex.1 %.hex.2 %.hex.3 $(SRC) $(HDR)
+	$(QUIET)iverilog -I$(CORE)/ $(CONFIG) -DINIT_MEM=\"$<\" -DTOHOST=$(shell nm $(patsubst %.hex,%,$<) | egrep ' tohost$$' | cut -d' ' -f1) -o $@ $(SRC)
 
-%.trace: %.yarvi %.hex
+%.trace: %.yarvi %.hex.0 %.hex.1 %.hex.2 %.hex.3
 	$(QUIET)./$^ > $@
 	$(QUIET)if grep -q 'TOHOST =          1' $@;then \
 		printf "%-20s PASSED\n" $(basename $@); touch $@.pass; \
 	else\
 		printf "%-20s FAILED\n" $(basename $@); ln -fs $@ $@.fail; fi
 
-%.run: %.yarvi %.hex
+%.run: %.yarvi %.hex.0 %.hex.1 %.hex.2 %.hex.3
 	./$^

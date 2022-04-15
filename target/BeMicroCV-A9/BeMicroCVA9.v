@@ -165,8 +165,6 @@ module BeMicroCVA9
      , .tx_ready        (tx_ready)
      , .tx_valid        (tx_valid)
      , .tx_data         (tx_data)
-
-     , .htif_state      (htif_state)
      );
 
    always @(posedge clock)

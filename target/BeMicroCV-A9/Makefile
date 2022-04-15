@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------------
 #
-#   Copyright 2016,2018 Tommy Thorn - All Rights Reserved
+#   Copyright 2016,2018,2022 Tommy Thorn - All Rights Reserved
 #
 #   This program is free software; you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -12,14 +12,14 @@
 
 TESTDIR=
 PROGRAM=demo
-COMMON=../core/
+CORE=../../rtl
+include $(CORE)/Makefile.common
+SRC=$(patsubst %,$(CORE)/%,$(YARVISRC))
 
 program: output_files/BeMicroCVA9.sof
 	time quartus_pgm BeMicroCVA9.cdf
 
-include $(COMMON)Makefile.common
-
-output_files/BeMicroCVA9.sof: demo.riscv.txt BeMicroCVA9.v ../core/yarvi_soc.v ../core/yarvi.v ../core/htif.v ../core/axi_jtaguart.v
+output_files/BeMicroCVA9.sof: BeMicroCVA9.v $(SRC)
 	time quartus_map BeMicroCVA9
 	time quartus_fit BeMicroCVA9
 	time quartus_asm BeMicroCVA9

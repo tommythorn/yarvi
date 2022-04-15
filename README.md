@@ -19,10 +19,16 @@ BSD license).
 
 - YAGS branch predictor, jump, call, and return address predictor
 
-- Current performance on a Lattice Semi ECP5 85F, speed grade 6 (as per `make fmax ipc`):
+- Current performance
+
    - 98.1 Dhrystones MIPS
    - 0.904 instructions/cycle (on Dhrystones)
+
+   On a Lattice Semi ECP5 85F, speed grade 6 (as per `make fmax ipc`):
    - 56.6 MHz (128/128 KiB configuration)
+
+   On an Altera Cyclone-V A9 C8
+   - 100+ MHz (128/128 KiB configuration)
 
 - loads have a two cycle latency and use will stall as needed (known
   as a load-use hazard)

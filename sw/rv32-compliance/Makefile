@@ -19,7 +19,7 @@ SIM=icarus
 #SIM=verilator not quite ready yet
 
 
-.PRECIOUS: %.hex %.$(SIM)
+.PRECIOUS: %.hex %.hex.0 %.hex.1 %.hex.2 %.hex.3 %.$(SIM)
 
 TESTS= \
   I-ADD-01.elf \
@@ -92,13 +92,25 @@ newtest: $(patsubst %,$(TESTDIR)%.trace,$(TESTS))
 %.hex: %.bin
 	cat $^ /dev/zero|dd iflag=fullblock bs=1k count=$(MEMSIZEK)|hexdump -ve '"%08x\n"' > $@
 
+%.hex.3: %.hex
+	$(QUIET)cut -c1-2 < $< > $@
+
+%.hex.2: %.hex
+	$(QUIET)cut -c3-4 < $< > $@
+
+%.hex.1: %.hex
+	$(QUIET)cut -c5-6 < $< > $@
+
+%.hex.0: %.hex
+	$(QUIET)cut -c7-8 < $< > $@
+
 %.dis: %.elf
 	riscv32-unknown-elf-objdump -d -M numeric,no-aliases $^ > $@
 
 %.spike: %
 	spike $< > $@ 2>&1
 
-%.icarus: %.hex $(ICARUS_SRC) $(SRC) $(HDR)
+%.icarus: %.hex %.hex.0 %.hex.1 %.hex.2 %.hex.3 $(ICARUS_SRC) $(SRC) $(HDR)
 	$(QUIET)iverilog \
 		-DBEGIN_SIGNATURE=`nm $(basename $<).elf|egrep ' begin_signature$$'|cut -d' ' -f1` \
 		-DEND_SIGNATURE=`nm $(basename $<).elf|egrep ' end_signature$$'|cut -d' ' -f1` \
@@ -106,7 +118,7 @@ newtest: $(patsubst %,$(TESTDIR)%.trace,$(TESTS))
 		 -I$(CORE)/ $(CONFIG) -DINIT_MEM=\"$<\" \
 		-o $@ $(ICARUS_SRC) $(SRC)
 
-%.verilator: %.hex $(SRC) $(HDR) sim_main.cpp
+%.verilator: %.hex %.hex.0 %.hex.1 %.hex.2 %.hex.3 $(SRC) $(HDR) sim_main.cpp
 	$(QUIET)verilator -CFLAGS -O3 -O3 -Wall --cc --exe sim_main.cpp \
 		--top-module yarvi \
 		-DBEGIN_SIGNATURE=`nm $(basename $<).elf|egrep ' begin_signature$$'|cut -d' ' -f1` \

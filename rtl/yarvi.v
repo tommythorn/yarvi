@@ -119,8 +119,14 @@ module yarvi
 
    /* Processor architectual state (excluding pc) */
    /* Data & code memory, 2R1W */
-   reg  [   31:0] data[(1 << (`PMSB-1)) - 1:0];
-   reg  [   31:0] code[(1 << (`PMSB-1)) - 1:0];
+   reg  [    7:0] data0[(1 << (`PMSB-1)) - 1:0];
+   reg  [    7:0] data1[(1 << (`PMSB-1)) - 1:0];
+   reg  [    7:0] data2[(1 << (`PMSB-1)) - 1:0];
+   reg  [    7:0] data3[(1 << (`PMSB-1)) - 1:0];
+   reg  [    7:0] code0[(1 << (`PMSB-1)) - 1:0];
+   reg  [    7:0] code1[(1 << (`PMSB-1)) - 1:0];
+   reg  [    7:0] code2[(1 << (`PMSB-1)) - 1:0];
+   reg  [    7:0] code3[(1 << (`PMSB-1)) - 1:0];
    reg  [`XMSB:0] regs[0:31];
    reg  [    1:0] priv;
    reg  [    4:0] csr_fflags;
@@ -447,7 +453,7 @@ module yarvi
    always @(posedge clock) if (!s3_stall | restart) begin
       s1_pc         <= s0_pc;
       s1_npc        <= s0_npc;
-      s1_insn       <= code[s0_pc[`PMSB:2]];
+      s1_insn       <= {code3[s0_pc[`PMSB:2]],code2[s0_pc[`PMSB:2]],code1[s0_pc[`PMSB:2]],code0[s0_pc[`PMSB:2]]};
       s1_btb_type   <= s0_btb_type;
       s1_btb_hit    <= s0_btb_hit;
       s1_yags_idx   <= s0_yags_idx;
@@ -1464,14 +1470,14 @@ module yarvi
           3: mtimecmp[63:32]            <= s6_rs2;
         endcase
 
-      if (s6_we & s6_st_mask[0]) data[s6_wi][ 7: 0] <= s6_st_data[ 7: 0];
-      if (s6_we & s6_st_mask[1]) data[s6_wi][15: 8] <= s6_st_data[15: 8];
-      if (s6_we & s6_st_mask[2]) data[s6_wi][23:16] <= s6_st_data[23:16];
-      if (s6_we & s6_st_mask[3]) data[s6_wi][31:24] <= s6_st_data[31:24];
-      if (s6_we & s6_st_mask[0]) code[s6_wi][ 7: 0] <= s6_st_data[ 7: 0];
-      if (s6_we & s6_st_mask[1]) code[s6_wi][15: 8] <= s6_st_data[15: 8];
-      if (s6_we & s6_st_mask[2]) code[s6_wi][23:16] <= s6_st_data[23:16];
-      if (s6_we & s6_st_mask[3]) code[s6_wi][31:24] <= s6_st_data[31:24];
+      if (s6_we & s6_st_mask[0]) data0[s6_wi] <= s6_st_data[ 7: 0];
+      if (s6_we & s6_st_mask[1]) data1[s6_wi] <= s6_st_data[15: 8];
+      if (s6_we & s6_st_mask[2]) data2[s6_wi] <= s6_st_data[23:16];
+      if (s6_we & s6_st_mask[3]) data3[s6_wi] <= s6_st_data[31:24];
+      if (s6_we & s6_st_mask[0]) code0[s6_wi] <= s6_st_data[ 7: 0];
+      if (s6_we & s6_st_mask[1]) code1[s6_wi] <= s6_st_data[15: 8];
+      if (s6_we & s6_st_mask[2]) code2[s6_wi] <= s6_st_data[23:16];
+      if (s6_we & s6_st_mask[3]) code3[s6_wi] <= s6_st_data[31:24];
 
       if (reset) begin
          mtime_future                      <= 0;
@@ -1503,7 +1509,7 @@ module yarvi
            $display("");
            $display("Signature Begin");
            for (dump_addr = 'h`BEGIN_SIGNATURE; dump_addr < 'h`END_SIGNATURE; dump_addr=dump_addr+4)
-              $display("%x", data[dump_addr[`PMSB:2]]);
+              $display("%x", {data3[dump_addr[`PMSB:2]],data2[dump_addr[`PMSB:2]],data1[dump_addr[`PMSB:2]],data0[dump_addr[`PMSB:2]]});
 `endif
 `ifndef KEEP_GOING
            $finish;
@@ -1546,7 +1552,7 @@ module yarvi
    always @(posedge clock) begin
       m2_load_addr      <= m1_load_addr;
       m3_load_addr[1:0] <= m2_load_addr[1:0];
-      m2_memory_data    <= data[m1_load_addr[`PMSB:2]];
+      m2_memory_data    <= {data3[m1_load_addr[`PMSB:2]],data2[m1_load_addr[`PMSB:2]],data1[m1_load_addr[`PMSB:2]],data0[m1_load_addr[`PMSB:2]]};
       m3_insn           <= s6_insn;
       m3_memory_data    <= m2_memory_data;
 
@@ -1584,8 +1590,14 @@ module yarvi
 `ifndef QUIET
       $display("Initializing the %d B data memory", 1 << (`PMSB + 1));
 `endif
-      $readmemh(`INIT_MEM, code);
-      $readmemh(`INIT_MEM, data);
+      $readmemh({`INIT_MEM,".0"}, code0);
+      $readmemh({`INIT_MEM,".1"}, code1);
+      $readmemh({`INIT_MEM,".2"}, code2);
+      $readmemh({`INIT_MEM,".3"}, code3);
+      $readmemh({`INIT_MEM,".0"}, data0);
+      $readmemh({`INIT_MEM,".1"}, data1);
+      $readmemh({`INIT_MEM,".2"}, data2);
+      $readmemh({`INIT_MEM,".3"}, data3);
       for (i = 0; i < 32; i = i + 1)
         regs[i[4:0]] = {26'd0,i[5:0]};
       regs[2] = 'h80000000 + (1 << (`PMSB + 1)); // XXX Total hack

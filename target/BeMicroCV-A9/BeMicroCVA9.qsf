@@ -442,11 +442,15 @@ set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
 #---------------------------------------------------------------------------
 set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
 set_global_assignment -name VERILOG_FILE BeMicroCVA9.v
-set_global_assignment -name VERILOG_FILE ../core/yarvi_soc.v
-set_global_assignment -name VERILOG_FILE ../core/yarvi.v
-set_global_assignment -name VERILOG_FILE ../core/rs232tx.v
-set_global_assignment -name VERILOG_FILE ../core/rs232rx.v
-set_global_assignment -name VERILOG_FILE ../core/htif.v
-set_global_assignment -name VERILOG_FILE ../core/axi_jtaguart.v
+set_global_assignment -name VERILOG_FILE ../../rtl/alu.v
+set_global_assignment -name VERILOG_FILE ../../rtl/axi_jtaguart.v
+set_global_assignment -name VERILOG_FILE ../../rtl/htif.v
+set_global_assignment -name VERILOG_FILE ../../rtl/rs232rx.v
+set_global_assignment -name VERILOG_FILE ../../rtl/rs232tx.v
+set_global_assignment -name VERILOG_FILE ../../rtl/yarvi_dec_reg_usage.v
+set_global_assignment -name VERILOG_FILE ../../rtl/yarvi_ld_align.v
+set_global_assignment -name VERILOG_FILE ../../rtl/yarvi_soc.v
+set_global_assignment -name VERILOG_FILE ../../rtl/yarvi_st_align.v
+set_global_assignment -name VERILOG_FILE ../../rtl/yarvi.v
 set_global_assignment -name SDC_FILE BeMicroCVA9.sdc
 set_global_assignment -name CDF_FILE BeMicroCVA9.cdf

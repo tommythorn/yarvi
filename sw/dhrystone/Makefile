@@ -23,11 +23,11 @@ else
 OBJS += syscalls.o
 endif
 
-.PRECIOUS: %.hex %.yarvi %.bin
+.PRECIOUS: %.hex %.hex.0 %.hex.1 %.hex.2 %.hex.3 %.yarvi %.bin
 
 all: dhry.run
 
-trace: dhry.hex $(SRC) $(HDR) Makefile
+trace: dhry.hex.0 %.hex.1 %.hex.2 %.hex.3 $(SRC) $(HDR) Makefile
 	$(QUIET)iverilog -I$(CORE)/ $(CONFIG) -DTOHOST=10000000 -DDISASSEMBLE $(EXTRA) -o dhry.tracing $(SRC)
 	./dhry.tracing
 
@@ -37,16 +37,29 @@ trace: dhry.hex $(SRC) $(HDR) Makefile
 %.hex: %.bin
 	$(QUIET)cat $^ /dev/zero|dd iflag=fullblock bs=1k count=$(MEMSIZEK) 2>/dev/null|hexdump -ve '"%08x\n"' > $@
 
+%.hex.3: %.hex
+	$(QUIET)cut -c1-2 < $< > $@
+
+%.hex.2: %.hex
+	$(QUIET)cut -c3-4 < $< > $@
+
+%.hex.1: %.hex
+	$(QUIET)cut -c5-6 < $< > $@
+
+%.hex.0: %.hex
+	$(QUIET)cut -c7-8 < $< > $@
+
+
 %.dis: %
 	$(RVPREFIX)objdump -d -M numeric,no-aliases $^ > $@
 
 %.spike: %
 	spike $< > $@ 2>&1
 
-%.yarvi: %.hex $(SRC) $(HDR) Makefile
+%.yarvi: %.hex %.hex.0 %.hex.1 %.hex.2 %.hex.3 $(SRC) $(HDR) Makefile
 	$(QUIET)iverilog -I$(CORE)/ $(CONFIG) -DQUIET=1 -DTOHOST=$(shell nm $(patsubst %.hex,%,$<) | (egrep ' tohost$$' || echo 10000000) | cut -d' ' -f1) -o $@ $(SRC)
 
-%.run: %.yarvi %.hex
+%.run: %.yarvi %.hex %.hex.0 %.hex.1 %.hex.2 %.hex.3
 	./$^
 
 sim: dhry
@@ -71,7 +84,7 @@ endif
 dhry_1.o dhry_2.o: CFLAGS += -Wno-implicit-int -Wno-implicit-function-declaration
 
 clean:
-	rm -rf *.o *.d dhry.elf dhry.map dhry.bin dhry.hex testbench.vvp testbench.vcd timing.vvp timing.txt testbench_nola.vvp
+	rm -rf *.o *.d dhry.elf dhry.map dhry.bin dhry.hex.? testbench.vvp testbench.vcd timing.vvp timing.txt testbench_nola.vvp
 
 .PHONY: test clean
 
