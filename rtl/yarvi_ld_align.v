@@ -1,14 +1,29 @@
 // -----------------------------------------------------------------------
 //
-//   Copyright 2016,2018,2020 Tommy Thorn - All Rights Reserved
+// Purely combinatorial bypassable RV32 load-alignment and sign-extension
 //
+// ISC License
+//
+// Copyright (C) 2014 - 2022  Tommy Thorn <tommy-github2@thorn.ws>
+//
+// Permission to use, copy, modify, and/or distribute this software for any
+// purpose with or without fee is hereby granted, provided that the above
+// copyright notice and this permission notice appear in all copies.
+//
+// THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+// WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+// MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+// ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+// WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+// ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+// OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // -----------------------------------------------------------------------
 
-/*************************************************************************
+// Assumptions:
+// - we don't support misaligned loads
+// - only RV32
 
-Bypassable alignment and sign-extension
-
-*************************************************************************/
+// XXX The bypass feature isn't as useful as expected
 
 /* The width comparisons in Verilator are completely broken. */
 /* verilator lint_off WIDTH */
@@ -25,7 +40,7 @@ module yarvi_ld_align
   ,output reg  [`XMSB:0] aligned);
 
    reg [31:0] shifted;
-   // Conceptually readdata >> (8 * address), but optimized
+   // Conceptually readdata >> (8 * address[1:0]), but optimized
    always @(*) begin
      case (address)
        0: shifted =         readdata;

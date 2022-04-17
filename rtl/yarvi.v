@@ -1,15 +1,35 @@
 // -----------------------------------------------------------------------
 //
-//   Copyright 2016,2018,2020,2022 Tommy Thorn - All Rights Reserved
+// YARVI RV32 in-order scalar core
 //
+// ISC License
+//
+// Copyright (C) 2014 - 2022  Tommy Thorn <tommy-github2@thorn.ws>
+//
+// Permission to use, copy, modify, and/or distribute this software for any
+// purpose with or without fee is hereby granted, provided that the above
+// copyright notice and this permission notice appear in all copies.
+//
+// THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+// WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+// MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+// ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+// WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+// ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+// OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // -----------------------------------------------------------------------
 
-// Urgent TO-DOs:
+// TO-DOs:
+//
+//  * Improve timing
 //
 //  * Tag every fetched instruction with seqno in program order (which
 //    implies restoring it on restart).  Emit along with PC in traces.
 //    Propagate even on stall/flush.  Idea is to correctly associate
 //    bubbless with causes.
+//
+//  * add more accounting to enable "IPC stacks", that is, counting of
+//    cycles wasted due to all the reasons above.
 //
 //  * Load-hit-store: investigate forwarding
 //
@@ -24,15 +44,15 @@
 //    - jalr misses can be made cheaper by precomputing pc-jr.imm
 //      and checking the forwarded rs1 against that.
 //
-//  * Add a YAGS corrector
+//  * Convert memories to caches
 //
-//  * Radical: store to RF speculatively and undo on restart!
+//  * Maybe: forward unaligned load results, giving lw a two cycle latency
 
 /*************************************************************************
 
 This is the YARVI2 pipeline.
 
-We have nine stages:
+We have eight stages:
 
                           result forwarding
                         v---+----+----+----+
@@ -70,10 +90,6 @@ The pipeline might be invalidated or restarted for several reasons:
  - instruction traps, like misaligned loads/stores
  - interrupts (which are taken in CM)
 
-TODO:
- - add more accounting to enable "IPC stacks", that is, counting of
-   cycles wasted due to all the reasons above.
-
 *************************************************************************/
 
 /* The width comparisons in Verilator are completely broken. */
@@ -81,13 +97,6 @@ TODO:
 
 `include "yarvi.h"
 `default_nettype none
-
-/*
-typedef enum { NO_BUBL, BUBL_RESET, BUBL_LOAD_USE,
-               BUBL_LOAD_HIT_STORE, BUBL_BR_MISPREDICT,
-               BUBL_JARL_MISPREDICT, BUBL_JAL_MISPREDICT, BUBL_ECALL,
-               BUBL_MRET, BUBL_SYSTEM, BUBL_FENCE_I, BUBL_EXCP } e_bubble;
-*/
 
 module yarvi
   ( input  wire             clock
@@ -158,6 +167,10 @@ module yarvi
    //
 
 
+
+
+   // S0 - Branch Predition
+
    // Branch prediction:
    //
    // BTB caches instruction that are CTL (Control Transfer Logic)
@@ -188,13 +201,13 @@ module yarvi
    //    That is, the lsb is not relevant for the mux but only for the
    //    RAS update and branch weight.
 
-`define BTB_TYPE_BR_S_N 0
-`define BTB_TYPE_BR_W_N 1
-`define BTB_TYPE_BR_W_T 2
-`define BTB_TYPE_BR_S_T 3
-`define BTB_TYPE_RETURN 4
-`define BTB_TYPE_JUMP   6
-`define BTB_TYPE_CALL   7
+`define BTB_TYPE_BR_S_N 3'd0
+`define BTB_TYPE_BR_W_N 3'd1
+`define BTB_TYPE_BR_W_T 3'd2
+`define BTB_TYPE_BR_S_T 3'd3
+`define BTB_TYPE_RETURN 3'd4
+`define BTB_TYPE_JUMP   3'd6
+`define BTB_TYPE_CALL   3'd7
 
    // The BTB stores the type and part of the target address (except
    // for 4 which uses the RAS).  The remaining bits are copied from
@@ -218,9 +231,17 @@ module yarvi
    reg [`BTB_TARGET_MSB:0] btb_target[(2 << `BTB_INDEX_MSB) - 1:0];
    reg [`VMSB          :0] ras0 = 'h110, ras1 = 'h220, ras2 = 'h440;
 
-   wire             restart;
-   wire [`VMSB:0]   restart_pc;
-   wire             s3_stall;
+`define YAGS_TAG_MSB	5 // 6-bit tags
+`define YAGS_INDEX_MSB 11 // 12-bit index, 4096 entries
+
+   // YAGS corrector
+   reg [`YAGS_TAG_MSB  :0] yags_tag[(2 << `YAGS_INDEX_MSB) - 1:0];
+   reg [              1:0] yags_direction[(2 << `YAGS_INDEX_MSB) - 1:0];
+   reg [`YAGS_INDEX_MSB:0] br_history = 0;
+
+   wire                    restart;
+   wire [`VMSB         :0] restart_pc;
+   wire                    s3_stall;
 
    reg                     btb_update = 0;
    reg [`BTB_INDEX_MSB :0] btb_update_idx;
@@ -228,28 +249,65 @@ module yarvi
    reg [`BTB_TAG_MSB   :0] btb_update_tag;
    reg [`BTB_TARGET_MSB:0] btb_update_target;
 
+   reg                     yags_update = 0;
+   reg [`YAGS_INDEX_MSB:0] yags_update_idx;
+   reg [              1:0] yags_update_direction;
+   reg [`YAGS_TAG_MSB  :0] yags_update_tag;
+
+   reg                     s0_yags_hit;
+   reg [`YAGS_INDEX_MSB:0] s0_yags_idx;
+   reg [`YAGS_TAG_MSB  :0] s0_yags_tag;
+   reg [              1:0] s0_yags_dir;
+
    reg  [`VMSB         :0] s0_pc;
    reg  [`VMSB         :0] s0_npc;
-   wire                    s0_btb_hit = s0_tag == s0_pc[`BTB_TAG_MSB+`BTB_INDEX_MSB+3:`BTB_INDEX_MSB+3];
    reg [              2:0] s0_btb_type;
-   reg [`BTB_TAG_MSB   :0] s0_tag;
-   reg [`BTB_TARGET_MSB:0] s0_target;
+   reg [`BTB_TAG_MSB   :0] s0_btb_tag;
+   reg [`BTB_TARGET_MSB:0] s0_btb_target;
+   reg                     s0_btb_hit;
 
+   reg [              2:0] s0_prediction;
 
-
-   // S0 - Branch Predition
    always @(*) begin
+      s0_btb_hit  = s0_pc[`BTB_TAG_MSB+`BTB_INDEX_MSB+3:`BTB_INDEX_MSB+3]    == s0_btb_tag;
+      s0_yags_hit = s0_pc[`YAGS_TAG_MSB+`YAGS_INDEX_MSB+3:`YAGS_INDEX_MSB+3] == s0_yags_tag;
 
-      // I'm hoping the tools can see that lsb is not used
-      case (s0_btb_type & {3{s0_btb_hit}})
-        `BTB_TYPE_BR_S_N, `BTB_TYPE_BR_W_N:
-          s0_npc = s0_pc + 4;
-        `BTB_TYPE_BR_S_T, `BTB_TYPE_BR_W_T, `BTB_TYPE_JUMP, `BTB_TYPE_CALL:
-            s0_npc = {s0_pc[`XMSB:`BTB_TARGET_MSB+3],s0_target,2'd0};
-        `BTB_TYPE_RETURN:
+      casez ({s0_btb_hit,s0_btb_type,s0_yags_hit,s0_yags_dir})
+        // BTB says return => ignore YAGS and follow RAS
+        {1'd1,`BTB_TYPE_RETURN, 3'd?}: begin
+          s0_prediction = `BTB_TYPE_RETURN;
           s0_npc = ras0;
-        default:
-          s0_npc = 'hX;
+        end
+
+        // BTB says jump => ignore YAGS and follow BTB target
+        {1'd1,`BTB_TYPE_JUMP, 3'd?}: begin
+          s0_prediction = `BTB_TYPE_JUMP;
+          s0_npc = {s0_pc[`XMSB:`BTB_TARGET_MSB+3],s0_btb_target,2'd0};
+        end
+
+        // BTB says call => ignore YAGS and follow BTB target
+        {1'd1,`BTB_TYPE_CALL, 3'd?}: begin
+          s0_prediction = `BTB_TYPE_CALL;
+          s0_npc = {s0_pc[`XMSB:`BTB_TARGET_MSB+3],s0_btb_target,2'd0};
+        end
+
+        // BTB says taken and YAGS miss => follow BTB target
+        {1'd1,`BTB_TYPE_BR_S_T, 1'd0,2'd?}, {1'd1,`BTB_TYPE_BR_W_T, 1'd0,2'd?}: begin
+           s0_prediction = `BTB_TYPE_BR_W_T;
+           s0_npc = {s0_pc[`XMSB:`BTB_TARGET_MSB+3],s0_btb_target,2'd0};
+        end
+
+        // BTB says it's a branch and YAGS says taken => follow BTB target
+        {1'd1,3'b0??, 1'd1, 2'b1?}: begin
+          s0_prediction = `BTB_TYPE_BR_W_T;
+          s0_npc = {s0_pc[`XMSB:`BTB_TARGET_MSB+3],s0_btb_target,2'd0};
+        end
+
+        // Otherwise sequential
+        default: begin
+          s0_prediction = `BTB_TYPE_BR_W_N;
+          s0_npc = s0_pc + 4;
+        end
       endcase
 
 
@@ -266,24 +324,41 @@ module yarvi
    always @(posedge clock) begin
       s0_restart    <= restart;
       s0_pc         <= s0_npc;
-      s0_tag        <= btb_tag[s0_npc[`BTB_INDEX_MSB+2:2]];
-      s0_target     <= btb_target[s0_npc[`BTB_INDEX_MSB+2:2]];
+      s0_btb_tag    <= btb_tag[s0_npc[`BTB_INDEX_MSB+2:2]];
+      s0_btb_target <= btb_target[s0_npc[`BTB_INDEX_MSB+2:2]];
       s0_btb_type   <= btb_type[s0_npc[`BTB_INDEX_MSB+2:2]];
 
+      s0_yags_idx   <= s0_pc[`YAGS_INDEX_MSB+2:2] ^ br_history;
+      s0_yags_tag   <= yags_tag[s0_pc[`YAGS_INDEX_MSB+2:2] ^ br_history];
+      s0_yags_dir   <= yags_direction[s0_pc[`YAGS_INDEX_MSB+2:2] ^ br_history];
+
+      if (yags_update) begin
+         yags_tag[yags_update_idx] <= yags_update_tag;
+         yags_direction[yags_update_idx] <= yags_update_direction;
+`ifndef QUIET
+         $display("UPDATE_: YAGS[%x]=%x:%d -> %x:%d", yags_update_idx,
+                  yags_tag[yags_update_idx],
+                  yags_direction[yags_update_idx],
+                  yags_update_tag,
+                  yags_update_direction);
+`endif
+      end
+
       if (restart) begin
+         br_history <= rbr_history;
          ras0 <= rras0;
          ras1 <= rras1;
          ras2 <= rras2;
 `ifndef QUIET
-         $display("           RAS now: %x %x %x", rras0, rras1, rras2);
+         $display("           RAS now: %x %x %x History %x", rras0, rras1, rras2, rbr_history);
 `endif
       end
 
       if (!s3_stall & !restart & s0_btb_hit)
-         case (s0_btb_type)
+         case (s0_prediction)
            `BTB_TYPE_CALL: begin
 `ifndef QUIET
-              $display("PREDICT: %x (%d) CALL to %x (RAS: %x %x %x)", s0_pc, s0_pc[`BTB_INDEX_MSB+2:2], s0_npc,
+              $display("PREDICT: %x (%d) CALL to %x RAS: %x %x %x", s0_pc, s0_pc[`BTB_INDEX_MSB+2:2], s0_npc,
                        s0_pc + 4, ras0, ras1);
 `endif
               // Old ras2 lost
@@ -293,7 +368,7 @@ module yarvi
            end
            `BTB_TYPE_RETURN: begin
 `ifndef QUIET
-              $display("PREDICT: %x (%d) RETURN to %x (RAS: %x %x)", s0_pc, s0_pc[`BTB_INDEX_MSB+2:2], s0_npc, ras1, ras2);
+              $display("PREDICT: %x (%d) RETURN to %x RAS: %x %x", s0_pc, s0_pc[`BTB_INDEX_MSB+2:2], s0_npc, ras1, ras2);
 `endif
               ras0 <= ras1;
               ras1 <= ras2;
@@ -307,13 +382,29 @@ module yarvi
            end
            `BTB_TYPE_BR_S_T, `BTB_TYPE_BR_W_T: begin
 `ifndef QUIET
-              $display("PREDICT: %x (%d) %s TAKEN BRANCH to %x", s0_pc, s0_pc[`BTB_INDEX_MSB+2:2],
-                       s0_btb_type == `BTB_TYPE_BR_S_T ? "STRONGLY" : "WEAKLY", s0_npc);
+              if (s0_yags_hit)
+                $display("PREDICT: %x (%d) YAGS[%x]=%x:%x said %s TAKEN BRANCH to %x", s0_pc, s0_pc[`BTB_INDEX_MSB+2:2],
+                         s0_yags_idx, s0_yags_tag, s0_yags_dir,
+                         s0_btb_type == `BTB_TYPE_BR_S_T ? "STRONGLY" : "WEAKLY", s0_npc);
+              else
+                $display("PREDICT: %x (%d) BM said %s TAKEN BRANCH to %x", s0_pc, s0_pc[`BTB_INDEX_MSB+2:2],
+                         s0_btb_type == `BTB_TYPE_BR_S_T ? "STRONGLY" : "WEAKLY", s0_npc);
 `endif
+              br_history <= (br_history << 1) | 1'b1;
            end
+           `BTB_TYPE_BR_S_N, `BTB_TYPE_BR_W_N: begin
+`ifndef QUIET
+              if (s0_yags_hit)
+                $display("PREDICT: %x (%d) YAGS[%x] said %s TAKEN BRANCH to %x", s0_pc, s0_pc[`BTB_INDEX_MSB+2:2],
+                         s0_yags_idx,
+                         s0_btb_type == `BTB_TYPE_BR_S_T ? "STRONGLY" : "WEAKLY", s0_npc);
+`endif
+              br_history <= (br_history << 1) | 1'b0;
+           end
+           default: begin /* can't happen */ end
          endcase
 
-      if (!reset & !s3_stall & btb_update) begin
+      if (btb_update) begin
          btb_type[btb_update_idx] <= btb_update_type;
          btb_tag[btb_update_idx] <= btb_update_tag;
          btb_target[btb_update_idx] <= btb_update_target;
@@ -347,12 +438,18 @@ module yarvi
    reg [31             :0] s1_insn;
    reg [              2:0] s1_btb_type;
    reg                     s1_btb_hit;
+   reg [`YAGS_INDEX_MSB:0] s1_yags_idx;
+   reg                     s1_yags_hit;
+   reg [1              :0] s1_yags_dir;
    always @(posedge clock) if (!s3_stall | restart) begin
       s1_pc         <= s0_pc;
       s1_npc        <= s0_npc;
       s1_insn       <= code[s0_pc[`PMSB:2]];
       s1_btb_type   <= s0_btb_type;
       s1_btb_hit    <= s0_btb_hit;
+      s1_yags_idx   <= s0_yags_idx;
+      s1_yags_hit   <= s0_yags_hit;
+      s1_yags_dir   <= s0_yags_dir;
    end
 
 
@@ -365,6 +462,9 @@ module yarvi
    reg [31             :0] s2_insn;
    reg [              2:0] s2_btb_type;
    reg                     s2_btb_hit;
+   reg [`YAGS_INDEX_MSB:0] s2_yags_idx;
+   reg                     s2_yags_hit;
+   reg [1              :0] s2_yags_dir;
    always @(posedge clock) if (!s3_stall | restart) begin
       s2_valid_r    <= s1_valid;
       s2_pc         <= s1_pc;
@@ -372,6 +472,9 @@ module yarvi
       s2_insn       <= s1_insn;
       s2_btb_type   <= s1_btb_type;
       s2_btb_hit    <= s1_btb_hit;
+      s2_yags_idx    <= s1_yags_idx;
+      s2_yags_hit    <= s1_yags_hit;
+      s2_yags_dir    <= s1_yags_dir;
    end
 
 
@@ -384,6 +487,9 @@ module yarvi
    reg [   31:          0] s3_insn;
    reg [              2:0] s3_btb_type;
    reg                     s3_btb_hit;
+   reg [`YAGS_INDEX_MSB:0] s3_yags_idx;
+   reg                     s3_yags_hit;
+   reg [1              :0] s3_yags_dir;
    always @(posedge clock) begin
       s3_valid_r     <= s2_valid;
    end
@@ -393,6 +499,9 @@ module yarvi
       s3_insn        <= s2_insn;
       s3_btb_type    <= s2_btb_type;
       s3_btb_hit     <= s2_btb_hit;
+      s3_yags_idx     <= s2_yags_idx;
+      s3_yags_hit     <= s2_yags_hit;
+      s3_yags_dir     <= s2_yags_dir;
    end
 
    wire [`XMSB-12:0] s3_sext12 = {(`XMSB-11){s3_insn[31]}};
@@ -447,6 +556,9 @@ module yarvi
    reg [`XMSB          :0] s4_op2_imm;
    reg [              2:0] s4_btb_type;
    reg                     s4_btb_hit;
+   reg [`YAGS_INDEX_MSB:0] s4_yags_idx;
+   reg                     s4_yags_hit;
+   reg [1              :0] s4_yags_dir;
 
    // Possible targets for normal execution:
    // - statically determined (+4 or jump target)
@@ -466,6 +578,9 @@ module yarvi
       s4_op2_imm     <= s3_op2_imm;
       s4_btb_type    <= s3_btb_type;
       s4_btb_hit     <= s3_btb_hit;
+      s4_yags_idx     <= s3_yags_idx;
+      s4_yags_hit     <= s3_yags_hit;
+      s4_yags_dir     <= s3_yags_dir;
 
       s4_br_target   <= s3_pc + s3_sb_imm;
       s4_insn_target <= s3_pc + 4;
@@ -570,8 +685,11 @@ module yarvi
    reg  [`XMSB:0]   s5_jalr_target;
    reg  [`XMSB:0]   s5_jalr_target_miss;
    reg  [`XMSB:0]   s5_alu_op1, s5_alu_op2;
-   reg [              2:0] s5_btb_type;
-   reg              s5_btb_hit;
+   reg  [             2:0] s5_btb_type;
+   reg                     s5_btb_hit;
+   reg [`YAGS_INDEX_MSB:0] s5_yags_idx;
+   reg                     s5_yags_hit;
+   reg [              1:0] s5_yags_dir;
 
 
    always @(posedge clock) begin
@@ -582,6 +700,9 @@ module yarvi
       s5_br_target_miss   <= s4_br_target != s4_npc;
       s5_btb_type         <= s4_btb_type;
       s5_btb_hit          <= s4_btb_hit;
+      s5_yags_idx         <= s4_yags_idx;
+      s5_yags_hit         <= s4_yags_hit;
+      s5_yags_dir         <= s4_yags_dir;
    end
 
    reg s5_alu_sub = 0;
@@ -733,7 +854,7 @@ module yarvi
 
    reg  [   11:0]   s6_csr_mideleg;
    reg  [   11:0]   s6_csr_medeleg;
-   reg              s6_branch_taken = 0;
+   reg              s6_branch_taken;
    reg              s6_csr_we;
    reg [`XMSB:0]    s6_csr_val;
    reg [`XMSB:0]    s6_csr_d;
@@ -748,13 +869,27 @@ module yarvi
 
    wire [`XMSB:0]   m1_load_addr;
 
+   wire [1:0] yags_new_direction =
+              s5_yags_hit
+              ? (s5_branch_taken
+                 ? s5_yags_dir == `BTB_TYPE_BR_S_T ? `BTB_TYPE_BR_S_T : s5_yags_dir + 1
+                 : s5_yags_dir == `BTB_TYPE_BR_S_N ? `BTB_TYPE_BR_S_N : s5_yags_dir - 1)
+              : s5_branch_taken ? `BTB_TYPE_BR_W_T : `BTB_TYPE_BR_W_N;
+
    // A precise retirement RAS (magic values for the benefit of debugging)
    reg [`VMSB          :0] rras0 = 'h110, rras1 = 'h220, rras2 = 'h440;
+   reg [`YAGS_INDEX_MSB:0] rbr_history = 0;
    always @(posedge clock) begin
       s6_valid_r      <= s5_valid;
-      s6_branch_taken <= s5_branch_taken;
-      s6_wb_val       <= s5_wb_val;
+      s6_pc           <= s5_pc;
+      s6_insn         <= s5_insn;
+      s6_rs1          <= s5_rs1;
+      s6_rs2          <= s5_rs2;
       s6_rd           <= s5_valid ? s5_rd : 0;
+      s6_branch_taken <= s5_branch_taken;
+      s6_intr         <= csr_mip_and_mie != 0 && csr_mstatus`MIE;
+
+      s6_wb_val       <= s5_wb_val;
       s6_flush        <= 0;
       s6_csr_val      <= s5_csr_val;
       s6_addr         <= s5_opcode == `LOAD || s5_opcode == `STORE ?
@@ -765,6 +900,7 @@ module yarvi
       btb_update      <= s5_pc_insn_miss & s5_valid;
       btb_update_idx  <= s5_pc[`BTB_INDEX_MSB+2:2];
       btb_update_type <= `BTB_TYPE_BR_W_N;
+      yags_update     <= 0;
 
       if (s5_valid)
         case (s5_opcode)
@@ -783,6 +919,7 @@ module yarvi
           end
 
           `BRANCH: begin
+             rbr_history <= (rbr_history << 1) | s5_branch_taken;
              if (s5_branch_taken)
                if (s5_br_target_miss) begin
                   s6_restart <= 1;
@@ -795,14 +932,31 @@ module yarvi
              btb_update_tag <= s5_pc[`BTB_TAG_MSB+`BTB_INDEX_MSB+3:`BTB_INDEX_MSB+3];
              btb_update_target <= s5_br_target >> 2;
 
-             if (s5_branch_taken && (s5_btb_type != `BTB_TYPE_BR_S_T || !s5_btb_hit)) begin
-                btb_update <= 1;
-                btb_update_type <= s5_btb_type <= `BTB_TYPE_BR_S_T && s5_btb_hit ? s5_btb_type + 1 : `BTB_TYPE_BR_W_T;
-             end
+`ifndef QUIET
+             if (s5_yags_hit)
+               $display("%x/%x hit in YAGS[%x] with direction %d, updating to %d", s5_pc, rbr_history,
+                        s5_pc[`YAGS_INDEX_MSB+2:2] ^ rbr_history,
+                        s5_yags_dir, yags_new_direction);
+             else
+               $display("%x/%x updating YAGS[%x] to direction %d", s5_pc, rbr_history,
+                        s5_pc[`YAGS_INDEX_MSB+2:2] ^ rbr_history,
+                        yags_new_direction);
+`endif
+             yags_update <= 1;
+             yags_update_idx <= s5_yags_idx;
+             yags_update_tag <= s5_pc[`YAGS_TAG_MSB+`YAGS_INDEX_MSB+3:`YAGS_INDEX_MSB+3];
+             yags_update_direction <= yags_new_direction;
 
-             if (!s5_branch_taken && (s5_btb_type != `BTB_TYPE_BR_S_N || !s5_btb_hit)) begin
-                btb_update <= 1;
-                btb_update_type <= s5_btb_type <= `BTB_TYPE_BR_S_T && s5_btb_hit ? s5_btb_type - 1 : `BTB_TYPE_BR_W_N;
+             if (!(s5_btb_hit && s5_yags_hit)) begin
+                if (s5_branch_taken && (s5_btb_type != `BTB_TYPE_BR_S_T || !s5_btb_hit)) begin
+                   btb_update <= 1;
+                   btb_update_type <= s5_btb_type <= `BTB_TYPE_BR_S_T && s5_btb_hit ? s5_btb_type + 1 : `BTB_TYPE_BR_W_T;
+                end
+
+                if (!s5_branch_taken && (s5_btb_type != `BTB_TYPE_BR_S_N || !s5_btb_hit)) begin
+                   btb_update <= 1;
+                   btb_update_type <= s5_btb_type <= `BTB_TYPE_BR_S_T && s5_btb_hit ? s5_btb_type - 1 : `BTB_TYPE_BR_W_N;
+                end
              end
 
 `ifndef QUIET
@@ -855,12 +1009,18 @@ module yarvi
                   rras1 <= rras2;
                   // keep ras2
                   rras2 <= 0; // XXX just to make debugging easier
+`ifndef QUIET
+                $display("         RRAS %x %x %x", rras1, rras2, 0);
+`endif
                end
                2, 3: begin
                   // Old ras2 lost
                   rras2 <= rras1;
                   rras1 <= rras0;
                   rras0 <= s5_pc + 4;
+`ifndef QUIET
+                $display("         RRAS %x %x %x", s5_pc + 4, rras0, rras1);
+`endif
                end
              endcase
           end
@@ -965,15 +1125,6 @@ module yarvi
       end
    end
 
-   always @(posedge clock) begin
-      s6_pc    <= s5_pc;
-      s6_insn  <= s5_insn;
-      s6_rs1   <= s5_rs1;
-      s6_rs2   <= s5_rs2;
-      s6_branch_taken <= s5_branch_taken;
-      s6_intr  <= csr_mip_and_mie != 0 && csr_mstatus`MIE;
-   end
-
    /* Trap handling falls into things that can be determined at decode
     * time (static) and things we can't know until after execute
     * (dynamic).  The latter category is a timing path:
@@ -1003,6 +1154,8 @@ module yarvi
       s6_trap_cause                     = 0;
       s6_trap_val                       = 0;
       s6_csr_d                          = 'h X;
+      s6_cause                          = 0;
+      s6_deleg                          = 0;
 
       case (s6_insn`opcode)
         `OP_IMM, `OP, `AUIPC, `LUI: ;
@@ -1402,6 +1555,10 @@ module yarvi
          btb_target[i] = 0;
          btb_type[i] = 0;
          btb_tag[i] = ~0;
+      end
+      for (i = 0; i < 2 << `YAGS_INDEX_MSB; i = i + 1) begin
+         yags_tag[i] = ~0;
+         yags_direction[i] = 1;
       end
    end
 //`endif
