@@ -1,12 +1,14 @@
 # YARVI2
 
-YARVI2 is an in-order scalar RISC-V core branch prediction.  The
-original, YARVI, was the first non-Berkely freely available RISC-V
-softcore implementation.  YARVI2 is a complete rewrite for better
-performance.
+YARVI2 is an FPGA-focused in-order scalar RISC-V softcore with branch
+prediction.  The original, YARVI, was the first non-Berkely freely
+available RISC-V softcore implementation.  YARVI2 is a complete
+rewrite for better performance.
 
-YARVI2 is free and open hardware licensed under the [ISC license](http://en.wikipedia.org/wiki/ISC_license)
-(a license that is similar in terms to the MIT license or the 2-clause BSD license).
+YARVI2 is free and open hardware licensed under the
+[ISC license](http://en.wikipedia.org/wiki/ISC_license)
+(a license that is similar in terms to the MIT license or the 2-clause
+BSD license).
 
 
 ## Status
@@ -80,12 +82,12 @@ High priority:
 - converting data memories to caches + external memory interface (features)
 
 Planned:
-- multiplier and atomics (RV32AMI)
+- multiplier and atomics (RVAM)
 
 Considering:
 - virtual memory
 - 64-bit (RV64)
 - compressed instructions (RVC)
-- floating point
+- floating point (RVFD)
 
 and more

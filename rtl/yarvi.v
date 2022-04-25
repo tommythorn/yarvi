@@ -23,31 +23,35 @@
 //
 //  * Improve timing
 //
+//  * Convert memories to caches
+//
 //  * Tag every fetched instruction with seqno in program order (which
 //    implies restoring it on restart).  Emit along with PC in traces.
 //    Propagate even on stall/flush.  Idea is to correctly associate
-//    bubbless with causes.
+//    bubbles with causes.
 //
 //  * add more accounting to enable "IPC stacks", that is, counting of
 //    cycles wasted due to all the reasons above.
 //
 //  * Load-hit-store: investigate forwarding
 //
-//  * Load-use: investigate forwarding for lw
+//  * Load-use:
+//    - store data can be forwarded from sub-word load only one cycle
+//      penalty
+//    - store data can be forwarded from full-word load with no penalty
+//    - full-word loads can be forwarded one cycle earlier
+//    - moving branch execution later in the pipeline with reduce or
+//      eliminate load-use penalty (for a higher mispredict penalty)
 //
 //  * Improve timing
 //    - looks like exception handling is slowing us down.
 //      We probably need to insert a stage between EX and CM.
 //    - The CSR update is a bottleneck => split CM into two stages
 //    - The NPC mux could probably be slimmed
-//    - reinvestigate the alternative restart handling
+//    - re-investigate the alternative restart handling
 //    - jalr misses can be made cheaper by precomputing pc-jr.imm
 //      and checking the forwarded rs1 against that.
 //
-//  * Convert memories to caches
-//
-//  * Maybe: forward unaligned load results, giving lw a two cycle latency
-
 /*************************************************************************
 
 This is the YARVI2 pipeline.
@@ -173,15 +177,14 @@ module yarvi
 
    // Branch prediction:
    //
-   // BTB caches instruction that are CTL (Control Transfer Logic)
-   // which can be
+   // BTB caches control transfer logic (CTL) instructions which are:
    // 0. conditional branches ({BEQ,BNE,BLT,BGE,BLTU,BGEU),
    // 1. calls (JAL with rd in {r1,r5}),
    // 2. returns (JALR with rs1 in {r1,r5} and rd=r0},
    // 3. jumps (JAL with rd not in {r1,r5}), or
    // 4. indirect jumps (JALR otherwise).
    //
-   // We use embed the bimodal predictor in the BTB and use a clever
+   // We embed the bimodal predictor in the BTB and use a clever
    // encoding to make the critical mux path cheaper:
    //
    //       000 branch-strongly-not-taken
@@ -198,8 +201,8 @@ module yarvi
    //       2:    npc = ras0;
    //       endcase
    //
-   //    That is, the lsb is not relevant for the mux but only for the
-   //    RAS update and branch weight.
+   // That is, the LSB is not relevant for the mux but only for the
+   // RAS update and branch weight.
 
 `define BTB_TYPE_BR_S_N 3'd0
 `define BTB_TYPE_BR_W_N 3'd1
@@ -209,9 +212,9 @@ module yarvi
 `define BTB_TYPE_JUMP   3'd6
 `define BTB_TYPE_CALL   3'd7
 
-   // The BTB stores the type and part of the target address (except
-   // for 4 which uses the RAS).  The remaining bits are copied from
-   // the PC (we could do better (say use a delta) if timing allows).
+   // The BTB stores the type and part of the target address.  The
+   // remaining bits are copied from the PC (we could do better, eg.
+   // use a delta if timing allows).
    //
    // The BTB also stores a partial tag.  For timing, the BTB is
    // directly mapped.
@@ -231,7 +234,7 @@ module yarvi
    reg [`BTB_TARGET_MSB:0] btb_target[(2 << `BTB_INDEX_MSB) - 1:0];
    reg [`VMSB          :0] ras0 = 'h110, ras1 = 'h220, ras2 = 'h440;
 
-`define YAGS_TAG_MSB	5 // 6-bit tags
+`define YAGS_TAG_MSB    5 // 6-bit tags
 `define YAGS_INDEX_MSB 11 // 12-bit index, 4096 entries
 
    // YAGS corrector
@@ -472,9 +475,9 @@ module yarvi
       s2_insn       <= s1_insn;
       s2_btb_type   <= s1_btb_type;
       s2_btb_hit    <= s1_btb_hit;
-      s2_yags_idx    <= s1_yags_idx;
-      s2_yags_hit    <= s1_yags_hit;
-      s2_yags_dir    <= s1_yags_dir;
+      s2_yags_idx   <= s1_yags_idx;
+      s2_yags_hit   <= s1_yags_hit;
+      s2_yags_dir   <= s1_yags_dir;
    end
 
 
@@ -499,9 +502,9 @@ module yarvi
       s3_insn        <= s2_insn;
       s3_btb_type    <= s2_btb_type;
       s3_btb_hit     <= s2_btb_hit;
-      s3_yags_idx     <= s2_yags_idx;
-      s3_yags_hit     <= s2_yags_hit;
-      s3_yags_dir     <= s2_yags_dir;
+      s3_yags_idx    <= s2_yags_idx;
+      s3_yags_hit    <= s2_yags_hit;
+      s3_yags_dir    <= s2_yags_dir;
    end
 
    wire [`XMSB-12:0] s3_sext12 = {(`XMSB-11){s3_insn[31]}};
@@ -578,10 +581,9 @@ module yarvi
       s4_op2_imm     <= s3_op2_imm;
       s4_btb_type    <= s3_btb_type;
       s4_btb_hit     <= s3_btb_hit;
-      s4_yags_idx     <= s3_yags_idx;
-      s4_yags_hit     <= s3_yags_hit;
-      s4_yags_dir     <= s3_yags_dir;
-
+      s4_yags_idx    <= s3_yags_idx;
+      s4_yags_hit    <= s3_yags_hit;
+      s4_yags_dir    <= s3_yags_dir;
       s4_br_target   <= s3_pc + s3_sb_imm;
       s4_insn_target <= s3_pc + 4;
       case (s3_insn`opcode)
@@ -665,32 +667,31 @@ module yarvi
 
 
    // S5 - Execute all ALU
-   reg              s5_valid_r = 0;
-   wire             s5_valid = s5_valid_r & !restart;
-   reg  [`XMSB:0]   s5_pc;
-   reg  [`XMSB:0]   s5_npc;
-   reg  [   31:0]   s5_insn;
-   reg  [    4:0]   s5_rd;
-   wire [`XMSB:0]   s5_wb_val;
-   wire [    4:0]   s5_opcode = s5_insn`opcode;
-   reg  [`XMSB:0]   s5_s_imm;
-   reg  [`XMSB:0]   s5_i_imm;
-   reg  [`XMSB:0]   s5_rs1;
-   reg  [`XMSB:0]   s5_rs2;
-   reg  [`XMSB:0]   s5_csr_val;
-   reg  [`XMSB:0]   s5_insn_target = 0;
-   reg  [`XMSB:0]   s5_pc_insn_miss = 0;
-   reg  [`XMSB:0]   s5_br_target;
-   reg  [`XMSB:0]   s5_br_target_miss;
-   reg  [`XMSB:0]   s5_jalr_target;
-   reg  [`XMSB:0]   s5_jalr_target_miss;
-   reg  [`XMSB:0]   s5_alu_op1, s5_alu_op2;
-   reg  [             2:0] s5_btb_type;
-   reg                     s5_btb_hit;
-   reg [`YAGS_INDEX_MSB:0] s5_yags_idx;
-   reg                     s5_yags_hit;
-   reg [              1:0] s5_yags_dir;
-
+   reg                      s5_valid_r = 0;
+   wire                     s5_valid = s5_valid_r & !restart;
+   reg  [`XMSB          :0] s5_pc;
+   reg  [`XMSB          :0] s5_npc;
+   reg  [   31          :0] s5_insn;
+   reg  [    4          :0] s5_rd;
+   wire [`XMSB          :0] s5_wb_val;
+   wire [    4          :0] s5_opcode = s5_insn`opcode;
+   reg  [`XMSB          :0] s5_s_imm;
+   reg  [`XMSB          :0] s5_i_imm;
+   reg  [`XMSB          :0] s5_rs1;
+   reg  [`XMSB          :0] s5_rs2;
+   reg  [`XMSB          :0] s5_csr_val;
+   reg  [`XMSB          :0] s5_insn_target = 0;
+   reg  [`XMSB          :0] s5_pc_insn_miss = 0;
+   reg  [`XMSB          :0] s5_br_target;
+   reg  [`XMSB          :0] s5_br_target_miss;
+   reg  [`XMSB          :0] s5_jalr_target;
+   reg  [`XMSB          :0] s5_jalr_target_miss;
+   reg  [`XMSB          :0] s5_alu_op1, s5_alu_op2;
+   reg  [              2:0] s5_btb_type;
+   reg                      s5_btb_hit;
+   reg  [`YAGS_INDEX_MSB:0] s5_yags_idx;
+   reg                      s5_yags_hit;
+   reg  [              1:0] s5_yags_dir;
 
    always @(posedge clock) begin
       s5_valid_r          <= s4_valid;
@@ -807,13 +808,13 @@ module yarvi
    wire s5_branch_taken = (s5_insn`br_rela ? s5_cmp_lt : s5_alu_res_eq) ^ s5_insn`br_negate;
 
    always @(posedge clock) begin
-      s5_pc <= s4_pc;
-      s5_npc <= s4_npc;
-      s5_insn <= s4_insn;
-      s5_rd <= s4_valid ? s4_rd : 0;
-      s5_s_imm  <= s4_s_imm;
-      s5_i_imm  <= s4_i_imm;
-      s5_csr_val<= s4_csr_val;
+      s5_pc      <= s4_pc;
+      s5_npc     <= s4_npc;
+      s5_insn    <= s4_insn;
+      s5_rd      <= s4_valid ? s4_rd : 0;
+      s5_s_imm   <= s4_s_imm;
+      s5_i_imm   <= s4_i_imm;
+      s5_csr_val <= s4_csr_val;
    end
 
    always @(*) begin
@@ -876,8 +877,8 @@ module yarvi
                  : s5_yags_dir == `BTB_TYPE_BR_S_N ? `BTB_TYPE_BR_S_N : s5_yags_dir - 1)
               : s5_branch_taken ? `BTB_TYPE_BR_W_T : `BTB_TYPE_BR_W_N;
 
-   // A precise retirement RAS (magic values for the benefit of debugging)
-   reg [`VMSB          :0] rras0 = 'h110, rras1 = 'h220, rras2 = 'h440;
+   // A precise retirement RAS and branch history
+   reg [`VMSB          :0] rras0 = 0, rras1 = 0, rras2 = 0;
    reg [`YAGS_INDEX_MSB:0] rbr_history = 0;
    always @(posedge clock) begin
       s6_valid_r      <= s5_valid;
@@ -978,12 +979,12 @@ module yarvi
                 s6_restart_pc <= s5_jalr_target;
                 btb_update <= 1;
                 btb_update_tag <= s5_pc[`BTB_TAG_MSB+`BTB_INDEX_MSB+3:`BTB_INDEX_MSB+3];
-                //   rd	|  rs1		| rs1=rd	| Interpretation
-                // !r1/r5	| !r1/r5	| -		| indirect branch
-                // !r1/r5	|  r1/r5	| -		| return
-                // r1/r5	| !r1/r5	| -		| call
-                // r1/r5	| r1/r5		| rs1!=rd	| call
-                // r1/r5	| r1/r5		| rs1=rd	| Co-jump (XXX not handled)
+                // rd           |  rs1          | rs1=rd        | Interpretation
+                // !r1/r5       | !r1/r5        | -             | indirect branch
+                // !r1/r5       |  r1/r5        | -             | return
+                // r1/r5        | !r1/r5        | -             | call
+                // r1/r5        | r1/r5         | rs1!=rd       | call
+                // r1/r5        | r1/r5         | rs1=rd        | Co-jump (XXX not handled)
 
                 // XXX do in decode
                 case ({s5_insn`rd == 1 || s5_insn`rd == 5,s5_insn`rs1 == 1 || s5_insn`rs1 == 5})
@@ -1032,9 +1033,9 @@ module yarvi
 
                 btb_update <= 1;
                 btb_update_tag <= s5_pc[`BTB_TAG_MSB+`BTB_INDEX_MSB+3:`BTB_INDEX_MSB+3];
-                //   rd	| Interpretation
-                // !r1/r5	| jump
-                // r1/r5	| call
+                // rd           | Interpretation
+                // !r1/r5       | jump
+                // r1/r5        | call
 
                 // XXX do in decode
                 case ({s5_insn`rd == 1 || s5_insn`rd == 5})
@@ -1438,14 +1439,14 @@ module yarvi
    reg              s7_timer_interrupt;
    reg  [   63:0]   mtime_future;
    always @(posedge clock) begin
-      s7_valid		<= s6_valid & !s6_flush && !s6_trap && !s6_intr;
-      s7_pc		<= s6_pc;
-      s7_insn		<= s6_insn;
-      s7_rd		<= s6_valid ? s6_rd : 0;
-      s7_addr[`PMSB:2]	<= s6_addr[`PMSB:2];
-      s7_wb_val		<= s6_wb_val;
+      s7_valid          <= s6_valid & !s6_flush && !s6_trap && !s6_intr;
+      s7_pc             <= s6_pc;
+      s7_insn           <= s6_insn;
+      s7_rd             <= s6_valid ? s6_rd : 0;
+      s7_addr[`PMSB:2]  <= s6_addr[`PMSB:2];
+      s7_wb_val         <= s6_wb_val;
       if (|s7_rd & s7_valid) begin
-         regs[s7_rd]	<= m3_wb_val;
+         regs[s7_rd]    <= m3_wb_val;
          //$display("%x %x r%1d %x", priv, s7_pc, s7_rd, m3_wb_val);
       end
 
@@ -1531,6 +1532,43 @@ module yarvi
 
 
 
+   // Memory pipeline - S5 - S7
+   assign         m1_load_addr = s5_rs1 + s5_i_imm; // Need full address
+   reg  [`XMSB:0] m2_load_addr;
+   reg  [    1:0] m3_load_addr;
+   reg  [`XMSB:0] m2_memory_data;
+   reg  [`XMSB:0] m3_memory_data;
+/* verilator lint_off UNUSED */
+   reg  [   31:0] m3_insn;
+/* verilator lint_on UNUSED */
+   wire [`XMSB:0] m3_wb_val;
+   reg m3_load_addr_in_mem = 1;
+   always @(posedge clock) begin
+      m2_load_addr      <= m1_load_addr;
+      m3_load_addr[1:0] <= m2_load_addr[1:0];
+      m2_memory_data    <= data[m1_load_addr[`PMSB:2]];
+      m3_insn           <= s6_insn;
+      m3_memory_data    <= m2_memory_data;
+
+      /* Memory mapped io devices (only word-wide accesses are allowed) */
+      case (m2_load_addr[`PMSB:2])
+        0: m3_mmio_data <= mtime[31:0]; // XXX  or uart
+        1: m3_mmio_data <= mtime[63:32];
+        2: m3_mmio_data <= mtimecmp[31:0];
+        3: m3_mmio_data <= mtimecmp[63:32];
+        default: m3_mmio_data <= 0;
+      endcase
+      m3_load_addr_in_mem
+        <= (m2_load_addr & (-1 << (`PMSB+1))) == 32'h80000000;
+   end
+   reg [`XMSB:0] m3_mmio_data = 0;
+   yarvi_ld_align yarvi_load_align_m
+     (m3_insn`opcode != `LOAD, s7_wb_val, // XXX Drop the s7_wb_val -> m3_wb_val bypass?
+      m3_insn`funct3, m3_load_addr[1:0],
+      m3_load_addr_in_mem ? m3_memory_data : m3_mmio_data,
+      m3_wb_val);
+
+
 
 
    // Module outputs
@@ -1574,45 +1612,4 @@ module yarvi
      , .wb_rd  (s7_rd)
      , .wb_val (m3_wb_val));
 `endif
-
-
-   // Alternative memory pipeline
-   assign         m1_load_addr = s5_rs1 + s5_i_imm; // Need full address
-   reg  [`XMSB:0] m2_load_addr;
-   reg  [    1:0] m3_load_addr;
-   reg  [`XMSB:0] m2_memory_data;
-   reg  [`XMSB:0] m3_memory_data;
-/* verilator lint_off UNUSED */
-   reg  [   31:0] m3_insn;
-/* verilator lint_on UNUSED */
-   wire [`XMSB:0] m3_wb_val;
-   reg m3_load_addr_in_mem = 1;
-   always @(posedge clock) begin
-      m2_load_addr      <= m1_load_addr;
-      m3_load_addr[1:0] <= m2_load_addr[1:0];
-      m2_memory_data    <= data[m1_load_addr[`PMSB:2]];
-      m3_insn           <= s6_insn;
-      m3_memory_data    <= m2_memory_data;
-
-      /* Memory mapped io devices (only word-wide accesses are allowed) */
-      case (m2_load_addr[`PMSB:2])
-        0: m3_mmio_data <= mtime[31:0]; // XXX  or uart
-        1: m3_mmio_data <= mtime[63:32];
-        2: m3_mmio_data <= mtimecmp[31:0];
-        3: m3_mmio_data <= mtimecmp[63:32];
-        default: m3_mmio_data <= 0;
-      endcase
-      m3_load_addr_in_mem
-        <= (m2_load_addr & (-1 << (`PMSB+1))) == 32'h80000000;
-   end
-   reg [`XMSB:0] m3_mmio_data = 0;
-   yarvi_ld_align yarvi_load_align_m
-     (m3_insn`opcode != `LOAD, s7_wb_val,
-      m3_insn`funct3, m3_load_addr[1:0],
-      m3_load_addr_in_mem ? m3_memory_data : m3_mmio_data,
-      m3_wb_val);
-
-/* verilator lint_off UNUSED */
-   wire same = m3_wb_val == s7_wb_val;
-
 endmodule
