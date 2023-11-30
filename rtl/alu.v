@@ -53,21 +53,18 @@ module alu#(parameter XLEN = 64)
     output wire         lt,
     output wire         ltu);
 
-   wire [XLEN:0]         sum = op1 + ({XLEN{sub}} ^ op2) + sub; // sum = op1 + op2 or op1 - op2
-   wire                  s   = sum[XLEN-1];
-   wire                  c   = sum[XLEN];
-   wire                  v   = op1[XLEN-1] == !op2[XLEN-1] && op1[XLEN-1] != s;
+   wire [XLEN:0]         sum = op1 + op2;
+   wire [XLEN:0]         dif = op1 - op2;
 
    assign                eq  = op1 == op2;
-   assign                lt  = s ^ v;
-   assign                ltu = !c;
+   assign                lt  = dif[XLEN-1] ^ (op1[XLEN-1] != op2[XLEN-1] && op1[XLEN-1] != dif[XLEN-1]);
+   assign                ltu = dif[XLEN];
 
 always @(*) begin
    case (funct3)
      `SLT:    result = {{XLEN-1{1'd0}}, lt}; // $signed(op1) < $signed(op2)
      `SLTU:   result = {{XLEN-1{1'd0}}, ltu}; // op1 < op2
-
-     `ADDSUB: result = sum[XLEN-1:0];
+     `ADDSUB: result = sub ? dif[XLEN-1:0] : sum[XLEN-1:0];
      default:
        case (funct3)
 `ifndef NO_SHIFTS
