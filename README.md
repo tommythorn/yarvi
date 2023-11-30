@@ -25,10 +25,14 @@ BSD license).
    - 0.904 instructions/cycle (on Dhrystones)
 
    On a Lattice Semi ECP5 85F, speed grade 6 (as per `make fmax ipc`):
-   - 56.6 MHz (128/128 KiB configuration)
+   - 56.6 MHz (128/128 KiB configuration).
 
    On an Altera Cyclone-V A9 C8
    - 100+ MHz (128/128 KiB configuration)
+
+   Note, the ALU can run at 111 MHz, but the critical path is the CRS handling - this is a current focus.
+   The YAGS Branch Prediction currently limits performance to ~ 85 MHz.  One option is to pipeline YAGS,
+   and partially hide the latency by decoupling the predictor from fetch.
 
 - loads have a two cycle latency and use will stall as needed (known
   as a load-use hazard)
@@ -51,10 +55,9 @@ We have eight stages:
   ^--- stall -----/
   ^----- pipeline restarts ------/
 ```
-
-Showing the data loop and the two control loops.  There is a 7 cycle
-mispredict penalty, same for load-hit-store.  Load has a 2 cycle
-latency and can incur up to 2 stall cycles.
+Results can be forwarded from s5, s6, s7, or s8.
+There is a seven cycle mispredict penalty, same for load-hit-store.
+Loads take two cycles (one more than ALU) and can incur up to two stall cycles.
 
 - PC: PC generation/branch prediction
 - IF1: start instruction fetch
@@ -79,21 +82,24 @@ The pipeline might be invalidated or restarted for several reasons:
  - instruction traps, like misaligned loads/stores
  - interrupts (which are taken in CM)
 
-## Coming soon
+## Future
 
 Expect more performance, more features
 
 High priority:
-- continuous timing improvement (Fmax)
+- continuous timing improvement (perf)
 - converting data memories to caches + external memory interface (features)
 
 Planned:
-- multiplier and atomics (RVAM)
+- multiplier and atomics (features: RVAM)
 
 Considering:
 - virtual memory
 - 64-bit (RV64)
-- compressed instructions (RVC)
-- floating point (RVFD)
+- compressed instructions (features: RVC)
+- floating point (features: RVFD)
 
-and more
+Wishlist:
+- Out Of Order Execution (perf)
+  Requires checkpointable renaming + PRF, schedulers, LSU, ROB
+- Dual Issue (perf)
