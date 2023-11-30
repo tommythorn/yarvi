@@ -67,6 +67,9 @@ always @(*) begin
      `SLT:    result = {{XLEN-1{1'd0}}, lt}; // $signed(op1) < $signed(op2)
      `SLTU:   result = {{XLEN-1{1'd0}}, ltu}; // op1 < op2
 
+     `ADDSUB: result = sum[XLEN-1:0];
+     default:
+       case (funct3)
 `ifndef NO_SHIFTS
      `SR_:    if (XLEN != 32 && w)
                 result = $signed({op1[31] & ashr, op1[31:0]}) >>> op2[4:0];
@@ -75,14 +78,12 @@ always @(*) begin
      `SLL:    result = op1 << op2[$clog2(XLEN)-1:0];
 `endif
 
-     `AND:    result = op1 & op2;
-     `OR:     result = op1 | op2;
-     `XOR:    result = op1 ^ op2;
-     default: result = 'hX;
+         `AND:    result = op1 & op2;
+         `OR:     result = op1 | op2;
+         `XOR:    result = op1 ^ op2;
+         default: result = 'hX;
+       endcase
    endcase
-
-   if (funct3 == `ADDSUB)
-     result = sum[XLEN-1:0];
 
    if (XLEN != 32 && w) result = {{XLEN/2{result[XLEN/2-1]}}, result[XLEN/2-1:0]};
    end
