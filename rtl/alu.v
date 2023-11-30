@@ -41,27 +41,22 @@
 
 `default_nettype none
 
-module alu(sub, ashr, funct3, w, op1, op2, result, eq, lt, ltu);
-   parameter XLEN = 64;
-   parameter XMSB = XLEN-1;
-   parameter X2MSB = ($clog2(XLEN)-1);
+module alu#(parameter XLEN = 64)
+   (input wire          sub,
+    input wire          ashr,
+    input wire [ 2:0]   funct3,
+    input wire          w,
+    input wire [XLEN-1:0] op1,
+    input wire [XLEN-1:0] op2,
+    output reg [XLEN-1:0] result,
+    output wire         eq,
+    output wire         lt,
+    output wire         ltu);
 
-   input  wire           sub;
-   input  wire           ashr;
-   input  wire [    2:0] funct3;
-   input  wire           w;
-   input  wire [XMSB:0]  op1;
-   input  wire [XMSB:0]  op2;
-   output reg  [XMSB:0]  result;
-   output wire           eq;
-   output wire           lt;
-   output wire           ltu;
-
-   // sum = op1 + op2 or op1 - op2
-   wire [XLEN:0]         sum = op1 + ({XLEN{sub}} ^ op2) + sub;
-   wire                  s   = sum[XMSB];
+   wire [XLEN:0]         sum = op1 + ({XLEN{sub}} ^ op2) + sub; // sum = op1 + op2 or op1 - op2
+   wire                  s   = sum[XLEN-1];
    wire                  c   = sum[XLEN];
-   wire                  v   = op1[XMSB] == !op2[XMSB] && op1[XMSB] != s;
+   wire                  v   = op1[XLEN-1] == !op2[XLEN-1] && op1[XLEN-1] != s;
 
    assign                eq  = op1 == op2;
    assign                lt  = s ^ v;
@@ -69,15 +64,15 @@ module alu(sub, ashr, funct3, w, op1, op2, result, eq, lt, ltu);
 
 always @(*) begin
    case (funct3)
-     `SLT:    result = {{XMSB{1'd0}}, lt}; // $signed(op1) < $signed(op2)
-     `SLTU:   result = {{XMSB{1'd0}}, ltu}; // op1 < op2
+     `SLT:    result = {{XLEN-1{1'd0}}, lt}; // $signed(op1) < $signed(op2)
+     `SLTU:   result = {{XLEN-1{1'd0}}, ltu}; // op1 < op2
 
 `ifndef NO_SHIFTS
      `SR_:    if (XLEN != 32 && w)
                 result = $signed({op1[31] & ashr, op1[31:0]}) >>> op2[4:0];
               else
-                result = $signed({op1[XMSB] & ashr, op1}) >>> op2[X2MSB:0];
-     `SLL:    result = op1 << op2[X2MSB:0];
+                result = $signed({op1[XLEN-1] & ashr, op1}) >>> op2[$clog2(XLEN)-1:0];
+     `SLL:    result = op1 << op2[$clog2(XLEN)-1:0];
 `endif
 
      `AND:    result = op1 & op2;
@@ -87,7 +82,7 @@ always @(*) begin
    endcase
 
    if (funct3 == `ADDSUB)
-     result = sum[XMSB:0];
+     result = sum[XLEN-1:0];
 
    if (XLEN != 32 && w) result = {{XLEN/2{result[XLEN/2-1]}}, result[XLEN/2-1:0]};
    end
