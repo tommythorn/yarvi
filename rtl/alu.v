@@ -41,38 +41,47 @@
 
 `default_nettype none
 
-module alu#(parameter XLEN = 64)
+module alu#(parameter XLEN = 64, parameter MSB = XLEN - 1)
    (input wire          sub,
     input wire          ashr,
-    input wire [ 2:0]   funct3,
+    input wire  [ 2:0]  funct3,
     input wire          w,
-    input wire [XLEN-1:0] op1,
-    input wire [XLEN-1:0] op2,
-    output reg [XLEN-1:0] result,
+    input wire  [MSB:0] op1,
+    input wire  [MSB:0] op2,
+
+    output reg  [MSB:0] result,
+    output wire [MSB:0] sum,
     output wire         eq,
     output wire         lt,
     output wire         ltu);
 
-   wire [XLEN:0]         sum = op1 + op2;
+   assign                sum = op1 + op2;
    wire [XLEN:0]         dif = op1 - op2;
 
    assign                eq  = op1 == op2;
-   assign                lt  = dif[XLEN-1] ^ (op1[XLEN-1] != op2[XLEN-1] && op1[XLEN-1] != dif[XLEN-1]);
+   // The signed comparison is funky, but it suffice to check the MSB
+   // of diff, op1, and op2.
+   assign                lt  = dif[MSB] ^ (op1[MSB] != op2[MSB] && op1[MSB] != dif[MSB]);
    assign                ltu = dif[XLEN];
 
 always @(*) begin
+   // Yosys doesn't do timing based synthesis so here we manually
+   // balance the cascaded mux, giving the slowest logic (the adder
+   // calculation) the cheapest path through the mux
    case (funct3)
-     `SLT:    result = {{XLEN-1{1'd0}}, lt}; // $signed(op1) < $signed(op2)
-     `SLTU:   result = {{XLEN-1{1'd0}}, ltu}; // op1 < op2
-     `ADDSUB: result = sub ? dif[XLEN-1:0] : sum[XLEN-1:0];
+     `SLT:    result = {{MSB{1'd0}}, lt}; // $signed(op1) < $signed(op2)
+     `SLTU:   result = {{MSB{1'd0}}, ltu}; // op1 < op2
+     `ADDSUB: result = sub ? dif[MSB:0] : sum[MSB:0];
      default:
        case (funct3)
 `ifndef NO_SHIFTS
-     `SR_:    if (XLEN != 32 && w)
-                result = $signed({op1[31] & ashr, op1[31:0]}) >>> op2[4:0];
-              else
-                result = $signed({op1[XLEN-1] & ashr, op1}) >>> op2[$clog2(XLEN)-1:0];
-     `SLL:    result = op1 << op2[$clog2(XLEN)-1:0];
+         // SRAW is unusual in the world of RISC in that it requires
+         // sign extension of both the operand and the result
+         `SR_: if (XLEN != 32 && w)
+                  result = $signed({op1[31] & ashr, op1[31:0]}) >>> op2[4:0];
+               else
+                  result = $signed({op1[MSB] & ashr, op1}) >>> op2[$clog2(XLEN)-1:0];
+         `SLL:    result = op1 << op2[$clog2(XLEN)-1:0];
 `endif
 
          `AND:    result = op1 & op2;

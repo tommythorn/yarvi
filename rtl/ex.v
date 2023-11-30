@@ -41,7 +41,15 @@ module ex(clock, sub, ashr, funct3, w, fwd1, fwd2, imm1, imm2, imm1val, imm2val,
    reg [XMSB:0]  op2;
    reg [X2MSB:0] rd_r;
 
-   alu #(XLEN) alu(sub, ashr, funct3, w, 1?op1:rf[rs1], 1?op2:rf[rs2], result);
+   wire [XMSB:0] sum;
+   wire          eq;
+   wire          lt;
+   wire          ltu;
+
+   alu #(XLEN) alu(.sub(sub), .ashr(ashr), .funct3(funct3), .w(w),
+                   .op1(1?op1:rf[rs1]), .op2(1?op2:rf[rs2]),
+                   .result(result), .sum(sum), .eq(eq), .lt(lt),
+                   .ltu(ltu));
 
    always @(posedge clock) begin
       rd_r <= rd;
