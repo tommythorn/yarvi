@@ -12,7 +12,7 @@
 
 `define USE_SERIAL 1
 
-`include "../core/yarvi.h"
+`include "../../rtl/yarvi.h"
 
 module DE4
 (
@@ -109,10 +109,10 @@ module DE4
      , .tx_valid        (tx_valid)
      , .tx_data         (tx_data)
 
-     , .htif_state      (htif_state)
-     , .me_pc           (me_pc)
+//   , .htif_state      (htif_state)
+//   , .me_pc           (me_pc)
      );
 
-   always @(posedge clock)
-     led <= me_pc[7:0]; // {htif_state,tx_count,rx_count};
+//   always @(posedge clock)
+//     led <= me_pc[7:0]; // {htif_state,tx_count,rx_count};
 endmodule

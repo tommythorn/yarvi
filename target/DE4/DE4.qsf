@@ -18,13 +18,13 @@ set_global_assignment -name LL_MEMBER_STATE LOCKED -section_id "Root Region"
 set_location_assignment PIN_V34 -to cpu_reset_n
 set_instance_assignment -name IO_STANDARD "2.5 V" -to cpu_reset_n
 
-set_location_assignment PIN_AC35 -to clock_50MHz_bank2
+set_location_assignment PIN_AC35  -to clock_50MHz_bank2
 #set_location_assignment PIN_AV22 -to clock_50MHz_bank3
 #set_location_assignment PIN_AV19 -to clock_50MHz_bank4
 #set_location_assignment PIN_AC6  -to clock_50MHz_bank5
 #set_location_assignment PIN_AB6  -to clock_50MHz_bank6
 #set_location_assignment PIN_A19  -to clock_50MHz_bank7
-set_instance_assignment -name IO_STANDARD "2.5 V" -to clock_50MHz_bank2
+set_instance_assignment -name IO_STANDARD "2.5 V"        -to clock_50MHz_bank2
 #set_instance_assignment -name IO_STANDARD "1.8 V"       -to clock_50MHz_bank3
 #set_instance_assignment -name IO_STANDARD "1.8 V"       -to clock_50MHz_bank4
 #set_instance_assignment -name IO_STANDARD "3.0-V PCI-X" -to clock_50MHz_bank5
@@ -129,17 +129,17 @@ set_instance_assignment -name IO_STANDARD "2.5 V" -to hex1[7]
 
 
 set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
+set_global_assignment -name VERILOG_FILE ../../rtl/alu.v
+set_global_assignment -name VERILOG_FILE ../../rtl/axi_jtaguart.v
+set_global_assignment -name VERILOG_FILE ../../rtl/htif.v
+set_global_assignment -name VERILOG_FILE ../../rtl/rs232rx.v
+set_global_assignment -name VERILOG_FILE ../../rtl/rs232tx.v
+set_global_assignment -name VERILOG_FILE ../../rtl/yarvi.v
+set_global_assignment -name VERILOG_FILE ../../rtl/yarvi_dec_reg_usage.v
+set_global_assignment -name VERILOG_FILE ../../rtl/yarvi_ld_align.v
+set_global_assignment -name VERILOG_FILE ../../rtl/yarvi_soc.v
+set_global_assignment -name VERILOG_FILE ../../rtl/yarvi_st_align.v
 set_global_assignment -name VERILOG_FILE DE4.v
-set_global_assignment -name VERILOG_FILE ../core/yarvi_soc.v
-set_global_assignment -name VERILOG_FILE ../core/yarvi.v
-set_global_assignment -name VERILOG_FILE ../core/yarvi_rf.v
-set_global_assignment -name VERILOG_FILE ../core/yarvi_fe.v
-set_global_assignment -name VERILOG_FILE ../core/yarvi_me.v
-set_global_assignment -name VERILOG_FILE ../core/yarvi_ex.v
-set_global_assignment -name VERILOG_FILE ../core/rs232tx.v
-set_global_assignment -name VERILOG_FILE ../core/rs232rx.v
-set_global_assignment -name VERILOG_FILE ../core/htif.v
-set_global_assignment -name VERILOG_FILE ../core/axi_jtaguart.v
 set_global_assignment -name SDC_FILE DE4.sdc
 set_global_assignment -name CDF_FILE DE4.cdf
 
