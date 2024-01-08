@@ -806,6 +806,7 @@ module yarvi
      endcase
 
    wire s5_alu_res_eq, s5_alu_res_lt, s5_alu_res_ltu;
+   /* verilator lint_off UNUSEDSIGNAL */
    wire [`XMSB:0] s5_sum; // XXX Not used currently but could be the load address
    alu #(`XMSB+1) alu(.sub(s5_alu_sub),
                       .ashr(s5_alu_ashr),
@@ -818,6 +819,7 @@ module yarvi
                       .eq(s5_alu_res_eq),
                       .lt(s5_alu_res_lt),
                       .ltu(s5_alu_res_ltu));
+   /* verilator lint_on UNUSEDSIGNAL */
 
    wire s5_cmp_lt = s5_insn`br_unsigned ? s5_alu_res_ltu : s5_alu_res_lt;
    wire s5_branch_taken = (s5_insn`br_rela ? s5_cmp_lt : s5_alu_res_eq) ^ s5_insn`br_negate;
