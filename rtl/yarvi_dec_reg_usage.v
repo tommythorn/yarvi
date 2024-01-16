@@ -63,8 +63,8 @@ module yarvi_dec_reg_usage
 
           `AUIPC, `LUI, `JAL:
                       {rd,use_rs2,use_rs1} = {   dest, unused, unused};
-        endcase
-        if (insn`rs1 == 0) use_rs1 = 0;
-        if (insn`rs2 == 0) use_rs2 = 0;
-     end
+          endcase
+      if (insn`rs1 == 0) use_rs1 = 0;
+      if (insn`rs2 == 0) use_rs2 = 0;
+   end
 endmodule
