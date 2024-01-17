@@ -13,27 +13,16 @@ CONFIG=-I$(CORE) $(YARVICONFIG) -DINIT_MEM=\"dhry.hex\" -DQUIET -DTOHOST=1000000
 
 #TRACE=--trace
 TRACE=
-obj_dir/Vyarvi: $(SRC)  sim_main.cpp Makefile dhry.hex.0 dhry.hex.1 dhry.hex.2 dhry.hex.3
+obj_dir/Vyarvi: $(SRC) sim_main.cpp Makefile dhry.0.hex dhry.1.hex dhry.2.hex dhry.3.hex
 	verilator -Wall --top-module yarvi \
 	    $(CONFIG) --cc $(SRC) --exe sim_main.cpp
 	make -C obj_dir -f Vyarvi.mk Vyarvi
-	$@
+	$@ +INIT0=dhry.0.hex +INIT1=dhry.1.hex +INIT2=dhry.2.hex +INIT3=dhry.3.hex
 
-dhry.hex.0: dhry.hex
-	cut -c7-8 < $< > $@
-
-dhry.hex.1: dhry.hex
-	cut -c5-6 < $< > $@
-
-dhry.hex.2: dhry.hex
-	cut -c3-4 < $< > $@
-
-dhry.hex.3: dhry.hex
-	cut -c1-2 < $< > $@
-
-sim: obj_dir/Vtoplevel
+sim: obj_dir/Vtoplevel dhry.0.hex dhry.1.hex dhry.2.hex dhry.3.hex
 	@for x in *.mif;do grep : < $$x|sed -e "s,^.*:,," -e "s,;,," > $$x.txt;done
-	@./obj_dir/Vtoplevel
+	@./obj_dir/Vtoplevel +INIT0=dhry.0.hex +INIT1=dhry.1.hex +INIT2=dhry.2.hex +INIT3=dhry.3.hex
+
 
 obj_dir/Vtoplevel: $(SRC)
 	@verilator --cc toplevel.v ../../../red-lava/simulation/altsyncram.v --exe sim_main.cpp 2>&1 > /dev/null

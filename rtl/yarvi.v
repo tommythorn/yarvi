@@ -1592,23 +1592,62 @@ module yarvi
    assign           restart    = s6_restart;
    assign           restart_pc = s6_restart_pc;
 
+`ifdef __ICARUS__
+`define HAS_PLUSARGS 1
+`endif
 
+`ifdef VERILATOR
+`define HAS_PLUSARGS 1
+`endif
 
-//`ifdef SIMULATION
-   /* Simulation-only */
+`ifdef YOSYS
+// Doesn't appear to support $value$plusargs
+`endif
+
+`ifdef ALTERA_RESERVED_QIS
+// Doesn't appear to support $value$plusargs
+`endif
+
+`ifdef HAS_PLUSARGS
+   reg [511:0]   init_mem_0 = "init_mem.0.hex",
+                 init_mem_1 = "init_mem.1.hex",
+                 init_mem_2 = "init_mem.2.hex",
+                 init_mem_3 = "init_mem.3.hex";
+`endif
+
    reg [31:0] i;
    initial begin
 `ifndef QUIET
       $display("Initializing the %d B data memory", 1 << (`PMSB + 1));
 `endif
-      $readmemh({`INIT_MEM,".0"}, code0);
-      $readmemh({`INIT_MEM,".1"}, code1);
-      $readmemh({`INIT_MEM,".2"}, code2);
-      $readmemh({`INIT_MEM,".3"}, code3);
-      $readmemh({`INIT_MEM,".0"}, data0);
-      $readmemh({`INIT_MEM,".1"}, data1);
-      $readmemh({`INIT_MEM,".2"}, data2);
-      $readmemh({`INIT_MEM,".3"}, data3);
+`ifdef HAS_PLUSARGS
+      if ($value$plusargs("INIT0=%s", init_mem_0))
+         /*$display("Loading lane 0 from %s", init_mem_0)*/;
+      if ($value$plusargs("INIT1=%s", init_mem_1))
+         /*$display("Loading lane 1 from %s", init_mem_1)*/;
+      if ($value$plusargs("INIT2=%s", init_mem_2))
+         /*$display("Loading lane 2 from %s", init_mem_2)*/;
+      if ($value$plusargs("INIT3=%s", init_mem_3))
+         /*$display("Loading lane 3 from %s", init_mem_3)*/;
+      $readmemh(init_mem_0, code0);
+      $readmemh(init_mem_0, data0);
+      $readmemh(init_mem_1, code1);
+      $readmemh(init_mem_1, data1);
+      $readmemh(init_mem_2, code2);
+      $readmemh(init_mem_2, data2);
+      $readmemh(init_mem_3, code3);
+      $readmemh(init_mem_3, data3);
+`else
+      $readmemh("init_mem.0.hex", code0);
+      $readmemh("init_mem.0.hex", data0);
+      $readmemh("init_mem.1.hex", code1);
+      $readmemh("init_mem.1.hex", data1);
+      $readmemh("init_mem.2.hex", code2);
+      $readmemh("init_mem.2.hex", data2);
+      $readmemh("init_mem.3.hex", code3);
+      $readmemh("init_mem.3.hex", data3);
+`endif
+
       for (i = 0; i < 32; i = i + 1)
         regs[i[4:0]] = {26'd0,i[5:0]};
       regs[2] = 'h80000000 + (1 << (`PMSB + 1)); // XXX Total hack
@@ -1622,7 +1661,6 @@ module yarvi
          yags_direction[i] = 1;
       end
    end
-//`endif
 
 `ifdef DISASSEMBLE
    yarvi_disass disass

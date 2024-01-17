@@ -19,7 +19,7 @@ SIM=icarus
 #SIM=verilator not quite ready yet
 
 
-.PRECIOUS: %.hex %.hex.0 %.hex.1 %.hex.2 %.hex.3 %.$(SIM)
+.PRECIOUS: %.hex %.0.hex %.1.hex %.2.hex %.3.hex %.$(SIM)
 
 TESTS= \
   I-ADD-01.elf \
@@ -86,64 +86,59 @@ newtest: $(patsubst %,$(TESTDIR)%.trace,$(TESTS))
 	@printf "  Passing: %3d\n" $$(ls $(patsubst %,$(TESTDIR)%.trace.pass,$(TESTS)) 2> /dev/null| wc -l)
 	@printf "  Failing: %3d\n" $$(ls $(patsubst %,$(TESTDIR)%.trace.fail,$(TESTS)) 2> /dev/null| wc -l)
 
-%.bin: %.elf
-	$(RVPREFIX)objcopy -O binary $^ $@
-
-%.hex: %.bin
-	cat $^ /dev/zero|dd iflag=fullblock bs=1k count=$(MEMSIZEK)|hexdump -ve '"%08x\n"' > $@
-
-%.hex.3: %.hex
-	$(QUIET)cut -c1-2 < $< > $@
-
-%.hex.2: %.hex
-	$(QUIET)cut -c3-4 < $< > $@
-
-%.hex.1: %.hex
-	$(QUIET)cut -c5-6 < $< > $@
-
-%.hex.0: %.hex
-	$(QUIET)cut -c7-8 < $< > $@
-
-%.dis: %.elf
-	riscv32-unknown-elf-objdump -d -M numeric,no-aliases $^ > $@
-
 %.spike: %
 	spike $< > $@ 2>&1
 
-%.icarus: %.hex %.hex.0 %.hex.1 %.hex.2 %.hex.3 $(ICARUS_SRC) $(SRC) $(HDR)
+%.icarus: %.hex %.0.hex %.1.hex %.2.hex %.3.hex $(ICARUS_SRC) $(SRC) $(HDR)
 	$(QUIET)iverilog \
 		-DBEGIN_SIGNATURE=`nm $(basename $<).elf|egrep ' begin_signature$$'|cut -d' ' -f1` \
 		-DEND_SIGNATURE=`nm $(basename $<).elf|egrep ' end_signature$$'|cut -d' ' -f1` \
 		-DTOHOST=`nm $(basename $<).elf|egrep ' tohost$$'|cut -d' ' -f1` \
-		 -I$(CORE)/ $(CONFIG) -DINIT_MEM=\"$<\" \
+		 -I$(CORE)/ $(CONFIG) \
 		-o $@ $(ICARUS_SRC) $(SRC)
 
-%.verilator: %.hex %.hex.0 %.hex.1 %.hex.2 %.hex.3 $(SRC) $(HDR) sim_main.cpp
+%.verilator: %.hex %.0.hex %.1.hex %.2.hex %.3.hex $(SRC) $(HDR) sim_main.cpp
 	$(QUIET)verilator -CFLAGS -O3 -O3 -Wall --cc --exe sim_main.cpp \
 		--top-module yarvi \
 		-DBEGIN_SIGNATURE=`nm $(basename $<).elf|egrep ' begin_signature$$'|cut -d' ' -f1` \
 		-DEND_SIGNATURE=`nm $(basename $<).elf|egrep ' end_signature$$'|cut -d' ' -f1` \
 		-DTOHOST=`nm $(basename $<).elf|egrep ' tohost$$'|cut -d' ' -f1` \
 		$(UNDEFS) \
-		 -I$(CORE)/ $(CONFIG) -DINIT_MEM=\"$<\" \
+		 -I$(CORE)/ $(CONFIG) \
 		-Mdir $@ $(SRC)
 	make -C $@ -f Vyarvi.mk Vyarvi
 
 %.trace: %.$(SIM)
-	$(QUIET)./$^ > $@
+	$(QUIET)./$^  \
+		+INIT0=$(basename $@).0.hex \
+		+INIT1=$(basename $@).1.hex \
+		+INIT2=$(basename $@).2.hex \
+		+INIT3=$(basename $@).3.hex \
+		> $@
 	$(QUIET)if grep -q 'TOHOST 00000001' $@;then \
 		touch $@.pass; else ln -fs $@ $@.fail; fi
 
 %.run: %.verilator
-	$@/Vyarvi
-
+	$@/Vyarvi  \
+		+INIT0=$(basename $@).0.hex \
+		+INIT1=$(basename $@).1.hex \
+		+INIT2=$(basename $@).2.hex \
+		+INIT3=$(basename $@).3.hex
 
 %.run: %.icarus
-	./$^
+	./$^ \
+		+INIT0=$(basename $@).0.hex \
+		+INIT1=$(basename $@).1.hex \
+		+INIT2=$(basename $@).2.hex \
+		+INIT3=$(basename $@).3.hex
 
 %.comply: %.$(SIM)
-	$(QUIET)./$^ | \
-	tee $(basename $<).catch | \
+	$(QUIET)./$^   \
+		+INIT0=$(basename $@).0.hex \
+		+INIT1=$(basename $@).1.hex \
+		+INIT2=$(basename $@).2.hex \
+		+INIT3=$(basename $@).3.hex \
+	| tee $(basename $<).catch | \
 	grep ^Signature -A999999|egrep '^[0-9a-f]+$$' | \
 	if diff - $(basename $<).ref; then \
 		printf "%-20s PASSED\n" $(basename $@); touch $@.pass; \

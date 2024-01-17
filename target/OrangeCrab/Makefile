@@ -11,14 +11,13 @@ FLASH_MODE=qspi
 FLASH_FREQ=38.8 #MHz
 JLINK=JTAGLoadExe
 #JLINK=JTAGLoad
-SILENT=@
+QUIET=@
 
-PROG=I-ECALL-01
 CORE=../../rtl/
 include $(CORE)/Makefile.common
 SRC=top.v $(patsubst %,$(CORE)/%,$(YARVISRC)) rs232out.v rs232in.v
 HDR=$(patsubst %,$(CORE)/%,$(YARVIHDR))
-CONFIG=$(YARVICONFIG) -DINIT_MEM=\"$(PROG).hex\"
+CONFIG=$(YARVICONFIG)
 
 #OPTS=abc2 abc9 abc9_nowidelut
 #OPTS=abc9_noflatten # this option didn't work for me
@@ -31,26 +30,14 @@ all: 1.config
 sweep: $(patsubst %,%.config,$(SEEDS))
 	grep ERROR.*MHz *.config.out|sed 's/.*: //g'|sort -n
 
-%.json: $(SRC) Makefile $(PROG).hex.0 $(PROG).hex.1 $(PROG).hex.2 $(PROG).hex.3
-	$(SILENT)yosys -p "synth_ecp5 -$(shell echo $(basename $@)|sed 's/_/ -/g') -json $@" $(CONFIG) $(SRC) > $@.yosys.out
+%.json: $(SRC) Makefile init_mem.0.hex init_mem.1.hex init_mem.2.hex init_mem.3.hex
+	$(QUIET)yosys -p "synth_ecp5 -$(shell echo $(basename $@)|sed 's/_/ -/g') -json $@" $(CONFIG) $(SRC) > $@.yosys.out
 
 %.config: abc9.json
-	$(SILENT)-nextpnr-ecp5 --json $< --lpf $(CONSTR) --textcfg $@ --85k --package CSFBGA285 --speed $(SPEEDGRADE) \
+	$(QUIET)-nextpnr-ecp5 --json $< --lpf $(CONSTR) --textcfg $@ --85k --package CSFBGA285 --speed $(SPEEDGRADE) \
 		--seed=$(basename $@) 2> $@.out
 
-#	$(SILENT)egrep -Ho ': [0-9\.]+ MHz' $@.out | tail -1
-
-$(PROG).hex.0: $(PROG).hex
-	cut -c7-8 < $< > $@
-
-$(PROG).hex.1: $(PROG).hex
-	cut -c5-6 < $< > $@
-
-$(PROG).hex.2: $(PROG).hex
-	cut -c3-4 < $< > $@
-
-$(PROG).hex.3: $(PROG).hex
-	cut -c1-2 < $< > $@
+#	$(QUIET)egrep -Ho ': [0-9\.]+ MHz' $@.out | tail -1
 
 %.bit: %.config
 	ecppack --svf-rowsize 100000  --spimode $(FLASH_MODE) --freq $(FLASH_FREQ) \

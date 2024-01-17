@@ -37,20 +37,27 @@ YARVISRC=htif.v yarvi_soc.v yarvi_disass.v yarvi.v \
 YARVIHDR=riscv.h
 YARVICONFIG=-DXMSB=31 -DVMSB=31 -DPMSB=16 -DTIMEOUT=16000 $(VERB$(V))
 
-%.txt: %.bin
-	(cat $^;cat /dev/zero)|dd iflag=fullblock bs=1k count=$(MEMSIZEK)|hexdump -ve '"%08x\n"' > $@
-	cut -c1-2 $@ > mem3.txt
-	cut -c3-4 $@ > mem2.txt
-	cut -c5-6 $@ > mem1.txt
-	cut -c7-8 $@ > mem0.txt
-	cp $(COMMON)initregs.txt .
+%.hex: %.bin
+	$(QUIET)(cat $^;cat /dev/zero)|dd iflag=fullblock bs=1k count=$(MEMSIZEK) 2>/dev/null|hexdump -ve '"%08x\n"' > $@
+
+%.3.hex: %.hex
+	$(QUIET)cut -c1-2 $< > $@
+
+%.2.hex: %.hex
+	$(QUIET)cut -c3-4 $< > $@
+
+%.1.hex: %.hex
+	$(QUIET)cut -c5-6 $< > $@
+
+%.0.hex: %.hex
+	$(QUIET)cut -c7-8 $< > $@
 
 %.riscv: $(COMMON)crt0.o %.o
-	$(RVPREFIX)ld -T$(COMMON)yarvi.ld -melf64lriscv -o $@ $^
-	$(RVPREFIX)objdump -sd $^ > $^.dis
+	$(QUIET)$(RVPREFIX)ld -T$(COMMON)yarvi.ld -melf64lriscv -o $@ $^
+	$(QUIET)$(RVPREFIX)objdump -sd $^ > $^.dis
 
-%.bin: %.riscv
-	$(RVPREFIX)objcopy -O binary $^ $@
+%.bin: %.elf
+	$(QUIET)$(RVPREFIX)objcopy -O binary $^ $@
 
-%.riscv.dis: %.riscv
-	$(RVPREFIX)objdump -d $^ > $@
+%.dis: %.elf
+	$(QUIET)$(RVPREFIX)objdump -d -M numeric,no-aliases $^ > $@
