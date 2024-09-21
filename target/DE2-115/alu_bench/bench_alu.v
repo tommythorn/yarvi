@@ -19,7 +19,7 @@
 // OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // -----------------------------------------------------------------------
 
-`define XLEN 32
+`define XLEN 11
 
 module top
   (input  wire        CLOCK_50
@@ -51,9 +51,11 @@ module top
    wire         lt;
    wire         ltu;
 
-   alu #(`XLEN) alu(.sub(sub), .ashr(ashr), .funct3(funct3), .w(w),
-                    .op1(op1), .op2(op2), .result(result), .sum(sum),
-                    .eq(eq), .lt(lt), .ltu(ltu));
+   alu
+     #(.XLEN(`XLEN), .SHIFT_EN(0), .W_EN(0))
+     alu(.sub(sub), .ashr(ashr), .funct3(funct3), .w(w),
+         .op1(op1), .op2(op2), .result(result), .sum(sum),
+         .eq(eq), .lt(lt), .ltu(ltu));
 
 `define traditional 1
 `ifdef traditional

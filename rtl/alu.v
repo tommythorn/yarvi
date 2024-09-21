@@ -41,7 +41,11 @@
 
 `default_nettype none
 
-module alu#(parameter XLEN = 64, parameter MSB = XLEN - 1)
+module alu
+  #(parameter XLEN = 64,
+    parameter SHIFT_EN = 1, // Shifts might be migrated out
+    parameter W_EN = XLEN == 64,
+    parameter MSB = XLEN - 1)
    (input wire          sub,
     input wire          ashr,
     input wire  [ 2:0]  funct3,
@@ -74,16 +78,21 @@ always @(*) begin
      `ADDSUB: result = sub ? dif[MSB:0] : sum[MSB:0];
      default:
        case (funct3)
-`ifndef NO_SHIFTS
          // SRAW is unusual in the world of RISC in that it requires
          // sign extension of both the operand and the result
-         `SR_: if (XLEN != 32 && w)
-                  result = $signed({op1[31] & ashr, op1[31:0]}) >>> op2[4:0];
-               else
-                  result = $signed({op1[MSB] & ashr, op1}) >>> op2[$clog2(XLEN)-1:0];
-         `SLL:    result = op1 << op2[$clog2(XLEN)-1:0];
-`endif
-
+         `SR_:
+	   if (SHIFT_EN)
+	     if (W_EN && w)
+	       result = $signed({op1[31] & ashr, op1[31:0]}) >>> op2[4:0];
+             else
+               result = $signed({op1[MSB] & ashr, op1}) >>> op2[$clog2(XLEN)-1:0];
+	   else
+	     result = 'hX;
+         `SLL:
+	   if (SHIFT_EN)
+	     result = op1 << op2[$clog2(XLEN)-1:0];
+	   else
+	     result = 'hX;
          `AND:    result = op1 & op2;
          `OR:     result = op1 | op2;
          `XOR:    result = op1 ^ op2;
@@ -91,6 +100,6 @@ always @(*) begin
        endcase
    endcase
 
-   if (XLEN != 32 && w) result = {{XLEN/2{result[XLEN/2-1]}}, result[XLEN/2-1:0]};
+   if (W_EN && w) result = {{XLEN/2{result[XLEN/2-1]}}, result[XLEN/2-1:0]};
    end
 endmodule

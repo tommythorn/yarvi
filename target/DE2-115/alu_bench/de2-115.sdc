@@ -6,7 +6,7 @@
 #**************************************************************
 # Create Clock
 #**************************************************************
-create_clock -period  8 [get_ports CLOCK_50]
+create_clock -period  4 [get_ports CLOCK_50]
 create_clock -period 20 [get_ports CLOCK2_50]
 create_clock -period 20 [get_ports CLOCK3_50]
 
