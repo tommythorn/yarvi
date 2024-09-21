@@ -43,12 +43,21 @@ module yarvi_soc
   // debug
   , output wire [`VMSB:0] debug);
 
+   wire [29:0]       io_address;
+   wire [31:0]	     io_wdata;
+   wire [ 3:0]	     io_we;
+
    assign rx_ready = 1;
-   assign {tx_valid, tx_data} = debug[8:0];
+   assign tx_valid = io_address == 'h10000000/4 && io_we[0]; // XXX Hack to match picoRV??
+   assign tx_data  = io_wdata[7:0];
 
    yarvi yarvi
      ( .clock           (clock)
      , .reset           (reset)
+
+     , .io_address      (io_address)
+     , .io_wdata        (io_wdata)
+     , .io_we           (io_we)
 
 /* verilator lint_off PINCONNECTEMPTY */
      , .retire_valid    ()

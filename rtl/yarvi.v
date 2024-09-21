@@ -106,6 +106,11 @@ module yarvi
   ( input  wire             clock
   , input  wire             reset
 
+  // IO bus (not inputs yet)
+  , output reg [29:0]       io_address
+  , output reg [31:0]       io_wdata
+  , output reg [ 3:0]       io_we
+
   , output reg              retire_valid = 0
   , output reg [ 1:0]       retire_priv
   , output reg [`VMSB:0]    retire_pc
@@ -1473,7 +1478,15 @@ module yarvi
       mtime                             <= mtime_future;
       s7_timer_interrupt                <= s7_timer_interrupt_future;
 
-      if (s6_valid && s6_insn`opcode == `STORE && (s6_addr & 32'h4FFFFFF3) == 32'h40000000)
+      io_address                        <= s6_addr[`PMSB:2];
+      io_wdata                          <= s6_st_data;
+
+      io_we                             <=
+         (s6_valid && !s6_flush && !s6_trap && !s6_intr && s6_insn`opcode == `STORE)
+         ? s6_st_mask : 0;
+
+      if (s6_valid && !s6_flush && !s6_trap && !s6_intr && s6_insn`opcode == `STORE
+          && (s6_addr & 32'h4FFFFFF3) == 32'h40000000)
         case (s6_addr[3:2])
           0: mtime[31:0]                <= s6_rs2;
           1: mtime[63:32]               <= s6_rs2;
